@@ -8,15 +8,12 @@
     --bg:#0d1117;--s1:#111827;--s2:#1a2235;--s3:#1e293b;
     --border:#1f2d45;--b2:#2d3f5e;
     --accent:#3b82f6;--text:#e2e8f0;--muted:#64748b;
-    --green:#10b981;--red:#ef4444;--yellow:#f59e0b;
+    --green:#10b981;--red:#ef4444;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);width:300px}
-
   .header{background:var(--s1);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:8px}
   .header h1{font-size:14px;font-weight:700}
-
-  /* LOGIN */
   #screen-login{padding:18px}
   .hint{font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px;line-height:1.5}
   .field{display:flex;flex-direction:column;gap:4px;margin-bottom:11px}
@@ -31,8 +28,6 @@
   .err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:7px;padding:8px 11px;font-size:12px;color:#fca5a5;margin-bottom:10px;display:none}
   .divider{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;margin:10px 0}
   .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
-
-  /* APP */
   #screen-app{display:none}
   .user-bar{background:var(--s1);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
   .u-info{display:flex;align-items:center;gap:8px}
@@ -50,7 +45,6 @@
   .btn-clear{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px;font-size:12px;cursor:pointer;font-family:inherit;width:100%;transition:all .13s}
   .btn-clear:hover{border-color:var(--red);color:var(--red)}
   .footer-bar{padding:8px 14px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);text-align:center;min-height:28px}
-
   .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:5px;vertical-align:middle}
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
@@ -59,171 +53,37 @@
 
 <div class="header"><span>🔧</span><h1>CRM Piese Auto</h1></div>
 
-<!-- ── LOGIN ── -->
 <div id="screen-login">
   <div style="padding:18px">
     <p class="hint">Loghează-te pe dashboard și sesiunea se preia automat.</p>
-    <button class="btn btn-outline" id="btn-open-dashboard" onclick="openDashboardTab()">
-      🌐 Deschide Dashboard → Login
-    </button>
+    <button class="btn btn-outline" id="btn-open-dashboard">🌐 Deschide Dashboard → Login</button>
     <div class="divider">sau loghează-te direct</div>
     <div class="err" id="err-msg"></div>
     <div class="field"><label>Email</label><input type="email" id="inp-email" placeholder="adresa@email.com" autocomplete="email"/></div>
     <div class="field"><label>Parolă</label><input type="password" id="inp-pass" placeholder="••••••••" autocomplete="current-password"/></div>
-    <button class="btn" id="btn-login" onclick="doLogin()">Intră în cont</button>
+    <button class="btn" id="btn-login">Intră în cont</button>
   </div>
 </div>
 
-<!-- ── APP ── -->
 <div id="screen-app">
   <div class="user-bar">
     <div class="u-info">
       <div class="avatar" id="av">?</div>
       <div><div class="u-name" id="u-name">—</div><div class="u-role" id="u-role">—</div></div>
     </div>
-    <button class="btn-sm" onclick="doLogout()">⏻ Ieși</button>
+    <button class="btn-sm" id="btn-logout">⏻ Ieși</button>
   </div>
   <div class="cart-row">
     <div class="cart-num" id="cart-count">0</div>
     <div><div style="font-weight:600;font-size:13px">Produse în coș</div><div class="cart-label">gata de comandat</div></div>
   </div>
   <div class="actions">
-    <button class="btn" onclick="openDashboardTab('dashboard.html')">📊 Deschide Dashboard</button>
-    <button class="btn-clear" onclick="clearCart()">🗑️ Golește coșul CRM</button>
+    <button class="btn btn-secondary" id="btn-dashboard">📊 Deschide Dashboard</button>
+    <button class="btn-clear" id="btn-clear-cart">🗑️ Golește coșul CRM</button>
   </div>
   <div class="footer-bar" id="status-bar">Activ pe e-cat.intercars.eu</div>
 </div>
 
-<script>
-const SB  = 'https://ddieqobpxejocfnbmfck.supabase.co';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
-
-function setErr(msg) {
-  const el = document.getElementById('err-msg');
-  el.textContent = msg;
-  el.style.display = msg ? 'block' : 'none';
-}
-
-function setStatus(msg) {
-  const el = document.getElementById('status-bar');
-  if (el) el.textContent = msg;
-}
-
-// ── INIT ─────────────────────────────────────────────────────
-chrome.storage.local.get(['crm_session','crm_user','crm_cart'], d => {
-  const sess = d.crm_session;
-  const valid = sess?.access_token && new Date((sess.expires_at||0)*1000) > new Date();
-  if (valid) showApp(d.crm_user, d.crm_cart||[]);
-  else       showLogin();
-});
-
-chrome.storage.onChanged.addListener(changes => {
-  if (changes.crm_cart) {
-    const n = (changes.crm_cart.newValue||[]).length;
-    const el = document.getElementById('cart-count');
-    if (el) el.textContent = n;
-  }
-  if (changes.crm_session) {
-    const sess = changes.crm_session.newValue;
-    const valid = sess?.access_token && new Date((sess.expires_at||0)*1000) > new Date();
-    if (valid) {
-      chrome.storage.local.get(['crm_user','crm_cart'], d => showApp(d.crm_user, d.crm_cart||[]));
-    }
-  }
-});
-
-function showLogin() {
-  document.getElementById('screen-login').style.display = 'block';
-  document.getElementById('screen-app').style.display   = 'none';
-}
-
-function showApp(user, cart) {
-  document.getElementById('screen-login').style.display = 'none';
-  document.getElementById('screen-app').style.display   = 'block';
-  const name = user?.name || user?.email || '—';
-  document.getElementById('u-name').textContent     = name;
-  document.getElementById('u-role').textContent     = user?.role==='administrator' ? '⭐ Administrator' : '👤 User';
-  document.getElementById('av').textContent         = name[0].toUpperCase();
-  document.getElementById('cart-count').textContent = cart.length;
-}
-
-// ── LOGIN ─────────────────────────────────────────────────────
-async function doLogin() {
-  const email = document.getElementById('inp-email').value.trim();
-  const pass  = document.getElementById('inp-pass').value;
-  if (!email || !pass) { setErr('Completează email și parola.'); return; }
-
-  const btn = document.getElementById('btn-login');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Se autentifică...';
-  setErr('');
-
-  try {
-    const r1 = await fetch(`${SB}/auth/v1/token?grant_type=password`, {
-      method:'POST',
-      headers:{'apikey':KEY,'Content-Type':'application/json'},
-      body: JSON.stringify({ email, password:pass }),
-    });
-    const sess = await r1.json();
-    if (!r1.ok) throw new Error(sess.error_description || sess.msg || 'Autentificare eșuată');
-
-    // Fetch profil
-    let name = email, role = 'user';
-    try {
-      const r2 = await fetch(`${SB}/rest/v1/user_profiles?select=name,role&limit=1`, {
-        headers:{'apikey':KEY,'Authorization':`Bearer ${sess.access_token}`}
-      });
-      const p = await r2.json();
-      if (p?.length) { name = p[0].name||email; role = p[0].role; }
-    } catch {}
-
-    const user = { id:sess.user?.id, email, name, role };
-    chrome.storage.local.set({ crm_session:sess, crm_user:user }, () => {
-      showApp(user, []);
-    });
-
-  } catch(e) {
-    setErr(e.message);
-    btn.disabled = false;
-    btn.textContent = 'Intră în cont';
-  }
-}
-
-// Enter key pe inputs
-['inp-email','inp-pass'].forEach(id => {
-  document.getElementById(id)?.addEventListener('keydown', e => {
-    if (e.key === 'Enter') doLogin();
-  });
-});
-
-// ── LOGOUT ────────────────────────────────────────────────────
-function doLogout() {
-  chrome.storage.local.get('crm_session', d => {
-    const token = d.crm_session?.access_token;
-    if (token) {
-      fetch(`${SB}/auth/v1/logout`, {
-        method:'POST',
-        headers:{'apikey':KEY,'Authorization':`Bearer ${token}`}
-      }).catch(()=>{});
-    }
-    chrome.storage.local.remove(['crm_session','crm_user'], showLogin);
-  });
-}
-
-// ── DASHBOARD ─────────────────────────────────────────────────
-function openDashboardTab(page='index.html') {
-  chrome.tabs.create({ url:`https://piesenoicrm.netlify.app/${page}` });
-  window.close();
-}
-
-// ── CLEAR CART ────────────────────────────────────────────────
-function clearCart() {
-  chrome.storage.local.remove('crm_cart', () => {
-    document.getElementById('cart-count').textContent = '0';
-    setStatus('Coș golit ✓');
-    setTimeout(()=>setStatus('Activ pe e-cat.intercars.eu'), 2000);
-  });
-}
-</script>
+<script src="popup.js"></script>
 </body>
 </html>
