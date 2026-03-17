@@ -205,6 +205,124 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .fw-bold { font-weight:700 }
 .font-mono { font-family:monospace }
 .saving { opacity:.5; transition:opacity .15s }
+
+/* ── GLOBAL SEARCH ── */
+#global-search-wrap {
+  position:relative; flex:1; max-width:380px;
+}
+#global-search {
+  width:100%; background:var(--s2); border:1px solid var(--border);
+  border-radius:10px; color:var(--text); padding:8px 14px 8px 36px;
+  font-size:13px; outline:none; font-family:inherit; transition:border-color .15s;
+}
+#global-search:focus { border-color:var(--accent) }
+#global-search-icon {
+  position:absolute; left:11px; top:50%; transform:translateY(-50%);
+  color:var(--muted); font-size:14px; pointer-events:none;
+}
+#search-results-dropdown {
+  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:200;
+  background:var(--s1); border:1px solid var(--border); border-radius:12px;
+  box-shadow:0 16px 40px rgba(0,0,0,.5); overflow:hidden; display:none;
+  max-height:420px; overflow-y:auto;
+}
+.search-group-title {
+  padding:8px 14px 4px; font-size:10px; color:var(--muted);
+  text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid var(--border);
+  background:var(--s2);
+}
+.search-result-item {
+  padding:10px 14px; cursor:pointer; transition:background .1s;
+  display:flex; align-items:center; gap:10px; border-bottom:1px solid #0c1420;
+}
+.search-result-item:hover { background:var(--s2) }
+.search-result-item .icon { font-size:16px; flex-shrink:0 }
+.search-result-main { font-size:13px; font-weight:600 }
+.search-result-sub  { font-size:11px; color:var(--muted) }
+#search-shortcut {
+  position:absolute; right:10px; top:50%; transform:translateY(-50%);
+  background:var(--s3); border:1px solid var(--border); border-radius:4px;
+  padding:1px 6px; font-size:10px; color:var(--muted);
+}
+
+/* ── KANBAN ── */
+#kanban-view { display:none }
+.kanban-board { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; align-items:start }
+.kanban-col { background:var(--s2); border-radius:12px; border:1px solid var(--border); overflow:hidden }
+.kanban-col-header {
+  padding:11px 14px; font-size:12px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.5px; border-bottom:1px solid var(--border); display:flex;
+  align-items:center; justify-content:space-between;
+}
+.kanban-cards { padding:10px; display:flex; flex-direction:column; gap:8px; min-height:60px }
+.kanban-card {
+  background:var(--s1); border:1px solid var(--border); border-radius:10px;
+  padding:11px 13px; cursor:pointer; transition:border-color .15s, transform .1s;
+}
+.kanban-card:hover { border-color:var(--accent); transform:translateY(-1px) }
+.kanban-card-name { font-weight:700; font-size:13px; margin-bottom:4px }
+.kanban-card-meta { font-size:11px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px }
+.kanban-card-footer { display:flex; justify-content:space-between; align-items:center; margin-top:6px }
+.kanban-progress { height:4px; background:var(--border); border-radius:2px; flex:1; margin-right:8px; overflow:hidden }
+.kanban-progress-bar { height:100%; border-radius:2px; background:var(--green); transition:width .3s }
+@media(max-width:800px){ .kanban-board { grid-template-columns:1fr } }
+
+/* ── VIEW TOGGLE ── */
+.view-toggle { display:flex; background:var(--s2); border:1px solid var(--border); border-radius:8px; padding:3px; gap:2px }
+.view-btn {
+  background:none; border:none; color:var(--muted); padding:5px 10px;
+  border-radius:6px; cursor:pointer; font-size:13px; transition:all .13s;
+}
+.view-btn.active { background:var(--accent); color:#fff }
+
+/* ── STOCK ALERTS ── */
+#stock-alert-badge {
+  display:none; background:var(--yellow); color:#000; border-radius:99px;
+  font-size:10px; font-weight:700; padding:2px 7px; margin-left:6px;
+  animation:pulse 2s ease infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+#stock-alert-panel {
+  display:none; margin-bottom:16px; background:rgba(245,158,11,.08);
+  border:1px solid rgba(245,158,11,.3); border-radius:12px; padding:14px 16px;
+}
+.stock-alert-item {
+  display:flex; align-items:center; gap:10px; padding:6px 0;
+  border-bottom:1px solid rgba(245,158,11,.15); font-size:13px;
+}
+.stock-alert-item:last-child { border-bottom:none }
+
+/* ── PRICE HISTORY ── */
+.ph-chart { display:flex; align-items:flex-end; gap:4px; height:50px; margin:8px 0 }
+.ph-bar {
+  flex:1; background:var(--accent); border-radius:3px 3px 0 0;
+  min-height:4px; transition:height .3s; cursor:pointer; position:relative;
+}
+.ph-bar:hover::after {
+  content:attr(data-tip); position:absolute; bottom:calc(100% + 4px); left:50%;
+  transform:translateX(-50%); background:#000; color:#fff; font-size:10px;
+  padding:3px 7px; border-radius:5px; white-space:nowrap; z-index:10;
+}
+.ph-bar.highest { background:var(--red) }
+.ph-bar.lowest  { background:var(--green) }
+
+/* ── NOTIFICATIONS ── */
+#notif-badge {
+  display:none; position:absolute; top:-3px; right:-3px;
+  width:8px; height:8px; background:var(--red); border-radius:50%;
+  border:2px solid var(--bg);
+}
+.notif-btn-wrap { position:relative; display:inline-flex }
+
+/* ── WHATSAPP ── */
+.wa-btn {
+  display:inline-flex; align-items:center; gap:5px;
+  background:#25D366; color:#fff; border:none; border-radius:7px;
+  padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer;
+  font-family:inherit; transition:opacity .15s; text-decoration:none;
+}
+.wa-btn:hover { opacity:.88 }
+
 .saved-flash { animation: savedFlash .8s ease }
 @keyframes savedFlash { 0%{background:rgba(16,185,129,.18)} 100%{background:transparent} }
 .row-saved-dot { width:5px;height:5px;border-radius:50%;background:var(--green);opacity:0;transition:opacity .4s;margin:auto }
@@ -228,6 +346,9 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     </button>
     <button class="nav-item" onclick="navigate('produse')" id="nav-produse">
       <span class="icon">🔍</span> Caută Produse
+    </button>
+    <button class="nav-item" onclick="navigate('preturi')" id="nav-preturi">
+      <span class="icon">📈</span> Istoric Prețuri
     </button>
     <button class="nav-item" onclick="navigate('audit')" id="nav-audit" style="display:none">
       <span class="icon">📜</span> Loguri
@@ -291,6 +412,49 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <button class="btn btn-secondary btn-sm" onclick="loadOrders()">↻</button>
   </div>
 
+  <!-- Stock Alerts Panel -->
+  <div id="stock-alert-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <strong style="color:var(--yellow)">⚠️ Coduri în cerere repetată</strong>
+      <button class="icon-btn" onclick="document.getElementById('stock-alert-panel').style.display='none'">✕</button>
+    </div>
+    <div id="stock-alert-list"></div>
+  </div>
+
+  <!-- View Toggle -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div class="view-toggle">
+      <button class="view-btn active" id="view-btn-table"  onclick="switchView('table')">☰ Tabel</button>
+      <button class="view-btn"        id="view-btn-kanban" onclick="switchView('kanban')">⬜ Kanban</button>
+    </div>
+    <span style="font-size:12px;color:var(--muted)" id="orders-count-label"></span>
+  </div>
+
+  <!-- Kanban View -->
+  <div id="kanban-view">
+    <div class="kanban-board">
+      <div class="kanban-col">
+        <div class="kanban-col-header" style="color:var(--yellow)">
+          🔄 În Lucru <span id="k-count-lucru" class="badge b-in_lucru">0</span>
+        </div>
+        <div class="kanban-cards" id="k-col-lucru"></div>
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col-header" style="color:var(--green)">
+          ✅ Finalizate <span id="k-count-final" class="badge b-finalizata">0</span>
+        </div>
+        <div class="kanban-cards" id="k-col-final"></div>
+      </div>
+      <div class="kanban-col">
+        <div class="kanban-col-header" style="color:var(--red)">
+          ❌ Anulate <span id="k-count-anulat" class="badge b-anulata">0</span>
+        </div>
+        <div class="kanban-cards" id="k-col-anulat"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tbl-view">
   <div class="tbl-wrap">
     <div id="orders-loading"><span class="spinner"></span>Se încarcă...</div>
     <table id="orders-table" style="display:none">
@@ -304,6 +468,8 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
       <tbody id="orders-body"></tbody>
     </table>
   </div>
+
+  </div><!-- /tbl-view -->
 
   <!-- DETAIL PANEL -->
   <div id="detail-panel">
@@ -451,6 +617,54 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
       </thead>
       <tbody id="search-body">
         <tr><td colspan="12" class="empty-state">Apasă "Toate produsele" sau caută după un criteriu.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: ISTORIC PREȚURI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-preturi">
+  <div class="page-header">
+    <div class="page-title">Istoric Prețuri</div>
+  </div>
+  <div class="filters">
+    <input type="text" id="ph-cod" placeholder="Cod aftermarket..." style="flex:1;min-width:160px"/>
+    <input type="text" id="ph-furnizor" placeholder="Furnizor..." style="min-width:130px"/>
+    <button class="btn btn-primary" onclick="loadPriceHistory()">🔍 Caută</button>
+  </div>
+
+  <!-- Chart + stats per cod -->
+  <div id="ph-stats" style="display:none;margin-bottom:18px">
+    <div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div>
+          <span class="text-yellow fw-bold font-mono" id="ph-stat-cod">—</span>
+          <span style="color:var(--muted);font-size:12px;margin-left:8px" id="ph-stat-desc">—</span>
+        </div>
+        <div style="display:flex;gap:14px;font-size:12px">
+          <span>Min: <strong class="text-green" id="ph-min">—</strong></span>
+          <span>Max: <strong class="text-red"   id="ph-max">—</strong></span>
+          <span>Medie: <strong class="text-blue" id="ph-avg">—</strong></span>
+          <span>Cumpărări: <strong id="ph-count">—</strong></span>
+        </div>
+      </div>
+      <div class="ph-chart" id="ph-chart"></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px">
+        <span id="ph-date-first">—</span><span id="ph-date-last">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <div id="ph-loading" style="display:none"><span class="spinner"></span>Se caută...</div>
+    <table id="ph-table">
+      <thead>
+        <tr><th>Data</th><th>Cod</th><th>Descriere</th><th>Furnizor</th><th>Preț acq.</th><th>Preț vânz.</th><th>Comandă</th><th>Client</th></tr>
+      </thead>
+      <tbody id="ph-body">
+        <tr><td colspan="8" class="empty-state">Caută un cod aftermarket pentru a vedea istoricul.</td></tr>
       </tbody>
     </table>
   </div>
@@ -655,6 +869,7 @@ function navigate(page) {
   if (page==='produse') loadAllProducts();
   if (page==='audit')   loadAuditLogs();
   if (page==='admin')   loadUsers();
+  if (page==='preturi') { document.getElementById('ph-cod').focus(); }
 }
 
 // Sidebar clock
@@ -715,6 +930,8 @@ async function loadOrders() {
     renderStats(data);
     populateFilter('f-furnizor', [...new Set(data.map(o=>o.furnizor).filter(Boolean))]);
     renderOrdersTable(applyOrderFilters(data));
+    // Update kanban dacă e activ
+    if(currentView==='kanban') renderKanban(applyOrderFilters(data));
     document.getElementById('orders-count').textContent = `(${data.length})`;
   } catch(e) {
     document.getElementById('orders-loading').innerHTML=`<span class="text-red">❌ ${e.message}</span>`;
@@ -1443,9 +1660,14 @@ async function loadClientDetail(id) {
       <div><span class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">Adresă</span><div style="font-size:14px;margin-top:3px">${escHtml(c.adresa||'—')}</div></div>
     </div>
     ${c.note?`<div><span class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">Note</span><div style="margin-top:4px;font-size:13px">${escHtml(c.note)}</div></div>`:''}
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:10px;font-size:13px">
-      <span>📋 <strong>${allOrders.filter(o=>o.client_id===id).length}</strong> comenzi</span>
-      <span>💰 Total: <strong class="text-green">${fmtRON(allOrders.filter(o=>o.client_id===id).reduce((s,o)=>s+(+o.total_plata||0),0))} RON</strong></span>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:14px;font-size:13px">
+        <span>📋 <strong>${allOrders.filter(o=>o.client_id===id).length}</strong> comenzi</span>
+        <span>💰 <strong class="text-green">${fmtRON(allOrders.filter(o=>o.client_id===id).reduce((s,o)=>s+(+o.total_plata||0),0))} RON</strong></span>
+      </div>
+      ${c.telefon ? `<a class="wa-btn" href="https://wa.me/4${c.telefon.replace(/\D/g,'')}" target="_blank">
+        <span>📱</span> WhatsApp
+      </a>` : ''}
     </div>
   `;
 
@@ -1900,6 +2122,457 @@ async function saveSearchProductSilent(prodId, row) {
 
 // Status order autosave (already instant via onchange)
 // Product status autosave (instant)
+
+// ════════════════════════════════════════════════════════════
+// GLOBAL SEARCH
+// ════════════════════════════════════════════════════════════
+let searchDebounceTimer = null;
+
+document.getElementById('global-search')?.addEventListener('input', e => {
+  clearTimeout(searchDebounceTimer);
+  const q = e.target.value.trim();
+  if (q.length < 2) { closeSearchDropdown(); return; }
+  searchDebounceTimer = setTimeout(() => globalSearch(q), 250);
+});
+
+document.getElementById('global-search')?.addEventListener('blur', () => {
+  setTimeout(closeSearchDropdown, 200);
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('global-search')?.focus();
+  }
+  if (e.key === 'Escape') closeSearchDropdown();
+});
+
+function closeSearchDropdown() {
+  const dd = document.getElementById('search-results-dropdown');
+  if (dd) dd.style.display = 'none';
+}
+
+async function globalSearch(q) {
+  const dd = document.getElementById('search-results-dropdown');
+  dd.style.display = 'block';
+  dd.innerHTML = '<div style="padding:12px 14px;color:var(--muted);font-size:12px"><span class="spinner"></span>Se caută...</div>';
+
+  const ql = q.toLowerCase();
+  const results = { comenzi:[], clienti:[], produse:[] };
+
+  // Search local în allOrders
+  results.comenzi = allOrders.filter(o =>
+    o.client_nume?.toLowerCase().includes(ql) ||
+    (o.nr_comanda && `cmd-${String(o.nr_comanda).padStart(4,'0')}`.includes(ql)) ||
+    o.furnizor?.toLowerCase().includes(ql)
+  ).slice(0, 5);
+
+  // Search local în allClients
+  results.clienti = allClients.filter(c =>
+    c.nume?.toLowerCase().includes(ql) ||
+    c.telefon?.includes(q) ||
+    c.vin?.toLowerCase().includes(ql)
+  ).slice(0, 4);
+
+  // Search produse în DB
+  try {
+    results.produse = await api(
+      `produse_comandate?select=id,cod_aftermarket,descriere,comanda_id&cod_aftermarket=ilike.*${encodeURIComponent(q)}*&limit=4`
+    );
+  } catch {}
+
+  renderSearchDropdown(results, q);
+}
+
+function renderSearchDropdown(results, q) {
+  const dd = document.getElementById('search-results-dropdown');
+  const total = results.comenzi.length + results.clienti.length + results.produse.length;
+
+  if (total === 0) {
+    dd.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Niciun rezultat pentru "' + escHtml(q) + '"</div>';
+    return;
+  }
+
+  let html = '';
+
+  if (results.comenzi.length) {
+    html += '<div class="search-group-title">📋 Comenzi</div>';
+    results.comenzi.forEach(o => {
+      html += `<div class="search-result-item" onclick="navigate('comenzi');setTimeout(()=>loadDetail('${o.id}',o_${o.id}),100)">
+        <span class="icon">📋</span>
+        <div><div class="search-result-main">${fmtNr(o.nr_comanda)} — ${escHtml(o.client_nume)}</div>
+        <div class="search-result-sub">${fmtRON(o.total_plata)} RON · ${escHtml(o.furnizor||'—')} · ${o.status_general}</div></div>
+      </div>`;
+    });
+  }
+
+  if (results.clienti.length) {
+    html += '<div class="search-group-title">👥 Clienți</div>';
+    results.clienti.forEach(c => {
+      html += `<div class="search-result-item" onclick="navigate('clienti');setTimeout(()=>loadClientDetail('${c.id}'),100)">
+        <span class="icon">👤</span>
+        <div><div class="search-result-main">${escHtml(c.nume)}</div>
+        <div class="search-result-sub">${escHtml(c.telefon||'—')} ${c.vin?'· VIN: '+c.vin:''}</div></div>
+      </div>`;
+    });
+  }
+
+  if (results.produse.length) {
+    html += '<div class="search-group-title">🔧 Produse</div>';
+    results.produse.forEach(p => {
+      const ord = allOrders.find(o=>o.id===p.comanda_id)||{};
+      html += `<div class="search-result-item" onclick="navigate('produse');setTimeout(()=>{document.getElementById('search-prod-cod').value='${escHtml(p.cod_aftermarket)}';searchProducts();},100)">
+        <span class="icon">🔧</span>
+        <div><div class="search-result-main">${escHtml(p.cod_aftermarket)}</div>
+        <div class="search-result-sub">${escHtml(p.descriere||'—')} · ${fmtNr(ord.nr_comanda)}</div></div>
+      </div>`;
+    });
+  }
+
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+
+  // Atașează click handlers cu datele corecte
+  results.comenzi.forEach(o => {
+    window[`o_${o.id}`] = o;
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// KANBAN VIEW
+// ════════════════════════════════════════════════════════════
+let currentView = 'table';
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('tbl-view').style.display    = view==='table'  ? 'block' : 'none';
+  document.getElementById('kanban-view').style.display = view==='kanban' ? 'block' : 'none';
+  document.getElementById('view-btn-table').classList.toggle('active',  view==='table');
+  document.getElementById('view-btn-kanban').classList.toggle('active', view==='kanban');
+  if (view==='kanban') renderKanban(applyOrderFilters(allOrders));
+}
+
+function renderKanban(orders) {
+  const cols = {
+    in_lucru:   { el: document.getElementById('k-col-lucru'),  count: document.getElementById('k-count-lucru') },
+    finalizata: { el: document.getElementById('k-col-final'),  count: document.getElementById('k-count-final') },
+    anulata:    { el: document.getElementById('k-col-anulat'), count: document.getElementById('k-count-anulat') },
+  };
+  Object.values(cols).forEach(c => { c.el.innerHTML=''; c.count.textContent='0'; });
+
+  const grouped = { in_lucru:[], finalizata:[], anulata:[] };
+  orders.forEach(o => { if(grouped[o.status_general]) grouped[o.status_general].push(o); });
+
+  Object.entries(grouped).forEach(([status, list]) => {
+    const col = cols[status];
+    if(!col) return;
+    col.count.textContent = list.length;
+    list.forEach(o => {
+      const arrived = (+o.produse_ajunse||0)+(+o.produse_predate||0);
+      const total   = +o.nr_produse||0;
+      const pct     = total>0 ? Math.round(arrived/total*100) : 0;
+      const card = document.createElement('div');
+      card.className = 'kanban-card';
+      card.innerHTML = `
+        <div class="kanban-card-name">${escHtml(o.client_nume)}</div>
+        <div class="kanban-card-meta">
+          <span class="nr-cmd">${fmtNr(o.nr_comanda)}</span>
+          <span>${escHtml(o.furnizor||'—')}</span>
+          <span>${fmtDate(o.data_creare)}</span>
+        </div>
+        <div class="kanban-card-footer">
+          <div class="kanban-progress">
+            <div class="kanban-progress-bar" style="width:${pct}%"></div>
+          </div>
+          <span style="font-size:11px;color:var(--muted);white-space:nowrap">${arrived}/${total}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px">
+          <span class="text-${calcRest(o)>0?'yellow':'green'}">${fmtRON(calcRest(o))} RON rest</span>
+          <span class="text-blue fw-bold">${fmtRON(o.total_plata)} RON</span>
+        </div>
+      `;
+      card.addEventListener('click', () => loadDetail(o.id, o));
+      col.el.appendChild(card);
+    });
+    if(!list.length) {
+      col.el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">—</div>';
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// STOCK ALERTS
+// ════════════════════════════════════════════════════════════
+async function checkStockAlerts() {
+  try {
+    const alerts = await api('rpc/get_stock_alerts', { method:'POST', body:'{}' });
+    const badge  = document.getElementById('stock-alert-badge');
+    const panel  = document.getElementById('stock-alert-panel');
+    const list   = document.getElementById('stock-alert-list');
+
+    if (!alerts?.length) {
+      if(badge) badge.style.display='none';
+      if(panel) panel.style.display='none';
+      return;
+    }
+
+    if(badge) { badge.textContent=alerts.length; badge.style.display='inline'; }
+    if(panel) panel.style.display='block';
+    if(list) {
+      list.innerHTML = alerts.map(a => `
+        <div class="stock-alert-item">
+          <span style="font-size:18px">⚠️</span>
+          <div>
+            <span class="text-yellow fw-bold font-mono">${escHtml(a.cod_aftermarket)}</span>
+            <span style="color:var(--muted);font-size:12px;margin-left:6px">${escHtml(a.descriere||'')}</span>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">
+              Apare în <strong>${a.nr_comenzi}</strong> comenzi active · CMD: ${escHtml(a.comenzi_ids||'')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch(e) { console.warn('Stock alerts error:', e.message); }
+}
+
+// Adaugă badge la titlul paginii comenzi
+const _oldRenderOrdersTable = renderOrdersTable;
+function renderOrdersTable(orders) {
+  _oldRenderOrdersTable(orders);
+  const el = document.getElementById('orders-count-label');
+  if(el) el.textContent = `${orders.length} comenzi`;
+  if(currentView==='kanban') renderKanban(orders);
+}
+
+// ════════════════════════════════════════════════════════════
+// NOTIFICĂRI REALTIME (Supabase Realtime)
+// ════════════════════════════════════════════════════════════
+let realtimeChannel = null;
+let notifEnabled    = false;
+
+async function initRealtime() {
+  // Cere permisiune notificări browser
+  if ('Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+
+  // Conectare la Supabase Realtime via WebSocket
+  try {
+    const token    = getToken();
+    const wsUrl    = `wss://ddieqobpxejocfnbmfck.supabase.co/realtime/v1/websocket?apikey=${ANON_KEY}&vsn=1.0.0`;
+    const ws       = new WebSocket(wsUrl);
+    let heartbeat  = null;
+
+    ws.onopen = () => {
+      // Join channel pentru produse_comandate
+      ws.send(JSON.stringify({
+        topic:   'realtime:public:produse_comandate',
+        event:   'phx_join',
+        payload: { config:{ broadcast:{ self:true }, presence:{ key:'' } } },
+        ref:     '1',
+      }));
+      heartbeat = setInterval(() => {
+        ws.send(JSON.stringify({ topic:'phoenix', event:'heartbeat', payload:{}, ref:'hb' }));
+      }, 25000);
+      notifEnabled = true;
+      document.getElementById('btn-notif-toggle').style.background = 'rgba(16,185,129,.2)';
+      showAutosaveStatus('🔔 Notificări active');
+    };
+
+    ws.onmessage = e => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.event !== 'INSERT' && msg.event !== 'UPDATE') return;
+        const rec = msg.payload?.record;
+        if (!rec) return;
+
+        // Notificare când status_produs devine 'ajuns'
+        if (rec.status_produs === 'ajuns') {
+          sendBrowserNotif(
+            '🏠 Produs ajuns!',
+            `${rec.cod_aftermarket} — ${rec.descriere||''}`,
+            () => { navigate('comenzi'); setTimeout(()=>loadDetail(rec.comanda_id, allOrders.find(o=>o.id===rec.comanda_id)||{}),200); }
+          );
+          // Reîncarcă comenzile
+          loadOrders();
+        }
+      } catch {}
+    };
+
+    ws.onclose = () => {
+      clearInterval(heartbeat);
+      notifEnabled = false;
+      // Reconectare după 5s
+      setTimeout(initRealtime, 5000);
+    };
+
+    ws.onerror = () => ws.close();
+
+  } catch(e) { console.warn('Realtime init failed:', e.message); }
+}
+
+function sendBrowserNotif(title, body, onClick) {
+  // Badge în header
+  const badge = document.getElementById('notif-badge');
+  if(badge) badge.style.display = 'block';
+
+  // Browser notification
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const n = new Notification(title, { body, icon:'/favicon.ico', badge:'/favicon.ico' });
+    n.onclick = () => { window.focus(); n.close(); if(onClick) onClick(); };
+    setTimeout(() => n.close(), 8000);
+  }
+  toast(`${title} ${body}`, 'success');
+}
+
+document.getElementById('btn-notif-toggle')?.addEventListener('click', () => {
+  const badge = document.getElementById('notif-badge');
+  if(badge) badge.style.display='none'; // Clear badge on click
+  if(!notifEnabled) initRealtime();
+});
+
+// ════════════════════════════════════════════════════════════
+// WHATSAPP — funcție helper pentru comenzi
+// ════════════════════════════════════════════════════════════
+function buildWaMessage(order, products) {
+  const prodList = products.map(p =>
+    `• ${p.cod_aftermarket} — ${p.descriere||''} (${p.status_produs==='ajuns'?'✅ Ajuns':'⏳ În așteptare'})`
+  ).join('
+');
+
+  return encodeURIComponent(
+    `Bună ziua ${order.client_nume},
+
+` +
+    `Vă contactăm referitor la comanda ${fmtNr(order.nr_comanda)}.
+
+` +
+    `*Situație produse:*
+${prodList}
+
+` +
+    `*Total: ${fmtRON(order.total_plata)} RON*
+` +
+    (calcRest(order)>0 ? `Rest de plată: ${fmtRON(calcRest(order))} RON
+` : '') +
+    `
+Vă mulțumim!`
+  );
+}
+
+// Adaugă buton WA în detaliile comenzii
+const _origLoadDetail = loadDetail;
+async function loadDetail(id, o) {
+  await _origLoadDetail(id, o);
+  // Adaugă buton WhatsApp dacă clientul are telefon
+  setTimeout(async () => {
+    const order = allOrders.find(x=>x.id===id);
+    const client = allClients.find(c=>c.id===order?.client_id);
+    const phone = client?.telefon || order?.client_telefon;
+    if (!phone) return;
+
+    const existingWa = document.getElementById('wa-order-btn');
+    if (existingWa) existingWa.remove();
+
+    try {
+      const prods = await api(`produse_comandate?comanda_id=eq.${id}&select=cod_aftermarket,descriere,status_produs`);
+      const msg   = buildWaMessage(order||{client_nume:o.client_nume,nr_comanda:o.nr_comanda,total_plata:o.total_plata}, prods);
+      const tel   = phone.replace(/\D/g,'');
+      const btn   = document.createElement('a');
+      btn.id        = 'wa-order-btn';
+      btn.className = 'wa-btn';
+      btn.href      = `https://wa.me/4${tel}?text=${msg}`;
+      btn.target    = '_blank';
+      btn.innerHTML = '📱 Trimite WhatsApp';
+      document.querySelector('.detail-head .header-right, .detail-head div:last-child')?.prepend(btn);
+    } catch {}
+  }, 500);
+}
+
+// ════════════════════════════════════════════════════════════
+// ISTORIC PREȚURI
+// ════════════════════════════════════════════════════════════
+async function loadPriceHistory() {
+  const cod      = document.getElementById('ph-cod')?.value.trim();
+  const furnizor = document.getElementById('ph-furnizor')?.value.trim();
+  if(!cod && !furnizor) { toast('Introdu cel puțin un cod aftermarket.','warn'); return; }
+
+  document.getElementById('ph-loading').style.display='block';
+  document.getElementById('ph-body').innerHTML='';
+  document.getElementById('ph-stats').style.display='none';
+
+  try {
+    let q = 'v_price_history?select=*&order=inregistrat_la.desc&limit=100';
+    if(cod)      q += `&cod_aftermarket=ilike.*${encodeURIComponent(cod)}*`;
+    if(furnizor) q += `&furnizor=ilike.*${encodeURIComponent(furnizor)}*`;
+
+    const rows = await api(q);
+    document.getElementById('ph-loading').style.display='none';
+    const tbody = document.getElementById('ph-body');
+    tbody.innerHTML='';
+
+    if(!rows.length) {
+      tbody.innerHTML='<tr><td colspan="8" class="empty-state">Niciun istoric găsit.</td></tr>';
+      return;
+    }
+
+    // Stats & chart pentru primul cod din rezultate
+    if(cod) {
+      const prices = rows.map(r=>+r.pret_achizitie).filter(Boolean);
+      if(prices.length) {
+        const min=Math.min(...prices), max=Math.max(...prices), avg=prices.reduce((a,b)=>a+b,0)/prices.length;
+        document.getElementById('ph-stat-cod').textContent  = rows[0].cod_aftermarket;
+        document.getElementById('ph-stat-desc').textContent = rows[0].descriere||'';
+        document.getElementById('ph-min').textContent       = fmtRON(min)+' RON';
+        document.getElementById('ph-max').textContent       = fmtRON(max)+' RON';
+        document.getElementById('ph-avg').textContent       = fmtRON(avg)+' RON';
+        document.getElementById('ph-count').textContent     = rows.length;
+
+        const sorted = [...rows].sort((a,b)=>new Date(a.inregistrat_la)-new Date(b.inregistrat_la));
+        document.getElementById('ph-date-first').textContent = fmtDate(sorted[0].inregistrat_la);
+        document.getElementById('ph-date-last').textContent  = fmtDate(sorted[sorted.length-1].inregistrat_la);
+
+        // Render chart
+        const chartEl = document.getElementById('ph-chart');
+        chartEl.innerHTML='';
+        sorted.forEach(r=>{
+          const p = +r.pret_achizitie;
+          const h = Math.round((p/max)*100);
+          const bar = document.createElement('div');
+          bar.className = 'ph-bar' + (p===max?' highest':p===min?' lowest':'');
+          bar.style.height = h+'%';
+          bar.dataset.tip = `${fmtRON(p)} RON
+${fmtDate(r.inregistrat_la)}`;
+          chartEl.appendChild(bar);
+        });
+        document.getElementById('ph-stats').style.display='block';
+      }
+    }
+
+    // Tabel
+    rows.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML=`
+        <td style="white-space:nowrap;font-size:12px;color:var(--muted)">${fmtDate(r.inregistrat_la)}</td>
+        <td class="text-yellow fw-bold font-mono">${escHtml(r.cod_aftermarket)}</td>
+        <td style="font-size:12px">${escHtml(r.descriere||'—')}</td>
+        <td style="font-size:12px;color:var(--muted)">${escHtml(r.furnizor||'—')}</td>
+        <td class="fw-bold">${fmtRON(r.pret_achizitie)} RON</td>
+        <td class="text-blue">${fmtRON(r.pret_vanzare)} RON</td>
+        <td><span class="nr-cmd">${fmtNr(r.nr_comanda)}</span></td>
+        <td style="font-size:12px">${escHtml(r.client_nume||'—')}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch(e) {
+    document.getElementById('ph-loading').style.display='none';
+    toast('Eroare: '+e.message,'error');
+  }
+}
+
+document.getElementById('ph-cod')?.addEventListener('keydown', e=>{
+  if(e.key==='Enter') loadPriceHistory();
+});
 
 // ════════════════════════════════════════════════════════════
 // INIT
