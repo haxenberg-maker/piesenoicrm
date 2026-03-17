@@ -205,8 +205,10 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .fw-bold { font-weight:700 }
 .font-mono { font-family:monospace }
 .saving { opacity:.5; transition:opacity .15s }
-.saved-flash { animation: savedFlash .6s ease }
-@keyframes savedFlash { 0%{background:rgba(16,185,129,.25)} 100%{background:transparent} }
+.saved-flash { animation: savedFlash .8s ease }
+@keyframes savedFlash { 0%{background:rgba(16,185,129,.18)} 100%{background:transparent} }
+.row-saved-dot { width:5px;height:5px;border-radius:50%;background:var(--green);opacity:0;transition:opacity .4s;margin:auto }
+.saved-flash .row-saved-dot { opacity:1 }
 .autosave-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--green); margin-left:4px; opacity:0; transition:opacity .3s }
 .autosave-dot.visible { opacity:1 }
 </style>
@@ -325,7 +327,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
             style="background:var(--s3);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:13px;width:70px;outline:none;text-align:center"/>
           <span style="color:var(--muted);font-size:13px">%</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="applyDetailAdaos()">Aplică &amp; recalculează</button>
+        <button class="btn btn-secondary btn-sm" id="btn-apply-adaos-old">Aplică &amp; recalculează</button>
         <span style="font-size:12px;color:var(--muted);margin-left:auto">
           Total vânzare: <strong class="text-blue" id="detail-total-vanz">—</strong> RON
           &nbsp;|&nbsp; Profit: <strong class="text-green" id="detail-profit">—</strong> RON
@@ -338,7 +340,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
               <th>Cod aftermarket</th><th>Descriere</th>
               <th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th><th>Cant.</th>
               <th>SKU</th><th>Cod fact. furnizor</th>
-              <th>Status</th><th>💾</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody id="detail-products-body"></tbody>
@@ -879,6 +881,8 @@ async function loadDetail(id, o) {
 
   document.getElementById('btn-edit-order').onclick   = ()=>openEditOrder(id);
   document.getElementById('btn-delete-order').onclick = ()=>confirmDeleteOrder(id, o.client_nume);
+  const applyBtn = document.getElementById('btn-apply-adaos');
+  if(applyBtn) applyBtn.onclick = applyDetailAdaos;
 
   // Reset tabs
   document.querySelectorAll('#detail-panel .tab').forEach((t,i)=>{
@@ -933,7 +937,9 @@ async function loadDetailProducts(id) {
             <option value="predat"   ${p.status_produs==='predat'  ?'selected':''}>✅ Predat</option>
           </select>
         </td>
-        <td><button class="btn btn-primary btn-xs" onclick="saveProduct('${p.id}',this.closest('tr'))">💾</button></td>
+        <td style="width:6px;padding:0">
+          <div class="row-saved-dot" title="Salvat automat"></div>
+        </td>
       `;
       tbody.appendChild(tr);
     });
@@ -981,7 +987,20 @@ function applyDetailAdaos() {
     vanzInput.value = vanz.toFixed(2);
   });
   updateDetailTotals();
-  // Autosave all rows
+  // Salvează adaos în comenzi
+  if(currentOrderId) {
+    api(`comenzi?id=eq.${currentOrderId}`, {
+      method:'PATCH', body:JSON.stringify({adaos_procent:adaos})
+    }).then(()=>{
+      // Actualizează local
+      const o = allOrders.find(x=>x.id===currentOrderId);
+      if(o) o.adaos_procent = adaos;
+      // Indicator vizual
+      const ind = document.getElementById('adaos-saved-indicator');
+      if(ind){ ind.style.opacity='1'; setTimeout(()=>ind.style.opacity='0',1500); }
+    }).catch(e=>toast('Eroare salvare adaos: '+e.message,'error'));
+  }
+  // Autosave toate produsele
   document.querySelectorAll('#detail-products-body tr').forEach(row=>{
     const id = row.dataset.id;
     if(id) saveProductSilent(id, row);
@@ -1817,33 +1836,33 @@ async function auditLog(action, entity, entityId, entityLabel, oldData=null, new
 // ════════════════════════════════════════════════════════════
 const autosaveTimers = {};
 
-function showAutosaveStatus(msg='Salvat automat ✓') {
+function showAutosaveStatus(msg='✓') {
   const el = document.getElementById('autosave-status');
   if(!el) return;
   el.textContent = msg;
+  el.style.opacity='1';
   clearTimeout(el._timer);
-  el._timer = setTimeout(()=>{ el.textContent=''; }, 2500);
+  el._timer = setTimeout(()=>{ el.style.opacity='0'; el.textContent=''; }, 1200);
 }
 
 // Generic debounced autosave for any input with data-f or data-sf attribute
 // Call after rendering editable rows
 function attachAutosave(container, saveMode) {
-  // saveMode: 'product' uses data-f, 'search' uses data-sf
   const attr = saveMode==='search' ? '[data-sf]' : '[data-f]';
   container.querySelectorAll(`input${attr}, select${attr}`).forEach(el=>{
-    el.addEventListener('change', ()=>{
+    // Text inputs → blur (când iese din câmp)
+    // Number inputs și select → change (imediat)
+    const evName = (el.tagName==='SELECT' || el.dataset.f==='status_produs') ? 'change' : 'blur';
+    el.addEventListener(evName, ()=>{
       const row = el.closest('tr');
       if(!row) return;
       const id = row.dataset.id || row.dataset.prodId;
       if(!id) return;
       clearTimeout(autosaveTimers[id]);
       autosaveTimers[id] = setTimeout(()=>{
-        if(saveMode==='search') {
-          saveSearchProductSilent(id, row);
-        } else {
-          saveProductSilent(id, row);
-        }
-      }, 800);
+        if(saveMode==='search') saveSearchProductSilent(id, row);
+        else                    saveProductSilent(id, row);
+      }, 300);
     });
   });
 }
@@ -1857,11 +1876,13 @@ async function saveProductSilent(prodId, row) {
   });
   try {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
-    await auditLog('UPDATE','produse_comandate', prodId, row.querySelector('.text-yellow')?.textContent||prodId, null, patch);
+    // Flash subtil pe rând — fără toast deranjant
     row.classList.add('saved-flash');
-    setTimeout(()=>row.classList.remove('saved-flash'),600);
-    showAutosaveStatus('Salvat automat ✓');
-  } catch(e){ toast('Autosave eroare: '+e.message,'error'); }
+    const dot = row.querySelector('.row-saved-dot');
+    if(dot){ dot.style.opacity='1'; setTimeout(()=>dot.style.opacity='0',1200); }
+    setTimeout(()=>row.classList.remove('saved-flash'),800);
+    showAutosaveStatus('✓');
+  } catch(e){ toast('Eroare salvare: '+e.message,'error'); }
 }
 
 async function saveSearchProductSilent(prodId, row) {
@@ -1872,9 +1893,9 @@ async function saveSearchProductSilent(prodId, row) {
   try {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
     row.classList.add('saved-flash');
-    setTimeout(()=>row.classList.remove('saved-flash'),600);
-    showAutosaveStatus('Salvat automat ✓');
-  } catch(e){ toast('Autosave eroare: '+e.message,'error'); }
+    setTimeout(()=>row.classList.remove('saved-flash'),800);
+    showAutosaveStatus('✓');
+  } catch(e){ toast('Eroare salvare: '+e.message,'error'); }
 }
 
 // Status order autosave (already instant via onchange)
