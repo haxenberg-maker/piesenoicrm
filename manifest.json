@@ -2,53 +2,56 @@
   "manifest_version": 3,
   "name": "CRM Piese Auto",
   "version": "1.0.0",
-  "description": "Colectează produse din coșul furnizorului și le salvează în CRM-ul tău.",
-
+  "description": "Colecteaz\u0103 produse din co\u0219ul furnizorului \u0219i le salveaz\u0103 \u00een CRM-ul t\u0103u.",
   "icons": {
-    "16":  "icons/icon16.png",
-    "48":  "icons/icon48.png",
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
-
   "host_permissions": [
     "https://ro.e-cat.intercars.eu/*",
-    "https://*.supabase.co/*"
+    "https://*.supabase.co/*",
+    "https://piesenoicrm.netlify.app/*"
   ],
-
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-
   "content_scripts": [
     {
       "matches": [
         "https://ro.e-cat.intercars.eu/*"
       ],
-      "js": ["content.js"],
-      "css": ["styles.css"],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
       "run_at": "document_idle"
     }
   ],
-
   "action": {
     "default_popup": "popup.html",
     "default_title": "CRM Piese Auto"
   },
-
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "styles.css"],
-      "matches": ["https://ro.e-cat.intercars.eu/*"]
+      "resources": [
+        "icons/*",
+        "styles.css"
+      ],
+      "matches": [
+        "https://ro.e-cat.intercars.eu/*"
+      ]
     }
   ],
-
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self';"
   }

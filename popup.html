@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CRM Piese Auto</title>
+<style>
+  :root {
+    --bg: #0d1117; --s1: #111827; --s2: #1a2235; --s3: #1e293b;
+    --border: #1f2d45; --b2: #2d3f5e;
+    --accent: #3b82f6; --text: #e2e8f0; --muted: #64748b;
+    --green: #10b981; --red: #ef4444; --yellow: #f59e0b;
+  }
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0 }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    width: 300px; min-height: 200px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--s1); border-bottom: 1px solid var(--border);
+    padding: 12px 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .header h1 { font-size: 14px; font-weight: 700 }
+  .header span { font-size: 18px }
+
+  /* ── LOGIN SCREEN ── */
+  #screen-login { padding: 20px }
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px }
+  .field label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px }
+  .field input {
+    background: var(--s3); border: 1px solid var(--b2);
+    border-radius: 8px; color: var(--text); padding: 9px 11px;
+    font-size: 13px; outline: none; font-family: inherit;
+  }
+  .field input:focus { border-color: var(--accent) }
+  .btn {
+    width: 100%; background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: inherit; transition: opacity .15s;
+  }
+  .btn:hover { opacity: .88 }
+  .btn:disabled { opacity: .5; cursor: not-allowed }
+  .error-msg {
+    background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+    border-radius: 7px; padding: 8px 11px; font-size: 12px;
+    color: #fca5a5; margin-bottom: 12px; display: none;
+  }
+
+  /* ── LOGGED IN SCREEN ── */
+  #screen-app { display: none }
+  .user-bar {
+    background: var(--s1); border-bottom: 1px solid var(--border);
+    padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .user-info { display: flex; align-items: center; gap: 8px }
+  .avatar {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+  }
+  .user-name { font-size: 12px; font-weight: 600 }
+  .user-role { font-size: 10px; color: var(--muted) }
+  .btn-logout {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--muted); padding: 4px 8px; font-size: 11px; cursor: pointer;
+    transition: all .15s; font-family: inherit;
+  }
+  .btn-logout:hover { color: var(--red); border-color: var(--red) }
+
+  .cart-summary {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cart-count {
+    font-size: 24px; font-weight: 700; color: var(--accent);
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .cart-count small { font-size: 12px; color: var(--muted); font-weight: 400 }
+
+  .actions { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px }
+  .btn-secondary {
+    background: var(--s2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px; font-size: 13px; font-weight: 500;
+    cursor: pointer; font-family: inherit; transition: background .13s; width: 100%;
+  }
+  .btn-secondary:hover { background: var(--border) }
+  .btn-danger {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 8px; padding: 9px; font-size: 12px;
+    cursor: pointer; font-family: inherit; transition: all .13s; width: 100%;
+  }
+  .btn-danger:hover { border-color: var(--red); color: var(--red) }
+
+  .status-bar {
+    padding: 8px 14px; font-size: 11px; color: var(--muted);
+    border-top: 1px solid var(--border); text-align: center;
+  }
+
+  .spinner {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+    border-radius: 50%; animation: spin .6s linear infinite; margin-right: 5px;
+  }
+  @keyframes spin { to { transform: rotate(360deg) } }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="screen-login">
+  <div class="header">
+    <span>🔧</span>
+    <h1>CRM Piese Auto</h1>
+  </div>
+  <div style="padding:20px">
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px;text-align:center">
+      Autentifică-te pentru a plasa comenzi
+    </p>
+    <div id="err" class="error-msg"></div>
+    <form onsubmit="doLogin(event)">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="adresa@email.com" required autocomplete="email"/>
+      </div>
+      <div class="field">
+        <label>Parolă</label>
+        <input type="password" id="pass" placeholder="••••••••" required autocomplete="current-password"/>
+      </div>
+      <button type="submit" class="btn" id="btn-login">Intră în cont</button>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="screen-app">
+  <div class="header">
+    <span>🔧</span>
+    <h1>CRM Piese Auto</h1>
+  </div>
+  <div class="user-bar">
+    <div class="user-info">
+      <div class="avatar" id="p-avatar">?</div>
+      <div>
+        <div class="user-name" id="p-name">—</div>
+        <div class="user-role" id="p-role">—</div>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Ieși</button>
+  </div>
+  <div class="cart-summary">
+    <div>
+      <div class="cart-count"><span id="p-cart-count">0</span> <small>produse în coș</small></div>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn" onclick="openDashboard()">📊 Deschide Dashboard</button>
+    <button class="btn-secondary" onclick="clearCart()">🗑️ Golește coșul CRM</button>
+  </div>
+  <div class="status-bar" id="p-status">Activ pe ro.e-cat.intercars.eu</div>
+</div>
+
+<script>
+const SB  = 'https://ddieqobpxejocfnbmfck.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
+
+// ── INIT ─────────────────────────────────────────────────────
+chrome.storage.local.get(['crm_session','crm_user','crm_cart'], data => {
+  const sess = data.crm_session;
+  const user = data.crm_user;
+  const cart = data.crm_cart || [];
+
+  if (sess?.access_token && isSessionValid(sess)) {
+    showApp(user, cart);
+  } else {
+    showLogin();
+  }
+});
+
+function isSessionValid(sess) {
+  if (!sess?.expires_at) return false;
+  return new Date(sess.expires_at * 1000) > new Date();
+}
+
+function showLogin() {
+  document.getElementById('screen-login').style.display = 'block';
+  document.getElementById('screen-app').style.display   = 'none';
+}
+
+function showApp(user, cart) {
+  document.getElementById('screen-login').style.display = 'none';
+  document.getElementById('screen-app').style.display   = 'block';
+
+  const name  = user?.name || user?.email || '—';
+  const role  = user?.role || 'user';
+  document.getElementById('p-name').textContent   = name;
+  document.getElementById('p-role').textContent   = role === 'administrator' ? '⭐ Administrator' : '👤 User';
+  document.getElementById('p-avatar').textContent = name[0].toUpperCase();
+  document.getElementById('p-cart-count').textContent = cart.length;
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────
+async function doLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const pass  = document.getElementById('pass').value;
+  const btn   = document.getElementById('btn-login');
+  const err   = document.getElementById('err');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Se autentifică...';
+  err.style.display = 'none';
+
+  try {
+    // 1. Auth
+    const res = await fetch(`${SB}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass }),
+    });
+    const sess = await res.json();
+    if (!res.ok) throw new Error(sess.error_description || sess.msg || 'Autentificare eșuată');
+
+    // 2. Fetch profil pentru rol
+    let role = 'user', name = email;
+    try {
+      const profRes = await fetch(`${SB}/rest/v1/user_profiles?select=name,role&limit=1`, {
+        headers: {
+          'apikey': KEY,
+          'Authorization': `Bearer ${sess.access_token}`,
+        }
+      });
+      const profs = await profRes.json();
+      if (profs?.length) { role = profs[0].role; name = profs[0].name || email; }
+    } catch {}
+
+    const user = { id: sess.user?.id, email, name, role };
+
+    // 3. Salvează în chrome.storage (accesibil din content.js)
+    chrome.storage.local.set({
+      crm_session: sess,
+      crm_user:    user,
+    }, () => {
+      showApp(user, []);
+    });
+
+  } catch(err2) {
+    err.textContent   = err2.message;
+    err.style.display = 'block';
+    btn.disabled      = false;
+    btn.textContent   = 'Intră în cont';
+  }
+}
+
+// ── LOGOUT ────────────────────────────────────────────────────
+function doLogout() {
+  chrome.storage.local.get('crm_session', data => {
+    const token = data.crm_session?.access_token;
+    if (token) {
+      fetch(`${SB}/auth/v1/logout`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Authorization': `Bearer ${token}` }
+      }).catch(()=>{});
+    }
+    chrome.storage.local.remove(['crm_session','crm_user'], () => {
+      showLogin();
+    });
+  });
+}
+
+// ── CLEAR CART ────────────────────────────────────────────────
+function clearCart() {
+  chrome.storage.local.remove('crm_cart', () => {
+    document.getElementById('p-cart-count').textContent = '0';
+    document.getElementById('p-status').textContent = 'Coș golit.';
+    setTimeout(() => {
+      document.getElementById('p-status').textContent = 'Activ pe ro.e-cat.intercars.eu';
+    }, 2000);
+  });
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+function openDashboard() {
+  chrome.tabs.create({ url: 'https://piesenoicrm.netlify.app/dashboard.html' });
+}
+
+// ── Actualizează count când se schimbă coșul ──────────────────
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.crm_cart) {
+    const cart = changes.crm_cart.newValue || [];
+    document.getElementById('p-cart-count').textContent = cart.length;
+  }
+});
+</script>
+</body>
+</html>
