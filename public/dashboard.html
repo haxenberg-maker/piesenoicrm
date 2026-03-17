@@ -999,8 +999,14 @@ function renderOrdersTable(orders) {
   document.getElementById('orders-table').style.display='table';
   const tbody = document.getElementById('orders-body');
   tbody.innerHTML='';
+  // Update label count
+  const countLabelEl = document.getElementById('orders-count-label');
+  if(countLabelEl) countLabelEl.textContent = `${orders.length} comenzi`;
+
   if(!orders.length) {
     tbody.innerHTML='<tr><td colspan="12" class="empty-state">Nicio comandă.</td></tr>';
+    // Update kanban dacă e activ
+    if(typeof currentView!=='undefined' && currentView==='kanban') renderKanban(orders);
     return;
   }
   orders.forEach(o=>{
@@ -2373,14 +2379,7 @@ async function checkStockAlerts() {
   } catch(e) { console.warn('Stock alerts error:', e.message); }
 }
 
-// Adaugă badge la titlul paginii comenzi
-const _oldRenderOrdersTable = renderOrdersTable;
-function renderOrdersTable(orders) {
-  _oldRenderOrdersTable(orders);
-  const el = document.getElementById('orders-count-label');
-  if(el) el.textContent = `${orders.length} comenzi`;
-  if(currentView==='kanban') renderKanban(orders);
-}
+// kanban + count integrat în renderOrdersTable original
 
 // ════════════════════════════════════════════════════════════
 // NOTIFICĂRI REALTIME (Supabase Realtime)
