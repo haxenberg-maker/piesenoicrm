@@ -257,14 +257,24 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .kanban-cards { padding:10px; display:flex; flex-direction:column; gap:8px; min-height:60px }
 .kanban-card {
   background:var(--s1); border:1px solid var(--border); border-radius:10px;
-  padding:11px 13px; cursor:pointer; transition:border-color .15s, transform .1s;
+  padding:12px 14px; cursor:pointer; transition:border-color .15s, transform .1s;
 }
 .kanban-card:hover { border-color:var(--accent); transform:translateY(-1px) }
-.kanban-card-name { font-weight:700; font-size:13px; margin-bottom:4px }
-.kanban-card-meta { font-size:11px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px }
-.kanban-card-footer { display:flex; justify-content:space-between; align-items:center; margin-top:6px }
+.kanban-card-name { font-weight:700; font-size:14px; margin-bottom:3px }
+.kanban-card-sub  { font-size:11px; color:var(--muted); margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap }
+.kanban-card-products { margin-bottom:8px }
+.kanban-prod-row {
+  display:flex; align-items:center; gap:6px; padding:3px 0;
+  border-bottom:1px solid #0c1420; font-size:11px;
+}
+.kanban-prod-row:last-child { border-bottom:none }
+.kanban-prod-cod  { color:var(--yellow); font-family:monospace; font-weight:600; flex-shrink:0 }
+.kanban-prod-desc { color:var(--muted); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.kanban-prod-st   { flex-shrink:0; font-size:10px }
+.kanban-card-footer { display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid var(--border) }
 .kanban-progress { height:4px; background:var(--border); border-radius:2px; flex:1; margin-right:8px; overflow:hidden }
 .kanban-progress-bar { height:100%; border-radius:2px; background:var(--green); transition:width .3s }
+.kanban-more { font-size:10px; color:var(--muted); font-style:italic }
 @media(max-width:800px){ .kanban-board { grid-template-columns:1fr } }
 
 /* ── VIEW TOGGLE ── */
@@ -314,14 +324,6 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 }
 .notif-btn-wrap { position:relative; display:inline-flex }
 
-/* ── WHATSAPP ── */
-.wa-btn {
-  display:inline-flex; align-items:center; gap:5px;
-  background:#25D366; color:#fff; border:none; border-radius:7px;
-  padding:5px 11px; font-size:12px; font-weight:600; cursor:pointer;
-  font-family:inherit; transition:opacity .15s; text-decoration:none;
-}
-.wa-btn:hover { opacity:.88 }
 
 .saved-flash { animation: savedFlash .8s ease }
 @keyframes savedFlash { 0%{background:rgba(16,185,129,.18)} 100%{background:transparent} }
@@ -1665,9 +1667,7 @@ async function loadClientDetail(id) {
         <span>📋 <strong>${allOrders.filter(o=>o.client_id===id).length}</strong> comenzi</span>
         <span>💰 <strong class="text-green">${fmtRON(allOrders.filter(o=>o.client_id===id).reduce((s,o)=>s+(+o.total_plata||0),0))} RON</strong></span>
       </div>
-      ${c.telefon ? `<a class="wa-btn" href="https://wa.me/4${c.telefon.replace(/\D/g,'')}" target="_blank">
-        <span>📱</span> WhatsApp
-      </a>` : ''}
+
     </div>
   `;
 
@@ -2252,50 +2252,88 @@ function switchView(view) {
   if (view==='kanban') renderKanban(applyOrderFilters(allOrders));
 }
 
-function renderKanban(orders) {
+// Cache produse per comandă pentru kanban
+const kanbanProdsCache = {};
+
+async function renderKanban(orders) {
   const cols = {
     in_lucru:   { el: document.getElementById('k-col-lucru'),  count: document.getElementById('k-count-lucru') },
     finalizata: { el: document.getElementById('k-col-final'),  count: document.getElementById('k-count-final') },
     anulata:    { el: document.getElementById('k-col-anulat'), count: document.getElementById('k-count-anulat') },
   };
-  Object.values(cols).forEach(c => { c.el.innerHTML=''; c.count.textContent='0'; });
+  Object.values(cols).forEach(c => { c.el.innerHTML='<div style="padding:14px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span></div>'; c.count.textContent='0'; });
 
   const grouped = { in_lucru:[], finalizata:[], anulata:[] };
   orders.forEach(o => { if(grouped[o.status_general]) grouped[o.status_general].push(o); });
+
+  // Fetch produse pentru toate comenzile vizibile (max 30 comenzi)
+  const visibleIds = orders.slice(0,30).map(o=>o.id).filter(id=>!kanbanProdsCache[id]);
+  if(visibleIds.length) {
+    try {
+      const prods = await api(`produse_comandate?comanda_id=in.(${visibleIds.join(',')})&select=comanda_id,cod_aftermarket,descriere,status_produs&order=status_produs.asc`);
+      // Grupează pe comanda_id
+      prods.forEach(p => {
+        if(!kanbanProdsCache[p.comanda_id]) kanbanProdsCache[p.comanda_id]=[];
+        kanbanProdsCache[p.comanda_id].push(p);
+      });
+      // Marchează comenzile fără produse
+      visibleIds.forEach(id => { if(!kanbanProdsCache[id]) kanbanProdsCache[id]=[]; });
+    } catch {}
+  }
+
+  const statusIcon = { comandat:'📦', ajuns:'🏠', predat:'✅' };
 
   Object.entries(grouped).forEach(([status, list]) => {
     const col = cols[status];
     if(!col) return;
     col.count.textContent = list.length;
+    col.el.innerHTML='';
+
     list.forEach(o => {
       const arrived = (+o.produse_ajunse||0)+(+o.produse_predate||0);
       const total   = +o.nr_produse||0;
       const pct     = total>0 ? Math.round(arrived/total*100) : 0;
+      const prods   = kanbanProdsCache[o.id] || [];
+      const maxShow = 4;
+      const extra   = prods.length - maxShow;
+
+      const prodsHtml = prods.slice(0, maxShow).map(p => `
+        <div class="kanban-prod-row">
+          <span class="kanban-prod-cod">${escHtml(p.cod_aftermarket)}</span>
+          <span class="kanban-prod-desc">${escHtml(p.descriere||'—')}</span>
+          <span class="kanban-prod-st">${statusIcon[p.status_produs]||''}</span>
+        </div>
+      `).join('');
+
       const card = document.createElement('div');
       card.className = 'kanban-card';
       card.innerHTML = `
         <div class="kanban-card-name">${escHtml(o.client_nume)}</div>
-        <div class="kanban-card-meta">
+        <div class="kanban-card-sub">
           <span class="nr-cmd">${fmtNr(o.nr_comanda)}</span>
-          <span>${escHtml(o.furnizor||'—')}</span>
-          <span>${fmtDate(o.data_creare)}</span>
+          <span>📦 ${escHtml(o.furnizor||'—')}</span>
+          <span>🗓 ${fmtDate(o.data_creare)}</span>
         </div>
+        ${prods.length ? `<div class="kanban-card-products">${prodsHtml}${extra>0?`<div class="kanban-more">+${extra} mai multe...</div>`:''}</div>` : ''}
         <div class="kanban-card-footer">
-          <div class="kanban-progress">
-            <div class="kanban-progress-bar" style="width:${pct}%"></div>
+          <div>
+            <div class="kanban-progress" style="width:100px">
+              <div class="kanban-progress-bar" style="width:${pct}%"></div>
+            </div>
+            <span style="font-size:10px;color:var(--muted)">${arrived}/${total} ajunse</span>
           </div>
-          <span style="font-size:11px;color:var(--muted);white-space:nowrap">${arrived}/${total}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px">
-          <span class="text-${calcRest(o)>0?'yellow':'green'}">${fmtRON(calcRest(o))} RON rest</span>
-          <span class="text-blue fw-bold">${fmtRON(o.total_plata)} RON</span>
+          <div style="text-align:right">
+            <div class="text-blue fw-bold" style="font-size:13px">${fmtRON(o.total_plata)} RON</div>
+            ${calcRest(o)>0 ? `<div style="font-size:11px;color:var(--yellow)">Rest: ${fmtRON(calcRest(o))} RON</div>` : '<div style="font-size:11px;color:var(--green)">✅ Achitat</div>'}
+          </div>
         </div>
       `;
       card.addEventListener('click', () => loadDetail(o.id, o));
       col.el.appendChild(card);
     });
+
     if(!list.length) {
-      col.el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:12px">—</div>';
+      col.el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Nicio comandă</div>';
     }
   });
 }
@@ -2351,59 +2389,97 @@ let realtimeChannel = null;
 let notifEnabled    = false;
 
 async function initRealtime() {
-  // Cere permisiune notificări browser
   if ('Notification' in window && Notification.permission === 'default') {
     await Notification.requestPermission();
   }
 
-  // Conectare la Supabase Realtime via WebSocket
   try {
-    const token    = getToken();
-    const wsUrl    = `wss://ddieqobpxejocfnbmfck.supabase.co/realtime/v1/websocket?apikey=${ANON_KEY}&vsn=1.0.0`;
-    const ws       = new WebSocket(wsUrl);
-    let heartbeat  = null;
+    const wsUrl   = `wss://ddieqobpxejocfnbmfck.supabase.co/realtime/v1/websocket?apikey=${ANON_KEY}&vsn=1.0.0`;
+    const ws      = new WebSocket(wsUrl);
+    let heartbeat = null;
+    let refCount  = 0;
+
+    function joinChannel(topic) {
+      refCount++;
+      ws.send(JSON.stringify({
+        topic,
+        event:   'phx_join',
+        payload: { config:{ broadcast:{ self:false }, presence:{ key:'' } } },
+        ref:     String(refCount),
+      }));
+    }
 
     ws.onopen = () => {
-      // Join channel pentru produse_comandate
-      ws.send(JSON.stringify({
-        topic:   'realtime:public:produse_comandate',
-        event:   'phx_join',
-        payload: { config:{ broadcast:{ self:true }, presence:{ key:'' } } },
-        ref:     '1',
-      }));
+      // Ascultă schimbări produse
+      joinChannel('realtime:public:produse_comandate');
+      // Ascultă comenzi noi
+      joinChannel('realtime:public:comenzi');
+
       heartbeat = setInterval(() => {
         ws.send(JSON.stringify({ topic:'phoenix', event:'heartbeat', payload:{}, ref:'hb' }));
       }, 25000);
+
       notifEnabled = true;
-      document.getElementById('btn-notif-toggle').style.background = 'rgba(16,185,129,.2)';
-      showAutosaveStatus('🔔 Notificări active');
+      const bell = document.getElementById('btn-notif-toggle');
+      if(bell) bell.style.background = 'rgba(16,185,129,.2)';
+      showAutosaveStatus('🔔 Live');
     };
 
     ws.onmessage = e => {
       try {
         const msg = JSON.parse(e.data);
-        if (msg.event !== 'INSERT' && msg.event !== 'UPDATE') return;
-        const rec = msg.payload?.record;
+        if (!['INSERT','UPDATE'].includes(msg.event)) return;
+        const rec    = msg.payload?.record;
+        const old    = msg.payload?.old_record;
         if (!rec) return;
 
-        // Notificare când status_produs devine 'ajuns'
-        if (rec.status_produs === 'ajuns') {
+        // ── PRODUSE: orice schimbare de status ──────────────
+        if (msg.topic?.includes('produse_comandate') && msg.event === 'UPDATE') {
+          const oldStatus = old?.status_produs;
+          const newStatus = rec.status_produs;
+          if (oldStatus === newStatus) return; // nu s-a schimbat statusul
+
+          const order = allOrders.find(o=>o.id===rec.comanda_id);
+          const icons = { comandat:'📦', ajuns:'🏠', predat:'✅' };
+          const labels = { comandat:'Comandat', ajuns:'Ajuns în depozit', predat:'Predat clientului' };
+
           sendBrowserNotif(
-            '🏠 Produs ajuns!',
-            `${rec.cod_aftermarket} — ${rec.descriere||''}`,
-            () => { navigate('comenzi'); setTimeout(()=>loadDetail(rec.comanda_id, allOrders.find(o=>o.id===rec.comanda_id)||{}),200); }
+            `${icons[newStatus]||'🔔'} ${labels[newStatus]||newStatus}`,
+            `${rec.cod_aftermarket}${order?' · '+fmtNr(order.nr_comanda)+' — '+order.client_nume:''}`,
+            () => {
+              navigate('comenzi');
+              if(order) setTimeout(()=>loadDetail(order.id,order),200);
+            }
           );
-          // Reîncarcă comenzile
+          loadOrders();
+          // Invalidează cache kanban pentru această comandă
+          delete kanbanProdsCache[rec.comanda_id];
+        }
+
+        // ── COMENZI: comandă nouă creată ────────────────────
+        if (msg.topic?.includes(':comenzi') && msg.event === 'INSERT') {
+          const myId = getUser()?.id;
+          // Notifică doar dacă a creat altcineva (nu eu)
+          if (rec.creat_de && rec.creat_de === myId) return;
+
+          sendBrowserNotif(
+            '🆕 Comandă nouă creată',
+            `${rec.furnizor||'—'} · ${fmtRON(rec.total_plata)} RON`,
+            () => navigate('comenzi')
+          );
           loadOrders();
         }
-      } catch {}
+
+      } catch(err) { console.warn('Realtime msg error:', err); }
     };
 
     ws.onclose = () => {
       clearInterval(heartbeat);
       notifEnabled = false;
-      // Reconectare după 5s
-      setTimeout(initRealtime, 5000);
+      const bell = document.getElementById('btn-notif-toggle');
+      if(bell) bell.style.background = '';
+      // Reconectare exponențială
+      setTimeout(initRealtime, 8000);
     };
 
     ws.onerror = () => ws.close();
@@ -2430,64 +2506,6 @@ document.getElementById('btn-notif-toggle')?.addEventListener('click', () => {
   if(badge) badge.style.display='none'; // Clear badge on click
   if(!notifEnabled) initRealtime();
 });
-
-// ════════════════════════════════════════════════════════════
-// WHATSAPP — funcție helper pentru comenzi
-// ════════════════════════════════════════════════════════════
-function buildWaMessage(order, products) {
-  const prodList = products.map(p =>
-    `• ${p.cod_aftermarket} — ${p.descriere||''} (${p.status_produs==='ajuns'?'✅ Ajuns':'⏳ În așteptare'})`
-  ).join('
-');
-
-  return encodeURIComponent(
-    `Bună ziua ${order.client_nume},
-
-` +
-    `Vă contactăm referitor la comanda ${fmtNr(order.nr_comanda)}.
-
-` +
-    `*Situație produse:*
-${prodList}
-
-` +
-    `*Total: ${fmtRON(order.total_plata)} RON*
-` +
-    (calcRest(order)>0 ? `Rest de plată: ${fmtRON(calcRest(order))} RON
-` : '') +
-    `
-Vă mulțumim!`
-  );
-}
-
-// Adaugă buton WA în detaliile comenzii
-const _origLoadDetail = loadDetail;
-async function loadDetail(id, o) {
-  await _origLoadDetail(id, o);
-  // Adaugă buton WhatsApp dacă clientul are telefon
-  setTimeout(async () => {
-    const order = allOrders.find(x=>x.id===id);
-    const client = allClients.find(c=>c.id===order?.client_id);
-    const phone = client?.telefon || order?.client_telefon;
-    if (!phone) return;
-
-    const existingWa = document.getElementById('wa-order-btn');
-    if (existingWa) existingWa.remove();
-
-    try {
-      const prods = await api(`produse_comandate?comanda_id=eq.${id}&select=cod_aftermarket,descriere,status_produs`);
-      const msg   = buildWaMessage(order||{client_nume:o.client_nume,nr_comanda:o.nr_comanda,total_plata:o.total_plata}, prods);
-      const tel   = phone.replace(/\D/g,'');
-      const btn   = document.createElement('a');
-      btn.id        = 'wa-order-btn';
-      btn.className = 'wa-btn';
-      btn.href      = `https://wa.me/4${tel}?text=${msg}`;
-      btn.target    = '_blank';
-      btn.innerHTML = '📱 Trimite WhatsApp';
-      document.querySelector('.detail-head .header-right, .detail-head div:last-child')?.prepend(btn);
-    } catch {}
-  }, 500);
-}
 
 // ════════════════════════════════════════════════════════════
 // ISTORIC PREȚURI
