@@ -1907,7 +1907,13 @@ async function saveSearchProductSilent(prodId, row) {
 // Încarcă profilul și rolul utilizatorului
 async function initUserProfile() {
   try {
-    const profiles = await api('user_profiles?select=*&limit=1');
+    // Obține ID-ul din sesiune și filtrează explicit
+    const _sess = getSession();
+    const _uid  = _sess?.user?.id;
+    const profileQuery = _uid
+      ? `user_profiles?select=*&id=eq.${_uid}&limit=1`
+      : 'user_profiles?select=*&limit=1';
+    const profiles = await api(profileQuery);
     if (profiles && profiles.length) {
       currentUserProfile = profiles[0];
       currentUserRole    = profiles[0].role || 'user';
