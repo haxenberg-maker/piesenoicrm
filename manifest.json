@@ -35,6 +35,15 @@
         "styles.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://piesenoicrm.netlify.app/*"
+      ],
+      "js": [
+        "session_bridge.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "action": {

@@ -116,9 +116,18 @@
     <h1>CRM Piese Auto</h1>
   </div>
   <div style="padding:20px">
-    <p style="font-size:12px;color:var(--muted);margin-bottom:16px;text-align:center">
-      Autentifică-te pentru a plasa comenzi
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px;text-align:center">
+      Loghează-te pe dashboard mai întâi, sesiunea se preia automat.
     </p>
+    <button class="btn" style="margin-bottom:16px;background:var(--s2);border:1px solid var(--border);color:var(--text)"
+      onclick="openDashboardLogin()">
+      🌐 Deschide Dashboard → Login
+    </button>
+    <div style="display:flex;align-items:center;gap:10px;color:var(--muted);font-size:11px;margin-bottom:14px">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      sau loghează-te direct
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
     <div id="err" class="error-msg"></div>
     <form onsubmit="doLogin(event)">
       <div class="field">
@@ -164,6 +173,12 @@
 
 <script>
 const SB  = 'https://ddieqobpxejocfnbmfck.supabase.co';
+
+function openDashboardLogin() {
+  chrome.tabs.create({ url: 'https://piesenoicrm.netlify.app/index.html' });
+  // Închide popup-ul — după login pe dashboard, session_bridge.js va sincroniza automat
+  window.close();
+}
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
 
 // ── INIT ─────────────────────────────────────────────────────

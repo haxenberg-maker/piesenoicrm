@@ -73,4 +73,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
     return true;
   }
+
+  // Primit de la session_bridge.js de pe dashboard
+  if (msg.type === 'SYNC_SESSION') {
+    if (!msg.session?.access_token) return;
+    chrome.storage.local.set({
+      crm_session: msg.session,
+      crm_user:    msg.user || null,
+    }, () => {
+      console.log('[CRM Auto] Sesiune sincronizată din dashboard ✓');
+    });
+    sendResponse({ ok: true });
+    return true;
+  }
 });
