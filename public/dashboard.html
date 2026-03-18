@@ -334,7 +334,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
       <span class="icon">👥</span> Clienți
     </button>
     <button class="nav-item" onclick="navigate('produse')"   id="nav-produse">
-      <span class="icon">🔍</span> Caută Produse
+      <span class="icon">📦</span> Produse
     </button>
     <button class="nav-item" onclick="navigate('loguri')"   id="nav-loguri" style="display:none">
       <span class="icon">📜</span> Loguri
@@ -687,10 +687,11 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 
     <!-- PAS 1: Identificare -->
     <div class="modal-body" id="invoice-step1">
+      <!-- Rând 1: Nr factură + Furnizor -->
       <div class="grid2">
         <div class="field">
           <label>Număr factură furnizor *</label>
-          <input id="inv-nr" placeholder="Ex: INV-2026-0451" oninput="debounceInvoiceSearch()"/>
+          <input id="inv-nr" placeholder="Ex: RO8726006176" oninput="debounceInvoiceSearch()"/>
         </div>
         <div class="field">
           <label>Furnizor</label>
@@ -699,24 +700,56 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
           </select>
         </div>
       </div>
-      <div class="field" style="margin-top:10px">
-        <label>Filtrează după Cod Unic Comandă (opțional)</label>
+
+      <!-- Rând 2: Cod Unic Comandă cu sugestii live -->
+      <div class="field" style="margin-top:12px">
+        <label>Cod Unic Comandă</label>
         <div style="position:relative">
-          <input id="inv-cod-unic" placeholder="Ex: INT-0004-1803 — lasă gol pentru toate comenzile"
-            oninput="debounceInvoiceCodUnic()" autocomplete="off"
-            style="width:100%"/>
+          <input id="inv-cod-unic"
+            placeholder="Ex: INT-0004-1803 — tastează pentru sugestii"
+            oninput="debounceInvoiceCodUnic()"
+            autocomplete="off" style="width:100%"/>
           <ul id="inv-cod-unic-suggestions" style="
-            display:none; position:absolute; top:100%; left:0; right:0; z-index:10;
+            display:none; position:absolute; top:100%; left:0; right:0; z-index:20;
             background:var(--s2); border:1px solid var(--border); border-radius:8px;
-            list-style:none; overflow:hidden; margin-top:4px; max-height:180px; overflow-y:auto;
+            list-style:none; overflow:hidden; margin-top:4px; max-height:200px; overflow-y:auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,.4);
           "></ul>
         </div>
       </div>
-      <div id="inv-existing-warning" style="display:none;padding:10px 14px;background:#78350f22;border:1px solid var(--yellow);border-radius:8px;font-size:13px;color:var(--yellow);margin-top:8px">
+
+      <!-- Produse găsite după cod unic -->
+      <div id="inv-quick-products" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600;color:var(--text)">
+            Produse din comanda <span id="inv-quick-cod" style="color:var(--yellow)">—</span>
+          </span>
+          <button class="btn btn-primary btn-sm" onclick="preiaToateInFactura()">
+            ✅ Preia toate în factură
+          </button>
+        </div>
+        <div style="overflow-x:auto;max-height:280px;overflow-y:auto;border-radius:8px;border:1px solid var(--border)">
+          <table class="prod-tbl">
+            <thead>
+              <tr>
+                <th>Cod aftermarket</th>
+                <th>Descriere</th>
+                <th>Status</th>
+                <th>SKU <span style="color:var(--muted);font-weight:400">(editează)</span></th>
+                <th>În factură</th>
+                <th>Preia</th>
+              </tr>
+            </thead>
+            <tbody id="inv-quick-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="inv-existing-warning" style="display:none;padding:10px 14px;background:#78350f22;border:1px solid var(--yellow);border-radius:8px;font-size:13px;color:var(--yellow);margin-top:10px">
         ⚠️ Există deja produse cu această factură în sistem.
       </div>
-      <div style="margin-top:6px;font-size:12px;color:var(--muted)">
-        Produsele cu status <strong style="color:var(--yellow)">Comandat</strong> vor apărea automat. Filtrează după codul unic al comenzii pentru a găsi rapid produsele de pe factură.
+      <div style="margin-top:8px;font-size:12px;color:var(--muted)">
+        Tastează codul unic al comenzii pentru a vedea produsele și a le prelua în factură rapid.
       </div>
     </div>
 
@@ -2237,42 +2270,157 @@ function debounceInvoiceCodUnic() {
 }
 
 async function showCodUnicSuggestions() {
-  const q = document.getElementById('inv-cod-unic')?.value?.trim().toLowerCase();
+  const q  = document.getElementById('inv-cod-unic')?.value?.trim().toLowerCase();
   const ul = document.getElementById('inv-cod-unic-suggestions');
   if(!ul) return;
 
-  // Build suggestions from allOrders
   const matches = allOrders
     .filter(o => o.cod_comanda_unic && (!q || o.cod_comanda_unic.toLowerCase().includes(q)))
-    .slice(0, 8);
+    .slice(0, 10);
 
-  if(!q || !matches.length) { ul.style.display='none'; return; }
+  if(!matches.length) { ul.style.display='none'; document.getElementById('inv-quick-products').style.display='none'; return; }
 
   ul.innerHTML = '';
   ul.style.display = 'block';
   matches.forEach(o => {
     const li = document.createElement('li');
-    li.style.cssText = 'padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)';
-    li.innerHTML = `<span style="color:var(--yellow);font-family:monospace;font-weight:700">${escHtml(o.cod_comanda_unic)}</span>
-      <span style="color:var(--muted);font-size:11px;margin-left:8px">${escHtml(o.client_nume)} · ${escHtml(o.furnizor||'')}</span>`;
+    li.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:13px;color:var(--text);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between';
+    li.innerHTML = `
+      <div>
+        <span style="color:var(--yellow);font-family:monospace;font-weight:700">${escHtml(o.cod_comanda_unic)}</span>
+        <span style="color:var(--muted);font-size:11px;margin-left:8px">${escHtml(o.client_nume)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted)">${escHtml(o.furnizor||'')} · ${o.nr_produse} prod.</div>`;
+    li.addEventListener('mouseenter', () => li.style.background='rgba(59,130,246,.1)');
+    li.addEventListener('mouseleave', () => li.style.background='');
     li.addEventListener('click', () => {
       document.getElementById('inv-cod-unic').value = o.cod_comanda_unic;
       ul.style.display = 'none';
-      // Auto-set furnizor
       if(o.furnizor) {
         const sel = document.getElementById('inv-furnizor');
         [...sel.options].forEach(opt => { if(opt.value===o.furnizor) opt.selected=true; });
       }
+      // Încarcă produsele acestei comenzi
+      loadInvQuickProducts(o.id, o.cod_comanda_unic);
     });
-    li.addEventListener('mouseenter', () => li.style.background='var(--s2)');
-    li.addEventListener('mouseleave', () => li.style.background='');
     ul.appendChild(li);
   });
 }
 
-// Close suggestions on click outside
+async function loadInvQuickProducts(orderId, codUnic) {
+  const panel = document.getElementById('inv-quick-products');
+  const tbody = document.getElementById('inv-quick-body');
+  const codEl = document.getElementById('inv-quick-cod');
+
+  panel.style.display = 'block';
+  codEl.textContent   = codUnic;
+  tbody.innerHTML     = '<tr><td colspan="6" class="empty-state"><span class="spinner"></span></td></tr>';
+
+  try {
+    const prods = await api(`produse_comandate?comanda_id=eq.${orderId}&select=*&order=data_comanda.asc`);
+    tbody.innerHTML = '';
+
+    if(!prods.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nu există produse.</td></tr>';
+      return;
+    }
+
+    const nrFactura = document.getElementById('inv-nr').value.trim();
+
+    prods.forEach(p => {
+      const eInFactura = p.cod_factura_furnizor === nrFactura && nrFactura;
+      const tr = document.createElement('tr');
+      tr.dataset.prodId = p.id;
+      tr.innerHTML = `
+        <td class="text-yellow fw-bold font-mono" style="font-size:12px;white-space:nowrap">${escHtml(p.cod_aftermarket)}</td>
+        <td style="font-size:12px;max-width:150px">${escHtml(p.descriere||'—')}</td>
+        <td><span class="badge b-${p.status_produs}">${p.status_produs}</span></td>
+        <td>
+          <input class="sf-input inv-sku-input" value="${escHtml(p.sku||'')}"
+            placeholder="Introdu SKU" style="width:100px"
+            data-prod-id="${p.id}"/>
+        </td>
+        <td style="text-align:center">
+          ${eInFactura
+            ? '<span style="color:var(--green);font-size:13px" title="Deja în factură">✅</span>'
+            : '<span style="color:var(--muted);font-size:12px">—</span>'}
+        </td>
+        <td>
+          <button class="btn btn-primary btn-xs" onclick="preiaUnulInFactura('${p.id}', this)">
+            Preia
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Autosave SKU la blur
+    tbody.querySelectorAll('.inv-sku-input').forEach(input => {
+      input.addEventListener('blur', async () => {
+        const pid = input.dataset.prodId;
+        const val = input.value.trim();
+        if(!val) return;
+        try {
+          await api(`produse_comandate?id=eq.${pid}`, { method:'PATCH', body:JSON.stringify({ sku: val }) });
+          showAutosaveStatus('SKU salvat ✓');
+          input.style.borderColor = 'var(--green)';
+          setTimeout(() => input.style.borderColor = '', 1500);
+        } catch(e) { toast('Eroare SKU: '+e.message,'error'); }
+      });
+    });
+
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" class="text-red" style="padding:10px">Eroare: ${e.message}</td></tr>`;
+  }
+}
+
+// Fix table name typo
+async function _fixedGet(path) {
+  return api(path.replace('produse_comenzi', 'produse_comandate'));
+}
+
+async function preiaUnulInFactura(prodId, btn) {
+  const nrFactura = document.getElementById('inv-nr').value.trim();
+  if(!nrFactura) { toast('Introdu mai întâi numărul facturii!','warn'); return; }
+
+  // Salvează și SKU-ul dacă e completat
+  const row    = btn.closest('tr');
+  const skuVal = row.querySelector('.inv-sku-input')?.value?.trim();
+  const patch  = { cod_factura_furnizor: nrFactura, status_produs: 'ajuns', data_sosire: new Date().toISOString() };
+  if(skuVal) patch.sku = skuVal;
+
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, { method:'PATCH', body:JSON.stringify(patch) });
+    // Update visual
+    const inFactCol = row.querySelectorAll('td')[4];
+    if(inFactCol) inFactCol.innerHTML = '<span style="color:var(--green);font-size:13px">✅</span>';
+    btn.textContent = '✓';
+    btn.disabled = true;
+    btn.style.background = 'var(--green)';
+    toast('Produs preluat în factură!','success');
+    if(currentOrderId) refreshOrderRowCount(currentOrderId);
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
+
+async function preiaToateInFactura() {
+  const nrFactura = document.getElementById('inv-nr').value.trim();
+  if(!nrFactura) { toast('Introdu mai întâi numărul facturii!','warn'); return; }
+
+  const btns = document.querySelectorAll('#inv-quick-body button.btn-primary:not([disabled])');
+  if(!btns.length) { toast('Toate produsele sunt deja în factură.','info'); return; }
+
+  for(const btn of btns) {
+    const row   = btn.closest('tr');
+    const prodId = row?.dataset?.prodId;
+    if(prodId) await preiaUnulInFactura(prodId, btn);
+  }
+  toast(`✅ ${btns.length} produs(e) preluate în factura ${nrFactura}!`,'success');
+  await loadOrders();
+}
+
+// Close suggestions on outside click
 document.addEventListener('click', e => {
-  if(!e.target.closest('#inv-cod-unic')) {
+  if(!e.target.closest('#inv-cod-unic') && !e.target.closest('#inv-cod-unic-suggestions')) {
     const ul = document.getElementById('inv-cod-unic-suggestions');
     if(ul) ul.style.display='none';
   }
