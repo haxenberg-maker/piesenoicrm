@@ -4426,9 +4426,9 @@ function renderPctBar(pct) {
 
 function calcFacturaAchitatPct(factura) {
   // Găsim comenzile asociate acestei facturi din allOrders
-  const comenziIds = [...factura.comenzi]; // Set de cod_comanda_unic
+  const comenziIds = [...factura.comenzi]; // Array de cod_comanda_unic
   const comenziMatch = allOrders.filter(o =>
-    comenziIds.has(o.cod_comanda_unic) || comenziIds.has(o.id)
+    comenziIds.includes(o.cod_comanda_unic) || comenziIds.includes(o.id)
   );
   if(!comenziMatch.length) return 0;
   const totalVanz  = comenziMatch.reduce((s,o)=>s+(+o.total_plata||0),0);
