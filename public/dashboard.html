@@ -841,6 +841,11 @@ select.status-sel {
 .autosave-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--green); margin-left:4px; opacity:0; transition:opacity .3s }
 .autosave-dot.visible { opacity:1 }
 
+/* ════ DEBT ROW ════════════════════════════════════════════════ */
+tbody tr.row-debt { background: rgba(244,63,94,.06) !important }
+tbody tr.row-debt:hover { background: rgba(244,63,94,.12) !important }
+tbody tr.row-debt td { border-bottom-color: rgba(244,63,94,.15) !important }
+
 /* ════ PROGRESS BAR ═══════════════════════════════════════════ */
 .progress-bar-wrap { background: var(--s3); border-radius: 99px; height: 6px; overflow:hidden; width: 100%; min-width: 80px }
 .progress-bar-fill { height:100%; border-radius:99px; transition: width .5s cubic-bezier(.4,0,.2,1); background: linear-gradient(90deg, var(--accent), var(--green)) }
@@ -968,6 +973,7 @@ select.status-sel {
     </div>
     <div class="tabs">
       <button class="tab active" onclick="switchTab(this,'tab-produse')">📦 Produse</button>
+      <button class="tab"        onclick="switchTab(this,'tab-plati')">💳 Plăți</button>
       <button class="tab"        onclick="switchTab(this,'tab-factura')">🧾 Factură</button>
     </div>
     <div class="tab-body active" id="tab-produse">
@@ -997,6 +1003,19 @@ select.status-sel {
           <tbody id="detail-products-body"></tbody>
         </table>
       </div>
+    </div>
+    <div class="tab-body" id="tab-plati">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <strong style="font-size:13px">Istoric plăți</strong>
+        <button class="btn btn-primary btn-sm" id="btn-add-plata-detail">💳 Adaugă plată</button>
+      </div>
+      <div class="tbl-wrap">
+        <table class="prod-tbl">
+          <thead><tr><th>Data</th><th>Sumă</th><th>Metodă</th><th>Notă</th><th>User</th><th>🗑</th></tr></thead>
+          <tbody id="plati-body"></tbody>
+        </table>
+      </div>
+      <div id="plati-summary" style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap"></div>
     </div>
     <div class="tab-body" id="tab-factura">
       <div id="pdf-no-file">
@@ -1135,6 +1154,7 @@ select.status-sel {
           <th>Furnizor</th>
           <th>Produse</th>
           <th>Total achiziție</th>
+          <th>Achitat %</th>
           <th>Data primire</th>
           <th>Comenzi</th>
         </tr>
@@ -1239,6 +1259,60 @@ select.status-sel {
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-client')">Anulează</button>
       <button class="btn btn-primary" onclick="saveClient()">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: ADAUGĂ PLATĂ ════ -->
+<div class="modal-overlay" id="modal-plata">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-head">
+      <div>
+        <h3>💳 Adaugă plată</h3>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="plata-comanda-label">—</div>
+      </div>
+      <button class="icon-btn" onclick="closeModal('modal-plata')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;padding:12px;background:var(--s2);border-radius:var(--r-md);margin-bottom:4px">
+        <div style="flex:1;text-align:center">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Total</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text)" id="plata-total">0.00 RON</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Achitat</div>
+          <div style="font-size:18px;font-weight:700;color:var(--green)" id="plata-achitat">0.00 RON</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Rest</div>
+          <div style="font-size:18px;font-weight:700;color:var(--red)" id="plata-rest">0.00 RON</div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Sumă (RON) *</label>
+          <input type="number" id="plata-suma" placeholder="0.00" min="0" step="0.01"/>
+        </div>
+        <div class="field">
+          <label>Metodă</label>
+          <select id="plata-metoda">
+            <option value="cash">💵 Cash</option>
+            <option value="card">💳 Card / POS</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notă (opțional)</label>
+        <input id="plata-nota" placeholder="Ex: avans, rest, etc."/>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="setPlataRest()">Completează restul</button>
+        <button class="btn btn-secondary btn-sm" onclick="setPlataTota()">Achită integral</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-plata')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveNewPlata()">💾 Salvează plata</button>
     </div>
   </div>
 </div>
@@ -1762,6 +1836,7 @@ document.querySelectorAll('.modal-overlay').forEach(o =>
 );
 
 function switchTab(btn, tabId) {
+  if(tabId === 'tab-plati' && currentOrderId) loadPlati(currentOrderId);
   const parent = btn.closest('.detail-head')?.nextElementSibling
               || btn.closest('.tabs');
   // deactivate all tabs in same group
@@ -1872,8 +1947,11 @@ function renderOrdersTable(orders) {
     const arrived = ajunse+predate;
     const arrivedColor = arrived===total&&total>0 ? 'var(--green)' : arrived>0 ? 'var(--yellow)' : 'var(--muted)';
 
+    const rest = calcRest(o);
+    const toatePredate = (+o.produse_predate||0) === (+o.nr_produse||0) && (+o.nr_produse||0) > 0;
+    const isDebt = toatePredate && rest > 0;
     const tr = document.createElement('tr');
-    tr.className = 'clickable';
+    tr.className = 'clickable' + (isDebt ? ' row-debt' : '');
     tr.innerHTML = `
       <td><span class="nr-cmd">${fmtNr(o.nr_comanda)}</span></td>
       <td><span class="font-mono" style="font-size:11px;color:var(--yellow)">${escHtml(o.cod_comanda_unic||'—')}</span></td>
@@ -1904,6 +1982,7 @@ function renderOrdersTable(orders) {
           : `<span class="text-muted" style="font-size:11px">—</span>`}
       </td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        <button class="icon-btn" onclick="openAddPlata('${o.id}',event)" title="Adaugă plată" style="color:var(--green)">💳</button>
         <button class="icon-btn" onclick="openEditOrder('${o.id}')" title="Editează">✏️</button>
         <button class="icon-btn btn-delete-order-row" onclick="confirmDeleteOrder('${o.id}','${escHtml(o.client_nume)}')" title="Șterge" style="color:var(--red)">🗑</button>
       </td>
@@ -1959,6 +2038,7 @@ async function loadDetail(id, o) {
   document.getElementById('btn-delete-order').onclick    = ()=>confirmDeleteOrder(id, o.client_nume);
   document.getElementById('btn-add-prod-to-order').onclick = ()=>openAddProductToOrder(id, o.cod_comanda_unic||fmtNr(o.nr_comanda));
   document.getElementById('btn-copy-order').onclick       = ()=>copyOrderWhatsApp(id, o);
+  document.getElementById('btn-add-plata-detail').onclick = ()=>openAddPlata(id);
 
   // Reset tabs
   document.querySelectorAll('#detail-panel .tab').forEach((t,i)=>{
@@ -4174,6 +4254,9 @@ function renderFacturi(prods) {
       <td style="font-size:12px;color:var(--muted)">${escHtml(f.furnizor)}</td>
       <td style="text-align:center;font-weight:600">${f.produse.length}</td>
       <td class="fw-bold text-green">${fmtRON(f.total)} RON</td>
+      <td style="min-width:120px">
+        ${renderPctBar(calcFacturaAchitatPct(f))}
+      </td>
       <td style="font-size:12px;color:var(--muted)">${f.dataPrimire ? fmtDate(f.dataPrimire) : '—'}</td>
       <td style="font-size:12px">
         ${[...f.comenzi].map(c=>`<span class="nr-cmd" style="font-size:10px;margin-right:4px">${escHtml(c)}</span>`).join('')}
@@ -4203,6 +4286,147 @@ document.getElementById('f-factura-furnizor')?.addEventListener('change', applyF
 
 // Reîncarcă facturi după ce procesăm o factură nouă
 const _origInvoiceConfirm = invoiceConfirm;
+
+// ════════════════════════════════════════════════════════════
+// PLĂȚI
+// ════════════════════════════════════════════════════════════
+let _plataComandaId = null;
+
+function openAddPlata(orderId, event) {
+  if(event) event.stopPropagation();
+  _plataComandaId = orderId;
+  const o = allOrders.find(x=>x.id===orderId);
+  if(!o) return;
+
+  const rest = calcRest(o);
+  document.getElementById('plata-comanda-label').textContent =
+    `${fmtNr(o.nr_comanda)} — ${o.client_nume}`;
+  document.getElementById('plata-total').textContent   = fmtRON(o.total_plata) + ' RON';
+  document.getElementById('plata-achitat').textContent = fmtRON(o.avans_achitat) + ' RON';
+  document.getElementById('plata-rest').textContent    = fmtRON(rest) + ' RON';
+  document.getElementById('plata-suma').value  = '';
+  document.getElementById('plata-nota').value  = '';
+  document.getElementById('plata-metoda').value = 'cash';
+  openModal('modal-plata');
+}
+
+function setPlataRest() {
+  const o = allOrders.find(x=>x.id===_plataComandaId);
+  if(o) document.getElementById('plata-suma').value = fmtRON(calcRest(o));
+}
+function setPlataTota() {
+  const o = allOrders.find(x=>x.id===_plataComandaId);
+  if(o) document.getElementById('plata-suma').value = fmtRON(o.total_plata);
+}
+
+async function saveNewPlata() {
+  const suma = parseFloat(document.getElementById('plata-suma').value)||0;
+  if(!suma || suma <= 0) { toast('Introdu o sumă validă!','warn'); return; }
+
+  const body = {
+    comanda_id: _plataComandaId,
+    suma,
+    metoda:    document.getElementById('plata-metoda').value,
+    nota:      document.getElementById('plata-nota').value || null,
+    user_email: currentUserEmail || null,
+  };
+
+  try {
+    await api('plati', { method:'POST', body:JSON.stringify(body) });
+    await logAction('CREATE','plata',_plataComandaId,{ suma, metoda: body.metoda });
+    toast(`✅ Plată de ${fmtRON(suma)} RON înregistrată!`,'success');
+    closeModal('modal-plata');
+    // Refresh order row
+    await refreshOrderTotal(_plataComandaId);
+    if(currentOrderId === _plataComandaId) await loadPlati(_plataComandaId);
+  } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+async function loadPlati(orderId) {
+  const tbody  = document.getElementById('plati-body');
+  const sumDiv = document.getElementById('plati-summary');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><span class="spinner"></span></td></tr>';
+
+  try {
+    const plati = await api(`plati?comanda_id=eq.${orderId}&select=*&order=creat_la.asc`);
+    tbody.innerHTML = '';
+
+    if(!plati.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nicio plată înregistrată.</td></tr>';
+    } else {
+      plati.forEach((p,i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-size:12px;white-space:nowrap">${new Date(p.creat_la).toLocaleString('ro-RO')}</td>
+          <td class="fw-bold text-green">${fmtRON(p.suma)} RON</td>
+          <td><span class="badge ${p.metoda==='cash'?'b-ajuns':'b-in_lucru'}">${p.metoda==='cash'?'💵 Cash':'💳 Card'}</span></td>
+          <td style="font-size:12px;color:var(--muted)">${p.nota||'—'}</td>
+          <td style="font-size:11px;color:var(--muted)">${p.user_email||'—'}</td>
+          <td><button class="icon-btn" style="color:var(--red)" onclick="deletePlata('${p.id}','${orderId}')">🗑</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Summary
+    const totalPlati = plati.reduce((s,p)=>s+(+p.suma||0),0);
+    const o = allOrders.find(x=>x.id===orderId);
+    const rest = o ? calcRest(o) : 0;
+    const pct  = o && +o.total_plata > 0 ? Math.min(100, (totalPlati / +o.total_plata)*100) : 0;
+
+    if(sumDiv) sumDiv.innerHTML = `
+      <div style="flex:1;min-width:200px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px">
+          <span style="color:var(--muted)">Achitat: <strong style="color:var(--green)">${fmtRON(totalPlati)} RON</strong></span>
+          <span style="color:var(--muted)">Rest: <strong style="color:${rest>0?'var(--red)':'var(--green)'}">${fmtRON(rest)} RON</strong></span>
+          <span style="color:var(--accent);font-weight:700">${pct.toFixed(0)}%</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" style="width:${pct}%;background:${pct>=100?'var(--green)':'linear-gradient(90deg,var(--accent),var(--green))'}"></div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--red);padding:12px">Eroare: ${e.message}</td></tr>`;
+  }
+}
+
+async function deletePlata(plataId, orderId) {
+  if(!confirm('Ștergi această plată?')) return;
+  try {
+    await api(`plati?id=eq.${plataId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    await logAction('DELETE','plata',plataId,{comanda:orderId});
+    toast('Plată ștearsă.','info');
+    await loadPlati(orderId);
+    await refreshOrderTotal(orderId);
+  } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// PROCENT ACHITAT ÎN FACTURI
+// ════════════════════════════════════════════════════════════
+function renderPctBar(pct) {
+  const color = pct >= 100 ? 'var(--green)' : pct > 0 ? 'var(--accent)' : 'var(--red)';
+  return `<div style="display:flex;align-items:center;gap:8px">
+    <div class="progress-bar-wrap" style="flex:1">
+      <div class="progress-bar-fill" style="width:${pct.toFixed(0)}%;background:${color}"></div>
+    </div>
+    <span style="font-size:11px;font-weight:700;color:${color};white-space:nowrap">${pct.toFixed(0)}%</span>
+  </div>`;
+}
+
+function calcFacturaAchitatPct(factura) {
+  // Găsim comenzile asociate acestei facturi din allOrders
+  const comenziIds = [...factura.comenzi]; // Set de cod_comanda_unic
+  const comenziMatch = allOrders.filter(o =>
+    comenziIds.has(o.cod_comanda_unic) || comenziIds.has(o.id)
+  );
+  if(!comenziMatch.length) return 0;
+  const totalVanz  = comenziMatch.reduce((s,o)=>s+(+o.total_plata||0),0);
+  const totalAchitat = comenziMatch.reduce((s,o)=>s+(+o.avans_achitat||0),0);
+  return totalVanz > 0 ? Math.min(100, (totalAchitat/totalVanz)*100) : 0;
+}
 
 // ════ INIT — verifică sesiune salvată ════
 (async () => {
