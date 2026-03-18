@@ -253,6 +253,26 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .log-LOGIN  { color:var(--yellow) }
 .log-details{ font-size:11px;color:var(--muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer }
 .log-details:hover{ white-space:normal;color:var(--text) }
+
+/* ════ SEARCH PRODUCT INPUTS ═════════════════════════════════ */
+.sf-input {
+  background: var(--s3) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 5px !important;
+  color: var(--text) !important;
+  padding: 4px 7px !important;
+  font-size: 12px !important;
+  outline: none !important;
+  width: 100%;
+}
+.sf-input:focus { border-color: var(--accent) !important; }
+
+/* SKU gol — avertizare roșie */
+.sku-empty {
+  border-color: var(--red) !important;
+  background: rgba(239,68,68,.08) !important;
+}
+.sku-empty::placeholder { color: #fca5a5 !important; }
 </style>
 </head>
 <body>
@@ -652,11 +672,24 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
           </select>
         </div>
       </div>
-      <div id="inv-existing-warning" style="display:none;padding:10px 14px;background:#78350f22;border:1px solid var(--yellow);border-radius:8px;font-size:13px;color:var(--yellow)">
-        ⚠️ Există deja produse cu această factură în sistem. Ele vor apărea mai jos.
+      <div class="field" style="margin-top:10px">
+        <label>Filtrează după Cod Unic Comandă (opțional)</label>
+        <div style="position:relative">
+          <input id="inv-cod-unic" placeholder="Ex: INT-0004-1803 — lasă gol pentru toate comenzile"
+            oninput="debounceInvoiceCodUnic()" autocomplete="off"
+            style="width:100%"/>
+          <ul id="inv-cod-unic-suggestions" style="
+            display:none; position:absolute; top:100%; left:0; right:0; z-index:10;
+            background:var(--s2); border:1px solid var(--border); border-radius:8px;
+            list-style:none; overflow:hidden; margin-top:4px; max-height:180px; overflow-y:auto;
+          "></ul>
+        </div>
+      </div>
+      <div id="inv-existing-warning" style="display:none;padding:10px 14px;background:#78350f22;border:1px solid var(--yellow);border-radius:8px;font-size:13px;color:var(--yellow);margin-top:8px">
+        ⚠️ Există deja produse cu această factură în sistem.
       </div>
       <div style="margin-top:6px;font-size:12px;color:var(--muted)">
-        Produsele cu status <strong style="color:var(--yellow)">Comandat</strong> de la furnizorul selectat vor apărea automat.
+        Produsele cu status <strong style="color:var(--yellow)">Comandat</strong> vor apărea automat. Filtrează după codul unic al comenzii pentru a găsi rapid produsele de pe factură.
       </div>
     </div>
 
@@ -1264,7 +1297,7 @@ async function loadDetailProducts(id) {
     if(adaosEl && order) adaosEl.value = order.adaos_procent||0;
 
     prods.forEach(p=>{
-      const adaos = p.adaos_procent!=null ? p.adaos_procent : (order?.adaos_procent||0);
+      const adaos = (p.adaos_procent!=null && p.adaos_procent!==0) ? p.adaos_procent : (order?.adaos_procent||0);
       const tr = document.createElement('tr');
       tr.dataset.id = p.id;
       tr.innerHTML = `
@@ -1289,6 +1322,7 @@ async function loadDetailProducts(id) {
     });
     updateDetailTotals();
     attachAutosave(tbody, 'product');
+    highlightEmptySku(tbody);
   } catch(e) {
     tbody.innerHTML=`<tr><td colspan="10" class="text-red" style="padding:12px">Eroare: ${e.message}</td></tr>`;
   }
@@ -1927,12 +1961,12 @@ async function fetchAndRenderProducts(extraQuery='') {
       tr.innerHTML=`
         <td><span class="font-mono fw-bold" style="font-size:11px;color:var(--yellow);white-space:nowrap">${escHtml(codUnicCmd)}</span></td>
         <td class="text-yellow fw-bold font-mono" style="white-space:nowrap">${escHtml(p.cod_aftermarket)}</td>
-        <td><input value="${escHtml(p.descriere||'')}" data-sf="descriere" style="min-width:120px"/></td>
-        <td><input value="${escHtml(p.sku||'')}" data-sf="sku" style="width:80px" placeholder="SKU"/></td>
-        <td><input value="${escHtml(p.cod_factura_furnizor||'')}" data-sf="cod_factura_furnizor" style="width:90px" placeholder="INV-001"/></td>
-        <td><input type="number" value="${p.pret_achizitie||0}" data-sf="pret_achizitie" style="width:68px" oninput="recalcSearchRow(this)"/></td>
-        <td><input type="number" value="${adaos}" class="adaos-calc" style="width:55px;background:var(--s3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:4px 7px;font-size:12px;outline:none" oninput="recalcSearchRow(this)"/></td>
-        <td><input type="number" value="${p.pret_vanzare||0}" data-sf="pret_vanzare" style="width:68px"/></td>
+        <td><input value="${escHtml(p.descriere||'')}" data-sf="descriere" class="sf-input" style="min-width:120px"/></td>
+        <td><input value="${escHtml(p.sku||'')}" data-sf="sku" class="sf-input sku-input" style="width:80px" placeholder="SKU"/></td>
+        <td><input value="${escHtml(p.cod_factura_furnizor||'')}" data-sf="cod_factura_furnizor" class="sf-input" style="width:90px" placeholder="INV-001"/></td>
+        <td><input type="number" value="${p.pret_achizitie||0}" data-sf="pret_achizitie" class="sf-input" style="width:68px" oninput="recalcSearchRow(this)"/></td>
+        <td><input type="number" value="${adaos}" class="adaos-calc sf-input" style="width:55px" oninput="recalcSearchRow(this)"/></td>
+        <td><input type="number" value="${p.pret_vanzare||0}" data-sf="pret_vanzare" class="sf-input" style="width:68px"/></td>
         <td style="text-align:center">${p.cantitate||1}</td>
         <td><span class="badge b-${p.status_produs}">${p.status_produs}</span></td>
         <td><span class="nr-cmd" style="cursor:pointer" onclick="jumpToOrder('${ord.id||''}','')">${fmtNr(ord.nr_comanda)}</span></td>
@@ -1942,11 +1976,22 @@ async function fetchAndRenderProducts(extraQuery='') {
       tbody.appendChild(tr);
     });
     attachAutosave(tbody, 'search');
+    // FIX 5: Highlight SKU gol cu roșu
+    highlightEmptySku(tbody);
   } catch(e){
     document.getElementById('search-loading').style.display='none';
     toast('Eroare: '+e.message,'error');
     console.error(e);
   }
+}
+
+function highlightEmptySku(container) {
+  container.querySelectorAll('.sku-input, [data-f="sku"]').forEach(el => {
+    el.addEventListener('input', () => {
+      el.classList.toggle('sku-empty', !el.value.trim());
+    });
+    el.classList.toggle('sku-empty', !el.value.trim());
+  });
 }
 
 function recalcSearchRow(input) {
@@ -2027,6 +2072,9 @@ async function saveProductSilent(prodId, row) {
     if(f==='status_produs') return;
     patch[f] = el.type==='number' ? parseFloat(el.value)||0 : el.value;
   });
+  // Salvează și adaosul din .adaos-calc
+  const adaosEl = row.querySelector('.adaos-calc');
+  if(adaosEl) patch.adaos_procent = parseFloat(adaosEl.value)||0;
   try {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
     logAction('UPDATE', 'produs', prodId, patch);
@@ -2084,6 +2132,8 @@ async function openInvoiceWizard() {
 }
 
 let _invSearchTimer;
+let _invCodUnicTimer;
+
 function debounceInvoiceSearch() {
   clearTimeout(_invSearchTimer);
   const nr = document.getElementById('inv-nr').value.trim();
@@ -2091,6 +2141,53 @@ function debounceInvoiceSearch() {
   if(nr.length < 2) return;
   _invSearchTimer = setTimeout(checkExistingInvoice, 400);
 }
+
+function debounceInvoiceCodUnic() {
+  clearTimeout(_invCodUnicTimer);
+  _invCodUnicTimer = setTimeout(showCodUnicSuggestions, 300);
+}
+
+async function showCodUnicSuggestions() {
+  const q = document.getElementById('inv-cod-unic')?.value?.trim().toLowerCase();
+  const ul = document.getElementById('inv-cod-unic-suggestions');
+  if(!ul) return;
+
+  // Build suggestions from allOrders
+  const matches = allOrders
+    .filter(o => o.cod_comanda_unic && (!q || o.cod_comanda_unic.toLowerCase().includes(q)))
+    .slice(0, 8);
+
+  if(!q || !matches.length) { ul.style.display='none'; return; }
+
+  ul.innerHTML = '';
+  ul.style.display = 'block';
+  matches.forEach(o => {
+    const li = document.createElement('li');
+    li.style.cssText = 'padding:8px 14px;cursor:pointer;font-size:13px;color:var(--text);border-bottom:1px solid var(--border)';
+    li.innerHTML = `<span style="color:var(--yellow);font-family:monospace;font-weight:700">${escHtml(o.cod_comanda_unic)}</span>
+      <span style="color:var(--muted);font-size:11px;margin-left:8px">${escHtml(o.client_nume)} · ${escHtml(o.furnizor||'')}</span>`;
+    li.addEventListener('click', () => {
+      document.getElementById('inv-cod-unic').value = o.cod_comanda_unic;
+      ul.style.display = 'none';
+      // Auto-set furnizor
+      if(o.furnizor) {
+        const sel = document.getElementById('inv-furnizor');
+        [...sel.options].forEach(opt => { if(opt.value===o.furnizor) opt.selected=true; });
+      }
+    });
+    li.addEventListener('mouseenter', () => li.style.background='var(--s2)');
+    li.addEventListener('mouseleave', () => li.style.background='');
+    ul.appendChild(li);
+  });
+}
+
+// Close suggestions on click outside
+document.addEventListener('click', e => {
+  if(!e.target.closest('#inv-cod-unic')) {
+    const ul = document.getElementById('inv-cod-unic-suggestions');
+    if(ul) ul.style.display='none';
+  }
+});
 
 async function checkExistingInvoice() {
   const nr = document.getElementById('inv-nr').value.trim();
@@ -2111,7 +2208,7 @@ async function invoiceNext() {
 
   try {
     // Găsește toate comenzile de la furnizorul selectat cu produse comandate
-    let ordersQuery = 'comenzi?select=id,nr_comanda,clienti(nume)';
+    let ordersQuery = 'comenzi?select=id,nr_comanda,cod_comanda_unic,furnizor,clienti(nume)';
     if(furnizor) ordersQuery += `&furnizor=eq.${encodeURIComponent(furnizor)}`;
 
     const orders = await api(ordersQuery + '&status_general=in.(in_lucru,finalizata)');
