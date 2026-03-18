@@ -853,7 +853,7 @@ tbody tr.row-debt td { border-bottom-color: rgba(244,63,94,.15) !important }
 </head>
 <body>
 <!-- ════ LOGIN PAGE ════ -->
-<div id="login-page">
+<div id="login-page" class="visible">
   <div class="login-box">
     <div class="login-logo">🔧</div>
     <div class="login-title">CRM Piese Auto</div>
@@ -871,7 +871,7 @@ tbody tr.row-debt td { border-bottom-color: rgba(244,63,94,.15) !important }
   </div>
 </div>
 
-<div id="app">
+<div id="app" style="display:none">
 
 <!-- ════ SIDEBAR ════ -->
 <aside id="sidebar">
@@ -909,6 +909,13 @@ tbody tr.row-debt td { border-bottom-color: rgba(244,63,94,.15) !important }
 
 <!-- ════ MAIN ════ -->
 <main id="main">
+<!-- ════ TOPBAR ════ -->
+<div id="topbar" style="display:none;position:sticky;top:0;z-index:50;background:rgba(9,9,15,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:10px 28px;align-items:center;gap:12px;flex-wrap:wrap">
+  <div class="topbar-stat"><span class="ts-label">Active</span><span class="ts-val amber" id="tb-active">—</span></div>
+  <div class="topbar-stat"><span class="ts-label">Rest total</span><span class="ts-val red" id="tb-rest">—</span></div>
+  <div class="topbar-stat"><span class="ts-label">Vânzări</span><span class="ts-val green" id="tb-vanzari">—</span></div>
+  <div class="topbar-right" id="tb-time" style="margin-left:auto;font-size:11px;color:var(--muted)">—</div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════════
      PAGE: COMENZI
@@ -1702,6 +1709,7 @@ function doLogout() {
   localStorage.removeItem('crm_email');
   document.getElementById('login-page').classList.add('visible');
   document.getElementById('app').style.display = 'none';
+  document.getElementById('topbar').style.display = 'none';
   document.getElementById('login-email').value = '';
   document.getElementById('login-password').value = '';
 }
@@ -1713,7 +1721,7 @@ async function showApp(email, userId, mustChangePass=false) {
   }
   document.getElementById('login-page').classList.remove('visible');
   document.getElementById('app').style.display = 'flex';
-  document.getElementById('topbar').classList.add('visible');
+  document.getElementById('topbar').style.display='flex';
   document.getElementById('sidebar-user').textContent = email;
   currentUserEmail = email;
   if(userId) currentUserId = userId;
