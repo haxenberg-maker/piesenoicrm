@@ -1401,6 +1401,7 @@ async function saveProduct(prodId, row) {
   try {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
     toast('Produs salvat. ✓','success');
+    if(currentOrderId) await refreshOrderTotal(currentOrderId);
   } catch(e){ toast('Eroare: '+e.message,'error'); }
 }
 
@@ -2088,6 +2089,8 @@ async function saveProductSilent(prodId, row) {
     row.classList.add('saved-flash');
     setTimeout(()=>row.classList.remove('saved-flash'),600);
     showAutosaveStatus('Salvat automat ✓');
+    // Actualizează totalul în tabel fără reload
+    if(currentOrderId) await refreshOrderTotal(currentOrderId);
   } catch(e){ toast('Autosave eroare: '+e.message,'error'); }
 }
 
@@ -2102,6 +2105,8 @@ async function saveSearchProductSilent(prodId, row) {
     row.classList.add('saved-flash');
     setTimeout(()=>row.classList.remove('saved-flash'),600);
     showAutosaveStatus('Salvat automat ✓');
+    // Actualizează totalul în tabel fără reload
+    if(currentOrderId) await refreshOrderTotal(currentOrderId);
   } catch(e){ toast('Autosave eroare: '+e.message,'error'); }
 }
 
@@ -2886,6 +2891,45 @@ function orderIndicator(o) {
 // REFRESH PARȚIAL — actualizează doar un rând din tabel
 // fără să reîncarce toate comenzile
 // ════════════════════════════════════════════════════════════
+async function refreshOrderTotal(orderId) {
+  try {
+    // Fetch total recalculat din DB (după ce triggerul sync_total a rulat)
+    const rows = await api(`comenzi?id=eq.${orderId}&select=total_plata,avans_achitat,rest_de_plata,tip_plata`);
+    if(!rows?.length) return;
+    const fresh = rows[0];
+
+    // Actualizează în allOrders
+    const o = allOrders.find(x=>x.id===orderId);
+    if(o) {
+      o.total_plata   = fresh.total_plata;
+      o.avans_achitat = fresh.avans_achitat;
+      o.rest_de_plata = fresh.rest_de_plata;
+      o.tip_plata     = fresh.tip_plata;
+    }
+
+    // Actualizează celulele din rândul tabelului
+    const row = document.querySelector(`select.status-sel[data-id="${orderId}"]`)?.closest('tr');
+    if(row && o) {
+      const cells = row.querySelectorAll('td');
+      // Total (index 5), Avans (6), Rest (7)
+      if(cells[5]) cells[5].textContent = fmtRON(o.total_plata);
+      if(cells[6]) cells[6].textContent = fmtRON(o.avans_achitat);
+      if(cells[7]) {
+        const rest = calcRest(o);
+        cells[7].textContent  = fmtRON(rest);
+        cells[7].style.color  = rest > 0 ? 'var(--yellow)' : 'var(--green)';
+      }
+      // Actualizează indicatorul
+      const indicatorCell = row.querySelector('.order-indicator-cell');
+      if(indicatorCell) indicatorCell.innerHTML = orderIndicator(o);
+    }
+
+    // Actualizează și totalul din detail panel dacă e deschis
+    updateDetailTotals();
+    renderStats(allOrders);
+  } catch(e) { console.warn('refreshOrderTotal:', e.message); }
+}
+
 async function refreshOrderRowCount(orderId) {
   try {
     // Fetch doar produsele acestei comenzi pentru a recalcula contoarele
