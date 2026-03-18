@@ -25,33 +25,19 @@ function detectFurnizor() {
 // ─── STATE ───────────────────────────────────────────────────
 let clientCart = [];
 
-// ─── SUPABASE HELPERS (auth-aware) ───────────────────────────
-// Token-ul vine din background.js care îl citește din chrome.storage
-async function getAuthToken() {
-  return new Promise(resolve => {
-    chrome.runtime.sendMessage({ type: 'GET_TOKEN' }, res => {
-      resolve(res?.token || SUPABASE_ANON); // fallback la anon dacă nu e logat
-    });
-  });
-}
-
+// ─── SUPABASE HELPERS ─────────────────────────────────────────
 const supabase = {
   async req(path, opts = {}) {
-    const token = await getAuthToken();
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
       ...opts,
       headers: {
         'apikey':        SUPABASE_ANON,
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${SUPABASE_ANON}`,
         'Content-Type':  'application/json',
         'Prefer':        opts.prefer || 'return=representation',
         ...opts.headers,
       },
     });
-    if (res.status === 401) {
-      showToast('Sesiune expirată. Loghează-te din nou din extensie.', 'error');
-      throw new Error('Unauthorized');
-    }
     if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
     return res.status === 204 ? null : res.json();
   },
@@ -428,10 +414,6 @@ async function submitOrder() {
   btn.disabled = true; btn.textContent = '⏳ Se salvează...';
 
   try {
-    // Obține user id pentru creat_de
-    const userData = await new Promise(r => chrome.runtime.sendMessage({type:'GET_USER'}, r));
-    const userId   = userData?.user?.id || null;
-
     const [comanda] = await supabase.post('comenzi', {
       client_id:     selectedClientId,
       tip_plata:     tipPlata,
@@ -440,7 +422,6 @@ async function submitOrder() {
       adaos_procent: adaosGlobal,
       furnizor:      detectFurnizor(),
       furnizor_url:  window.location.href,
-      creat_de:      userId,
     });
 
     const produse = clientCart.map(p => ({
@@ -451,11 +432,13 @@ async function submitOrder() {
       pret_achizitie:  p.pret_achizitie,
       pret_vanzare:    parseFloat(calcVanzare(p.pret_achizitie, p.adaos_procent ?? adaosGlobal).toFixed(2)),
       cantitate:       p.cantitate,
+      // ref_intern generat automat prin trigger SQL
     }));
     await supabase.post('produse_comandate', produse);
 
-    const nr = comanda.nr_comanda ? `CMD-${String(comanda.nr_comanda).padStart(4, '0')}` : '';
-    showToast(`✅ Comanda ${nr} plasată! Total: ${totalVanzare.toFixed(2)} RON`, 'success');
+    const nr      = comanda.nr_comanda ? `CMD-${String(comanda.nr_comanda).padStart(4, '0')}` : '';
+    const codUnic = comanda.cod_comanda_unic || nr;
+    showToast(`✅ Comanda ${codUnic} plasată! Total: ${totalVanzare.toFixed(2)} RON`, 'success');
     clearCart();
     document.getElementById('crm-modal-overlay')?.remove();
     selectedClientId = null;
@@ -485,16 +468,8 @@ function debounce(fn, ms) {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────
-// Verifică dacă userul e logat înainte să injecteze widget-ul
-chrome.runtime.sendMessage({ type: 'IS_LOGGED_IN' }, res => {
-  if (!res?.loggedIn) {
-    // Arată un tooltip mic că trebuie să se logheze
-    showToast('CRM Auto: deschide extensia și loghează-te mai întâi.', 'warn');
-    return;
-  }
-  loadCart();
-  buildWidget();
-});
+loadCart();
+buildWidget();
 
 if (window.location.pathname.includes('/cart') || window.location.pathname.includes('/cos')) {
   setTimeout(() => {

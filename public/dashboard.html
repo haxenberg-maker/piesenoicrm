@@ -348,7 +348,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <table id="orders-table" style="display:none">
       <thead>
         <tr>
-          <th>Nr.</th><th>Data</th><th>Client</th><th>Furnizor</th>
+          <th>Nr.</th><th>Cod Unic</th><th>Data</th><th>Client</th><th>Furnizor</th>
           <th>Produse</th><th>Total</th><th>Avans</th><th>Rest</th>
           <th>Plată</th><th>Status</th><th>Factură</th><th></th>
         </tr>
@@ -363,6 +363,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
       <h3 id="detail-title">—</h3>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-secondary btn-sm" id="btn-edit-order">✏️ Editează</button>
+        <button class="btn btn-primary btn-sm"   id="btn-add-prod-to-order">＋ Produs</button>
         <button class="btn btn-danger btn-sm"    id="btn-delete-order">🗑 Șterge</button>
         <button class="icon-btn" onclick="closeDetail()">✕</button>
       </div>
@@ -391,7 +392,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
             <tr>
               <th>Cod aftermarket</th><th>Descriere</th>
               <th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th><th>Cant.</th>
-              <th>SKU</th><th>Cod fact. furnizor</th>
+              <th>REF Intern</th><th>Cod fact. furnizor</th>
               <th>Status</th><th>💾</th>
             </tr>
           </thead>
@@ -489,7 +490,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
   <div class="filters" style="margin-bottom:12px">
     <input type="text" id="search-prod-cod"     placeholder="Cod aftermarket..." style="flex:1;min-width:140px"/>
     <input type="text" id="search-prod-factura" placeholder="Cod factură furnizor..." style="flex:1;min-width:140px"/>
-    <input type="text" id="search-prod-sku"     placeholder="SKU..." style="flex:1;min-width:110px"/>
+    <input type="text" id="search-prod-sku"     placeholder="REF Intern..." style="flex:1;min-width:110px"/>
     <input type="text" id="search-prod-desc"    placeholder="Descriere..." style="flex:1;min-width:140px"/>
     <button class="btn btn-primary" onclick="searchProducts()">🔍 Caută</button>
     <button class="btn btn-secondary" onclick="loadAllProducts()">📦 Toate produsele</button>
@@ -500,7 +501,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <table id="search-table">
       <thead>
         <tr>
-          <th>Cod aftermarket</th><th>Descriere</th><th>SKU</th>
+          <th>Cod aftermarket</th><th>Descriere</th><th>REF Intern</th>
           <th>Cod fact. furnizor</th><th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th>
           <th>Cant.</th><th>Status</th><th>Comandă</th><th>Client</th><th>💾</th>
         </tr>
@@ -675,7 +676,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
           <thead style="position:sticky;top:0;z-index:1">
             <tr>
               <th style="width:36px"><input type="checkbox" id="inv-check-all" onchange="invToggleAll(this.checked)"/></th>
-              <th>SKU</th>
+              <th>REF Intern</th>
               <th>Cod aftermarket</th>
               <th>Descriere</th>
               <th>Comandă</th>
@@ -726,7 +727,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
           <input id="ap-cod" placeholder="Ex: D7B006TT"/>
         </div>
         <div class="field">
-          <label>SKU (auto-generat)</label>
+          <label>REF Intern (auto-generat)</label>
           <input id="ap-sku" placeholder="Se generează automat" style="opacity:.6" readonly/>
         </div>
       </div>
@@ -766,6 +767,72 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-product')">Anulează</button>
       <button class="btn btn-primary" onclick="saveAddProduct()">💾 Adaugă produs</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: ADAUGĂ PRODUS LA COMANDĂ EXISTENTĂ ════ -->
+<div class="modal-overlay" id="modal-add-to-order">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3>＋ Adaugă produs la comandă</h3>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="ato-comanda-label">—</div>
+      </div>
+      <button class="icon-btn" onclick="closeModal('modal-add-to-order')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="field">
+          <label>Cod aftermarket *</label>
+          <input id="ato-cod" placeholder="Ex: D7B006TT" oninput="atoUpdateRefIntern()"/>
+        </div>
+        <div class="field">
+          <label>REF Intern (auto-generat)</label>
+          <input id="ato-ref" placeholder="Se generează automat" style="opacity:.6;font-family:monospace" readonly/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Descriere</label>
+        <input id="ato-desc" placeholder="Ex: Radiator racire motor"/>
+      </div>
+      <div class="grid3">
+        <div class="field">
+          <label>Preț achiziție (RON)</label>
+          <input type="number" id="ato-pret" value="0" min="0" step="0.01" oninput="atoRecalc()"/>
+        </div>
+        <div class="field">
+          <label>Adaos (%)</label>
+          <input type="number" id="ato-adaos" value="0" min="0" step="0.5" oninput="atoRecalc()"/>
+        </div>
+        <div class="field">
+          <label>Preț vânzare (RON)</label>
+          <input type="number" id="ato-vanz" value="0" min="0" step="0.01"/>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Cantitate</label>
+          <input type="number" id="ato-cant" value="1" min="1"/>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="ato-status">
+            <option value="comandat">📦 Comandat</option>
+            <option value="ajuns">🏠 Ajuns</option>
+            <option value="predat">✅ Predat</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>REF Intern (manual, opțional)</label>
+        <input id="ato-ref-manual" placeholder="Lasă gol pentru auto-generare"/>
+        <small style="color:var(--muted);font-size:11px">Dacă lași gol, se generează automat din codul comenzii</small>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-to-order')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveAddToOrder()">＋ Adaugă produs</button>
     </div>
   </div>
 </div>
@@ -1081,6 +1148,7 @@ function renderOrdersTable(orders) {
     tr.className = 'clickable';
     tr.innerHTML = `
       <td><span class="nr-cmd">${fmtNr(o.nr_comanda)}</span></td>
+      <td><span class="font-mono" style="font-size:11px;color:var(--yellow)">${escHtml(o.cod_comanda_unic||'—')}</span></td>
       <td style="white-space:nowrap">${fmtDate(o.data_creare)}</td>
       <td>
         <div class="fw-bold">${escHtml(o.client_nume)}</div>
@@ -1154,11 +1222,13 @@ async function loadDetail(id, o) {
   panel.style.display='block';
 
   const nr = fmtNr(o.nr_comanda);
+  const codUnic = o.cod_comanda_unic || nr;
   document.getElementById('detail-title').textContent =
-    `${nr} — ${o.client_nume} · ${fmtDate(o.data_creare)}`;
+    `${nr} (${codUnic}) — ${o.client_nume} · ${fmtDate(o.data_creare)}`;
 
-  document.getElementById('btn-edit-order').onclick   = ()=>openEditOrder(id);
-  document.getElementById('btn-delete-order').onclick = ()=>confirmDeleteOrder(id, o.client_nume);
+  document.getElementById('btn-edit-order').onclick      = ()=>openEditOrder(id);
+  document.getElementById('btn-delete-order').onclick    = ()=>confirmDeleteOrder(id, o.client_nume);
+  document.getElementById('btn-add-prod-to-order').onclick = ()=>openAddProductToOrder(id, o.cod_comanda_unic||fmtNr(o.nr_comanda));
 
   // Reset tabs
   document.querySelectorAll('#detail-panel .tab').forEach((t,i)=>{
@@ -1204,7 +1274,7 @@ async function loadDetailProducts(id) {
         <td><input type="number" value="${adaos}" class="adaos-calc" style="width:58px;background:var(--s3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:4px 7px;font-size:12px;outline:none" oninput="recalcDetailRow(this)"/></td>
         <td class="dp-vanz-cell"><input type="number" value="${p.pret_vanzare||0}" data-f="pret_vanzare" style="width:72px"/></td>
         <td><input type="number" value="${p.cantitate||1}" data-f="cantitate" style="width:48px" oninput="updateDetailTotals()"/></td>
-        <td><input value="${escHtml(p.sku||'')}" data-f="sku" style="width:85px" placeholder="SKU"/></td>
+        <td><input value="${escHtml(p.ref_intern||'')}" data-f="ref_intern" style="width:85px" placeholder="REF Intern"/></td>
         <td><input value="${escHtml(p.cod_factura_furnizor||'')}" data-f="cod_factura_furnizor" style="width:95px" placeholder="INV-001"/></td>
         <td>
           <select data-f="status_produs" onchange="updateProductStatus(this,'${p.id}')">
@@ -1856,7 +1926,7 @@ async function fetchAndRenderProducts(extraQuery='') {
       tr.innerHTML=`
         <td class="text-yellow fw-bold font-mono" style="white-space:nowrap">${escHtml(p.cod_aftermarket)}</td>
         <td><input value="${escHtml(p.descriere||'')}" data-sf="descriere" style="min-width:120px"/></td>
-        <td><input value="${escHtml(p.sku||'')}" data-sf="sku" style="width:80px" placeholder="SKU"/></td>
+        <td><input value="${escHtml(p.ref_intern||'')}" data-sf="ref_intern" style="width:80px" placeholder="REF Intern"/></td>
         <td><input value="${escHtml(p.cod_factura_furnizor||'')}" data-sf="cod_factura_furnizor" style="width:90px" placeholder="INV-001"/></td>
         <td><input type="number" value="${p.pret_achizitie||0}" data-sf="pret_achizitie" style="width:68px" oninput="recalcSearchRow(this)"/></td>
         <td><input type="number" value="${adaos}" class="adaos-calc" style="width:55px;background:var(--s3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:4px 7px;font-size:12px;outline:none" oninput="recalcSearchRow(this)"/></td>
@@ -2099,7 +2169,7 @@ function renderInvoiceProducts(prods, orderMap, nrFactura, furnizor) {
     tr.innerHTML = `
       <td><input type="checkbox" class="inv-check" checked onchange="updateInvSelectedCount()"/></td>
       <td>
-        <span class="font-mono text-blue fw-bold" style="font-size:12px">${escHtml(p.sku||'—')}</span>
+        <span class="font-mono text-blue fw-bold" style="font-size:12px">${escHtml(p.ref_intern||'—')}</span>
       </td>
       <td class="text-yellow fw-bold font-mono" style="white-space:nowrap;font-size:12px">${escHtml(p.cod_aftermarket)}</td>
       <td style="font-size:12px;max-width:160px">${escHtml(p.descriere||'—')}</td>
@@ -2557,6 +2627,84 @@ async function toggleUserActive(id, newState) {
 // NAVIGATE override — încarcă date pagini noi
 // ════════════════════════════════════════════════════════════
 const _origNavigate = navigate;
+
+// ════════════════════════════════════════════════════════════
+// ADAUGĂ PRODUS LA COMANDĂ EXISTENTĂ
+// ════════════════════════════════════════════════════════════
+let _atoComandaId   = null;
+let _atoCodUnic     = null;
+let _atoNrProduse   = 0;
+
+function openAddProductToOrder(comandaId, codUnic) {
+  _atoComandaId = comandaId;
+  _atoCodUnic   = codUnic;
+
+  const order = allOrders.find(o=>o.id===comandaId);
+  _atoNrProduse = +(order?.nr_produse||0);
+
+  // Reset fields
+  ['ato-cod','ato-desc','ato-ref-manual'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('ato-pret').value  = '0';
+  document.getElementById('ato-adaos').value = order?.adaos_procent||'0';
+  document.getElementById('ato-vanz').value  = '0';
+  document.getElementById('ato-cant').value  = '1';
+  document.getElementById('ato-status').value = 'comandat';
+
+  // Afișează codul comenzii
+  document.getElementById('ato-comanda-label').textContent =
+    `Comandă: ${codUnic} — ${order?.client_nume||''}`;
+
+  // Preview REF Intern
+  atoUpdateRefIntern();
+  openModal('modal-add-to-order');
+}
+
+function atoUpdateRefIntern() {
+  const nextPos = _atoNrProduse + 1;
+  const preview = `${_atoCodUnic||'CMD'}-${nextPos}`;
+  document.getElementById('ato-ref').value = preview;
+}
+
+function atoRecalc() {
+  const pret  = parseFloat(document.getElementById('ato-pret').value)||0;
+  const adaos = parseFloat(document.getElementById('ato-adaos').value)||0;
+  document.getElementById('ato-vanz').value = (pret*(1+adaos/100)).toFixed(2);
+}
+
+async function saveAddToOrder() {
+  const cod = document.getElementById('ato-cod').value.trim();
+  if(!cod) { toast('Codul aftermarket este obligatoriu!','warn'); return; }
+  if(!_atoComandaId) { toast('Eroare: nicio comandă selectată!','error'); return; }
+
+  const refManual = document.getElementById('ato-ref-manual').value.trim();
+
+  const body = {
+    comanda_id:      _atoComandaId,
+    cod_aftermarket: cod,
+    descriere:       document.getElementById('ato-desc').value,
+    pret_achizitie:  parseFloat(document.getElementById('ato-pret').value)||0,
+    pret_vanzare:    parseFloat(document.getElementById('ato-vanz').value)||0,
+    cantitate:       parseInt(document.getElementById('ato-cant').value)||1,
+    status_produs:   document.getElementById('ato-status').value,
+    // ref_intern se generează automat prin trigger SQL
+    // dacă e introdus manual, îl setăm explicit
+    ...(refManual ? { ref_intern: refManual } : {}),
+  };
+
+  try {
+    await api('produse_comandate', { method:'POST', body:JSON.stringify(body) });
+    await logAction('CREATE','produs',_atoComandaId,{cod,comanda:_atoCodUnic});
+    toast(`✅ Produs ${cod} adăugat la ${_atoCodUnic}!`,'success');
+    closeModal('modal-add-to-order');
+    // Reîncarcă produsele din detail panel
+    await loadDetailProducts(_atoComandaId);
+    await loadOrders();
+  } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// COD COMANDĂ UNIC — afișat în modal extensie (content.js îl primește)
+// ════════════════════════════════════════════════════════════
 
 // ════ INIT — verifică sesiune salvată ════
 (async () => {
