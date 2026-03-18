@@ -1201,7 +1201,7 @@ function renderOrdersTable(orders) {
       <td class="fw-bold" style="color:${calcRest(o)>0?'var(--yellow)':'var(--green)'}">${fmtRON(calcRest(o))}</td>
       <td style="font-size:12px">${isAchitat(o)?'✅ Achitat':'⏳ Avans ('+fmtRON(o.avans_achitat)+' RON)'}</td>
       <td style="white-space:nowrap">
-        ${orderIndicator(o)}
+        <span class="order-indicator-cell">${orderIndicator(o)}</span>
         <select class="status-sel badge b-${o.status_general}" data-id="${o.id}" onclick="event.stopPropagation()" onchange="updateOrderStatus(this)">
           <option value="in_lucru"   ${o.status_general==='in_lucru'  ?'selected':''}>🔄 În Lucru</option>
           <option value="finalizata" ${o.status_general==='finalizata'?'selected':''}>✅ Finalizată</option>
@@ -1386,8 +1386,8 @@ async function updateProductStatus(sel, prodId) {
     if(sel.value==='predat') patch.data_predare=new Date().toISOString();
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
     toast('Status produs salvat.','success');
-    // refresh arrived count in table
-    await loadOrders();
+    // Actualizează doar contorul din tabel fără reload complet
+    if(currentOrderId) refreshOrderRowCount(currentOrderId);
   } catch(e){ toast('Eroare: '+e.message,'error'); }
 }
 
@@ -2880,6 +2880,43 @@ function orderIndicator(o) {
 
   // Default — nimic
   return '';
+}
+
+// ════════════════════════════════════════════════════════════
+// REFRESH PARȚIAL — actualizează doar un rând din tabel
+// fără să reîncarce toate comenzile
+// ════════════════════════════════════════════════════════════
+async function refreshOrderRowCount(orderId) {
+  try {
+    // Fetch doar produsele acestei comenzi pentru a recalcula contoarele
+    const prods = await api(`produse_comandate?comanda_id=eq.${orderId}&select=status_produs`);
+    const total    = prods.length;
+    const ajunse   = prods.filter(p=>p.status_produs==='ajuns').length;
+    const predate  = prods.filter(p=>p.status_produs==='predat').length;
+    const arrived  = ajunse + predate;
+
+    // Actualizează local în allOrders
+    const o = allOrders.find(x=>x.id===orderId);
+    if(o) {
+      o.produse_ajunse   = ajunse;
+      o.produse_predate  = predate;
+      o.produse_in_asteptare = prods.filter(p=>p.status_produs==='comandat').length;
+    }
+
+    // Actualizează celula din tabel fără re-render
+    const row = document.querySelector(`#orders-body tr [data-id="${orderId}"]`)?.closest('tr');
+    if(row && o) {
+      const arrivedColor = arrived===total&&total>0 ? 'var(--green)' : arrived>0 ? 'var(--yellow)' : 'var(--muted)';
+      const arrivedCell  = row.querySelector('.arrived-badge');
+      if(arrivedCell) {
+        arrivedCell.textContent  = `${arrived}/${total} ajunse`;
+        arrivedCell.style.color  = arrivedColor;
+      }
+      // Actualizează și indicatorul
+      const indicatorCell = row.querySelector('.order-indicator-cell');
+      if(indicatorCell) indicatorCell.innerHTML = orderIndicator(o);
+    }
+  } catch(e) { console.warn('refreshOrderRowCount:', e.message); }
 }
 
 // ════ INIT — verifică sesiune salvată ════
