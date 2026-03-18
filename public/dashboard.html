@@ -204,6 +204,40 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .text-muted  { color:var(--muted) }
 .fw-bold { font-weight:700 }
 .font-mono { font-family:monospace }
+
+/* ════ LOGIN PAGE ════════════════════════════════════════════ */
+#login-page {
+  display:none; position:fixed; inset:0; background:var(--bg);
+  align-items:center; justify-content:center; z-index:9999;
+  flex-direction:column; gap:0;
+}
+#login-page.visible { display:flex }
+.login-box {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:16px; padding:40px 36px; width:100%; max-width:400px;
+  box-shadow:0 24px 60px rgba(0,0,0,.5);
+}
+.login-logo { text-align:center; font-size:32px; margin-bottom:8px }
+.login-title { text-align:center; font-size:20px; font-weight:700; margin-bottom:4px }
+.login-sub { text-align:center; font-size:13px; color:var(--muted); margin-bottom:28px }
+.login-field { display:flex; flex-direction:column; gap:5px; margin-bottom:14px }
+.login-field label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px }
+.login-field input {
+  background:var(--s3); border:1px solid var(--border2); border-radius:8px;
+  color:var(--text); padding:11px 14px; font-size:14px; outline:none; font-family:inherit;
+}
+.login-field input:focus { border-color:var(--accent) }
+.login-btn {
+  width:100%; background:var(--accent); border:none; border-radius:8px;
+  color:#fff; padding:12px; font-size:15px; font-weight:600; cursor:pointer;
+  margin-top:8px; transition:opacity .15s;
+}
+.login-btn:hover { opacity:.88 }
+.login-btn:disabled { opacity:.5; cursor:not-allowed }
+.login-error {
+  background:#7f1d1d22; border:1px solid var(--red); border-radius:8px;
+  padding:10px 14px; font-size:13px; color:#fca5a5; margin-bottom:14px; display:none;
+}
 .saving { opacity:.5; transition:opacity .15s }
 .saved-flash { animation: savedFlash .6s ease }
 @keyframes savedFlash { 0%{background:rgba(16,185,129,.25)} 100%{background:transparent} }
@@ -212,6 +246,25 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 </style>
 </head>
 <body>
+<!-- ════ LOGIN PAGE ════ -->
+<div id="login-page">
+  <div class="login-box">
+    <div class="login-logo">🔧</div>
+    <div class="login-title">CRM Piese Auto</div>
+    <div class="login-sub">Autentifică-te pentru a continua</div>
+    <div class="login-error" id="login-error">Email sau parolă incorectă.</div>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="email@exemplu.ro" autocomplete="username"/>
+    </div>
+    <div class="login-field">
+      <label>Parolă</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Intră în cont</button>
+  </div>
+</div>
+
 <div id="app">
 
 <!-- ════ SIDEBAR ════ -->
@@ -231,6 +284,8 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
   <div class="sidebar-footer">
     <div id="sidebar-time">—</div>
     <div id="autosave-status" style="font-size:10px;color:var(--green);margin-top:3px;min-height:14px"></div>
+    <div id="sidebar-user" style="font-size:11px;color:var(--muted);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <button onclick="doLogout()" style="margin-top:6px;width:100%;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);padding:5px;font-size:11px;cursor:pointer">Deconectare</button>
   </div>
 </aside>
 
@@ -631,19 +686,127 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
-const SB  = 'https://ddieqobpxejocfnbmfck.supabase.co';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
-const H   = { 'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Content-Type':'application/json','Prefer':'return=representation' };
+const SB       = 'https://ddieqobpxejocfnbmfck.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
 
+// ════ AUTH STATE ════
+let accessToken = null;
+
+function getHeaders(extra={}) {
+  return {
+    'apikey': ANON_KEY,
+    'Authorization': `Bearer ${accessToken || ANON_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation',
+    ...extra,
+  };
+}
+
+// ════ SUPABASE AUTH ════
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn      = document.getElementById('login-btn');
+  const errEl    = document.getElementById('login-error');
+  errEl.style.display = 'none';
+
+  if(!email || !password) { errEl.textContent='Completează email și parola.'; errEl.style.display='block'; return; }
+
+  btn.disabled = true; btn.textContent = 'Se autentifică...';
+  try {
+    const res = await fetch(`${SB}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if(!res.ok || !data.access_token) {
+      throw new Error(data.error_description || data.msg || 'Autentificare eșuată');
+    }
+    accessToken = data.access_token;
+    // Salvează sesiunea local
+    localStorage.setItem('crm_token', data.access_token);
+    localStorage.setItem('crm_refresh', data.refresh_token);
+    localStorage.setItem('crm_email', data.user?.email || email);
+    showApp(data.user?.email || email);
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Intră în cont';
+}
+
+async function refreshSession() {
+  const refresh = localStorage.getItem('crm_refresh');
+  if(!refresh) return false;
+  try {
+    const res = await fetch(`${SB}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
+    const data = await res.json();
+    if(!res.ok || !data.access_token) return false;
+    accessToken = data.access_token;
+    localStorage.setItem('crm_token', data.access_token);
+    localStorage.setItem('crm_refresh', data.refresh_token);
+    return true;
+  } catch { return false; }
+}
+
+function doLogout() {
+  accessToken = null;
+  localStorage.removeItem('crm_token');
+  localStorage.removeItem('crm_refresh');
+  localStorage.removeItem('crm_email');
+  document.getElementById('login-page').classList.add('visible');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+function showApp(email) {
+  document.getElementById('login-page').classList.remove('visible');
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('sidebar-user').textContent = '👤 ' + email;
+  loadOrders();
+}
+
+// Enter key pe login
+document.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && document.getElementById('login-page').classList.contains('visible')) {
+    doLogin();
+  }
+});
+
+// ════ API HELPERS ════
 async function api(path, opts={}) {
-  const res = await fetch(`${SB}/rest/v1/${path}`, { ...opts, headers:{...H,...opts.headers} });
+  const res = await fetch(`${SB}/rest/v1/${path}`, {
+    ...opts, headers: getHeaders(opts.headers||{})
+  });
+  // Token expirat — încearcă refresh
+  if(res.status === 401) {
+    const ok = await refreshSession();
+    if(ok) {
+      const res2 = await fetch(`${SB}/rest/v1/${path}`, {
+        ...opts, headers: getHeaders(opts.headers||{})
+      });
+      if(!res2.ok) throw new Error(await res2.text());
+      return res2.status===204 ? null : res2.json();
+    } else {
+      doLogout();
+      throw new Error('Sesiunea a expirat. Te rog autentifică-te din nou.');
+    }
+  }
   if (!res.ok) throw new Error(await res.text());
   return res.status===204 ? null : res.json();
 }
 
 async function storageUpload(bucket, path, file) {
   const res = await fetch(`${SB}/storage/v1/object/${bucket}/${path}`, {
-    method:'POST', headers:{'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Content-Type':file.type}, body:file,
+    method:'POST',
+    headers:{ 'apikey':ANON_KEY, 'Authorization':`Bearer ${accessToken||ANON_KEY}`, 'Content-Type':file.type },
+    body:file,
   });
   if (!res.ok) throw new Error(await res.text());
   return `${SB}/storage/v1/object/public/${bucket}/${path}`;
@@ -2002,10 +2165,43 @@ async function saveAddProduct() {
 // ════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════
-loadOrders();
+// ════ INIT — verifică sesiune salvată ════
+(async () => {
+  const savedToken = localStorage.getItem('crm_token');
+  const savedEmail = localStorage.getItem('crm_email');
+
+  if(savedToken) {
+    accessToken = savedToken;
+    // Încearcă să valideze tokenul
+    try {
+      const res = await fetch(`${SB}/rest/v1/comenzi?select=id&limit=1`, {
+        headers: getHeaders()
+      });
+      if(res.ok) {
+        // Token valid — arată aplicația direct
+        showApp(savedEmail || '');
+      } else if(res.status === 401) {
+        // Token expirat — încearcă refresh
+        const ok = await refreshSession();
+        if(ok) {
+          showApp(savedEmail || '');
+        } else {
+          document.getElementById('login-page').classList.add('visible');
+          document.getElementById('app').style.display = 'none';
+        }
+      }
+    } catch {
+      document.getElementById('login-page').classList.add('visible');
+      document.getElementById('app').style.display = 'none';
+    }
+  } else {
+    // Nu există sesiune — arată login
+    document.getElementById('login-page').classList.add('visible');
+    document.getElementById('app').style.display = 'none';
+  }
+})();
+
 setInterval(loadOrders, 90_000);
-// Pre-load products page in background after 3s
-setTimeout(()=>{ if(document.getElementById('page-produse').classList.contains('active')) loadAllProducts(); }, 3000);
 </script>
 </body>
 </html>
