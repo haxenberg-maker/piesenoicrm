@@ -273,6 +273,10 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
   background: rgba(239,68,68,.08) !important;
 }
 .sku-empty::placeholder { color: #fca5a5 !important; }
+@keyframes pulse {
+  0%,100% { opacity:1 }
+  50%      { opacity:.4 }
+}
 </style>
 </head>
 <body>
@@ -1196,7 +1200,8 @@ function renderOrdersTable(orders) {
       <td>${fmtRON(o.avans_achitat)}</td>
       <td class="fw-bold" style="color:${calcRest(o)>0?'var(--yellow)':'var(--green)'}">${fmtRON(calcRest(o))}</td>
       <td style="font-size:12px">${isAchitat(o)?'✅ Achitat':'⏳ Avans ('+fmtRON(o.avans_achitat)+' RON)'}</td>
-      <td>
+      <td style="white-space:nowrap">
+        ${orderIndicator(o)}
         <select class="status-sel badge b-${o.status_general}" data-id="${o.id}" onclick="event.stopPropagation()" onchange="updateOrderStatus(this)">
           <option value="in_lucru"   ${o.status_general==='in_lucru'  ?'selected':''}>🔄 În Lucru</option>
           <option value="finalizata" ${o.status_general==='finalizata'?'selected':''}>✅ Finalizată</option>
@@ -2849,6 +2854,32 @@ async function copyOrderWhatsApp(comandaId, order) {
   } catch(e) {
     toast('Eroare copiere: ' + e.message, 'error');
   }
+}
+
+// ════════════════════════════════════════════════════════════
+// INDICATORI VIZUALI COMANDĂ
+// ════════════════════════════════════════════════════════════
+function orderIndicator(o) {
+  const totalProd   = +o.nr_produse    || 0;
+  const predate     = +o.produse_predate || 0;
+  const rest        = calcRest(o);
+  const achitat     = isAchitat(o);
+  const toatePredate = predate === totalProd && totalProd > 0;
+
+  // ✅ Totul predat + achitat = verde complet
+  if(toatePredate && achitat)
+    return '<span title="Predat & Achitat" style="font-size:15px;margin-right:4px">✅</span>';
+
+  // ⚠️ Predat dar neachitat = datorie
+  if(toatePredate && !achitat)
+    return `<span title="Predat dar rest ${(+rest).toFixed(2)} RON neachitat!" style="font-size:15px;margin-right:4px;animation:pulse 1.5s infinite">⚠️</span>`;
+
+  // 💰 Achitat dar nu toate predate
+  if(achitat && !toatePredate)
+    return '<span title="Achitat, produse în curs" style="font-size:15px;margin-right:4px">💰</span>';
+
+  // Default — nimic
+  return '';
 }
 
 // ════ INIT — verifică sesiune salvată ════
