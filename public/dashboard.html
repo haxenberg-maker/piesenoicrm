@@ -392,7 +392,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
             <tr>
               <th>Cod aftermarket</th><th>Descriere</th>
               <th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th><th>Cant.</th>
-              <th>REF Intern</th><th>Cod fact. furnizor</th>
+              <th>SKU</th><th>Cod fact. furnizor</th>
               <th>Status</th><th>💾</th>
             </tr>
           </thead>
@@ -490,7 +490,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
   <div class="filters" style="margin-bottom:12px">
     <input type="text" id="search-prod-cod"     placeholder="Cod aftermarket..." style="flex:1;min-width:140px"/>
     <input type="text" id="search-prod-factura" placeholder="Cod factură furnizor..." style="flex:1;min-width:140px"/>
-    <input type="text" id="search-prod-sku"     placeholder="REF Intern..." style="flex:1;min-width:110px"/>
+    <input type="text" id="search-prod-sku"     placeholder="SKU..." style="flex:1;min-width:110px"/>
     <input type="text" id="search-prod-desc"    placeholder="Descriere..." style="flex:1;min-width:140px"/>
     <button class="btn btn-primary" onclick="searchProducts()">🔍 Caută</button>
     <button class="btn btn-secondary" onclick="loadAllProducts()">📦 Toate produsele</button>
@@ -501,7 +501,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <table id="search-table">
       <thead>
         <tr>
-          <th>Cod aftermarket</th><th>Descriere</th><th>REF Intern</th>
+          <th>Cod aftermarket</th><th>Descriere</th><th>SKU</th>
           <th>Cod fact. furnizor</th><th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th>
           <th>Cant.</th><th>Status</th><th>Comandă</th><th>Client</th><th>💾</th>
         </tr>
@@ -676,7 +676,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
           <thead style="position:sticky;top:0;z-index:1">
             <tr>
               <th style="width:36px"><input type="checkbox" id="inv-check-all" onchange="invToggleAll(this.checked)"/></th>
-              <th>REF Intern</th>
+              <th>SKU</th>
               <th>Cod aftermarket</th>
               <th>Descriere</th>
               <th>Comandă</th>
@@ -727,7 +727,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
           <input id="ap-cod" placeholder="Ex: D7B006TT"/>
         </div>
         <div class="field">
-          <label>REF Intern (auto-generat)</label>
+          <label>SKU</label>
           <input id="ap-sku" placeholder="Se generează automat" style="opacity:.6" readonly/>
         </div>
       </div>
@@ -788,7 +788,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
           <input id="ato-cod" placeholder="Ex: D7B006TT" oninput="atoUpdateRefIntern()"/>
         </div>
         <div class="field">
-          <label>REF Intern (auto-generat)</label>
+          <label>SKU</label>
           <input id="ato-ref" placeholder="Se generează automat" style="opacity:.6;font-family:monospace" readonly/>
         </div>
       </div>
@@ -825,8 +825,8 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
         </div>
       </div>
       <div class="field">
-        <label>REF Intern (manual, opțional)</label>
-        <input id="ato-ref-manual" placeholder="Lasă gol pentru auto-generare"/>
+        <label>SKU (opțional, introdus de firmă)</label>
+        <input id="ato-ref-manual" placeholder="Codul intern al firmei tale"/>
         <small style="color:var(--muted);font-size:11px">Dacă lași gol, se generează automat din codul comenzii</small>
       </div>
     </div>
@@ -1274,7 +1274,7 @@ async function loadDetailProducts(id) {
         <td><input type="number" value="${adaos}" class="adaos-calc" style="width:58px;background:var(--s3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:4px 7px;font-size:12px;outline:none" oninput="recalcDetailRow(this)"/></td>
         <td class="dp-vanz-cell"><input type="number" value="${p.pret_vanzare||0}" data-f="pret_vanzare" style="width:72px"/></td>
         <td><input type="number" value="${p.cantitate||1}" data-f="cantitate" style="width:48px" oninput="updateDetailTotals()"/></td>
-        <td><input value="${escHtml(p.ref_intern||'')}" data-f="ref_intern" style="width:85px" placeholder="REF Intern"/></td>
+        <td><input value="${escHtml(p.sku||'')}" data-f="sku" style="width:85px" placeholder="SKU"/></td>
         <td><input value="${escHtml(p.cod_factura_furnizor||'')}" data-f="cod_factura_furnizor" style="width:95px" placeholder="INV-001"/></td>
         <td>
           <select data-f="status_produs" onchange="updateProductStatus(this,'${p.id}')">
@@ -1926,7 +1926,7 @@ async function fetchAndRenderProducts(extraQuery='') {
       tr.innerHTML=`
         <td class="text-yellow fw-bold font-mono" style="white-space:nowrap">${escHtml(p.cod_aftermarket)}</td>
         <td><input value="${escHtml(p.descriere||'')}" data-sf="descriere" style="min-width:120px"/></td>
-        <td><input value="${escHtml(p.ref_intern||'')}" data-sf="ref_intern" style="width:80px" placeholder="REF Intern"/></td>
+        <td><input value="${escHtml(p.sku||'')}" data-sf="sku" style="width:80px" placeholder="SKU"/></td>
         <td><input value="${escHtml(p.cod_factura_furnizor||'')}" data-sf="cod_factura_furnizor" style="width:90px" placeholder="INV-001"/></td>
         <td><input type="number" value="${p.pret_achizitie||0}" data-sf="pret_achizitie" style="width:68px" oninput="recalcSearchRow(this)"/></td>
         <td><input type="number" value="${adaos}" class="adaos-calc" style="width:55px;background:var(--s3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:4px 7px;font-size:12px;outline:none" oninput="recalcSearchRow(this)"/></td>
@@ -2169,7 +2169,7 @@ function renderInvoiceProducts(prods, orderMap, nrFactura, furnizor) {
     tr.innerHTML = `
       <td><input type="checkbox" class="inv-check" checked onchange="updateInvSelectedCount()"/></td>
       <td>
-        <span class="font-mono text-blue fw-bold" style="font-size:12px">${escHtml(p.ref_intern||'—')}</span>
+        <span class="font-mono text-blue fw-bold" style="font-size:12px">${escHtml(p.sku||'—')}</span>
       </td>
       <td class="text-yellow fw-bold font-mono" style="white-space:nowrap;font-size:12px">${escHtml(p.cod_aftermarket)}</td>
       <td style="font-size:12px;max-width:160px">${escHtml(p.descriere||'—')}</td>

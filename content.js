@@ -432,7 +432,7 @@ async function submitOrder() {
       pret_achizitie:  p.pret_achizitie,
       pret_vanzare:    parseFloat(calcVanzare(p.pret_achizitie, p.adaos_procent ?? adaosGlobal).toFixed(2)),
       cantitate:       p.cantitate,
-      // ref_intern generat automat prin trigger SQL
+      // sku generat automat prin trigger SQL
     }));
     await supabase.post('produse_comandate', produse);
 
