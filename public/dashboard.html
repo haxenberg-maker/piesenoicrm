@@ -831,6 +831,32 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
   </div>
 </div>
 
+<!-- ════ MODAL: SCHIMBĂ PAROLA ════ -->
+<div class="modal-overlay" id="modal-change-pass">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <h3>🔐 Schimbă parola</h3>
+    </div>
+    <div class="modal-body">
+      <div style="padding:10px 14px;background:#78350f22;border:1px solid var(--yellow);border-radius:8px;font-size:13px;color:var(--yellow);margin-bottom:12px">
+        ⚠️ Acesta este primul tău login. Trebuie să îți setezi o parolă proprie.
+      </div>
+      <div class="field">
+        <label>Parolă nouă</label>
+        <input type="password" id="cp-new" placeholder="Minim 8 caractere"/>
+      </div>
+      <div class="field">
+        <label>Confirmă parola</label>
+        <input type="password" id="cp-confirm" placeholder="Repetă parola"/>
+      </div>
+      <div id="cp-error" style="color:var(--red);font-size:13px;display:none;margin-top:6px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="doChangePassword()">💾 Salvează parola</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ MODAL: ADAUGĂ PRODUS LA COMANDĂ EXISTENTĂ ════ -->
 <div class="modal-overlay" id="modal-add-to-order">
   <div class="modal">
@@ -941,12 +967,18 @@ async function doLogin() {
     }
     accessToken = data.access_token;
     currentUserId = data.user?.id;
-    // Salvează sesiunea local
     localStorage.setItem('crm_token', data.access_token);
     localStorage.setItem('crm_refresh', data.refresh_token);
     localStorage.setItem('crm_email', data.user?.email || email);
     localStorage.setItem('crm_user_id', data.user?.id || '');
-    showApp(data.user?.email || email, data.user?.id);
+
+    // Verifică dacă trebuie să schimbe parola
+    const profileRes = await fetch(`${SB}/rest/v1/user_profiles?id=eq.${data.user?.id}&select=must_change_password`, {
+      headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${data.access_token}` }
+    });
+    const profiles = await profileRes.json();
+    const mustChange = profiles?.[0]?.must_change_password === true;
+    showApp(data.user?.email || email, data.user?.id, mustChange);
   } catch(e) {
     errEl.textContent = e.message;
     errEl.style.display = 'block';
@@ -983,7 +1015,11 @@ function doLogout() {
   document.getElementById('login-password').value = '';
 }
 
-async function showApp(email, userId) {
+async function showApp(email, userId, mustChangePass=false) {
+  if(mustChangePass) {
+    showChangePasswordPrompt();
+    return;
+  }
   document.getElementById('login-page').classList.remove('visible');
   document.getElementById('app').style.display = 'flex';
   document.getElementById('sidebar-user').textContent = '👤 ' + email;
@@ -2736,21 +2772,42 @@ async function saveUser() {
   const email = document.getElementById('uf-email')?.value?.trim();
   const nume  = document.getElementById('uf-nume')?.value?.trim();
   const rol   = document.getElementById('uf-rol')?.value;
-  const activ = document.getElementById('uf-activ')?.value === 'true';
 
   if(!editUserId) {
-    // Utilizator nou — creat prin Supabase Admin API (nu disponibil din browser cu anon key)
-    // Alternativă: crează manual în Supabase dashboard și actualizăm profilul
+    // Utilizator NOU — apelează Edge Function
     const pass = document.getElementById('uf-password')?.value;
-    if(!email||!pass) { toast('Email și parola sunt obligatorii!','warn'); return; }
+    if(!email) { toast('Email-ul este obligatoriu!','warn'); return; }
+    if(!pass)  { toast('Parola temporară este obligatorie!','warn'); return; }
     if(pass.length < 8) { toast('Parola trebuie să aibă minim 8 caractere!','warn'); return; }
 
-    toast('⚠️ Pentru a adăuga utilizatori noi, creează-i mai întâi în Supabase Dashboard → Authentication → Users, apoi editează-i de aici pentru a seta rolul.','warn');
-    closeModal('modal-user');
+    const btn = document.querySelector('#modal-user .btn-primary');
+    btn.disabled = true; btn.textContent = '⏳ Se creează...';
+
+    try {
+      const res = await fetch(`${SB}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey':        ANON_KEY,
+        },
+        body: JSON.stringify({ email, password: pass, name: nume, role: rol })
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Eroare necunoscută');
+
+      await logAction('CREATE', 'user', data.user?.id, { email, role: rol });
+      toast(`✅ Cont creat pentru ${email}! Parola temporară a fost setată.`, 'success');
+      closeModal('modal-user');
+      await loadUsers();
+    } catch(e) {
+      toast('Eroare: ' + e.message, 'error');
+    }
+    btn.disabled = false; btn.textContent = '💾 Salvează';
     return;
   }
 
-  // Editare utilizator existent
+  // Editare utilizator EXISTENT
   try {
     await api(`user_profiles?id=eq.${editUserId}`, {
       method: 'PATCH',
@@ -3251,6 +3308,51 @@ async function editOrder() {
     await loadOrders();
     if(currentOrderId===editOrderId) await loadDetailProducts(editOrderId);
   } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// SCHIMBARE PAROLĂ LA PRIMUL LOGIN
+// ════════════════════════════════════════════════════════════
+function showChangePasswordPrompt() {
+  document.getElementById('login-page').classList.remove('visible');
+  document.getElementById('app').style.display = 'none';
+  openModal('modal-change-pass');
+}
+
+async function doChangePassword() {
+  const pass1 = document.getElementById('cp-new').value;
+  const pass2 = document.getElementById('cp-confirm').value;
+  const errEl = document.getElementById('cp-error');
+  errEl.style.display = 'none';
+
+  if(pass1.length < 8) { errEl.textContent='Parola trebuie să aibă minim 8 caractere!'; errEl.style.display='block'; return; }
+  if(pass1 !== pass2)  { errEl.textContent='Parolele nu coincid!'; errEl.style.display='block'; return; }
+
+  try {
+    const res = await fetch(`${SB}/auth/v1/user`, {
+      method: 'PUT',
+      headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pass1 })
+    });
+    if(!res.ok) throw new Error('Eroare actualizare parolă');
+
+    // Resetează flag-ul must_change_password
+    await fetch(`${SB}/rest/v1/user_profiles?id=eq.${currentUserId}`, {
+      method: 'PATCH',
+      headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${accessToken}`,
+                 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ must_change_password: false })
+    });
+
+    closeModal('modal-change-pass');
+    const email = localStorage.getItem('crm_email') || '';
+    document.getElementById('app').style.display = 'flex';
+    showApp(email, currentUserId, false);
+    toast('✅ Parola a fost schimbată cu succes!', 'success');
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
 }
 
 // ════ INIT — verifică sesiune salvată ════
