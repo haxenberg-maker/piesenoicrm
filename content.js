@@ -266,6 +266,7 @@ function openModal() {
   );
 
   document.getElementById('crm-client-search').addEventListener('input', debounce(searchClient, 300));
+  document.getElementById('crm-client-search').addEventListener('focus', searchClient);
 
   document.getElementById('crm-modal-close').addEventListener('click', () => {
     clearInterval(tsInterval);
@@ -361,9 +362,12 @@ async function searchClient(e) {
   const ul = document.getElementById('crm-client-suggestions');
   ul.innerHTML = '';
   document.getElementById('crm-new-client-row').style.display = 'none';
-  if (q.length < 2) return;
   try {
-    const results = await supabase.get('clienti', `select=id,nume,telefon&nume=ilike.*${encodeURIComponent(q)}*&limit=8`);
+    // Dacă e gol sau < 2 chars — arată toți clienții (max 10)
+    const query = q.length < 2
+      ? 'select=id,nume,telefon&order=nume.asc&limit=10'
+      : `select=id,nume,telefon&nume=ilike.*${encodeURIComponent(q)}*&limit=8`;
+    const results = await supabase.get('clienti', query);
     if (results.length === 0) {
       const li = document.createElement('li');
       li.className = 'crm-suggestion-new';
