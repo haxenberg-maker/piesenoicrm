@@ -147,9 +147,12 @@ function openModal() {
   overlay.innerHTML = `
     <div id="crm-modal">
       <header id="crm-modal-header">
-        <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <h2>🛒 Finalizare Comandă</h2>
           <span class="crm-supplier-tag">📦 ${furnizor}</span>
+          <span id="crm-cod-unic-preview" class="crm-supplier-tag" style="background:#1a2e1a;color:#6ee7b7;border-color:#064e3b">
+            🔑 Se calculează...
+          </span>
         </div>
         <button id="crm-modal-close">✕</button>
       </header>
@@ -236,6 +239,9 @@ function openModal() {
 
   renderModalProducts();
   updateTotals();
+
+  // Preview cod unic comandă
+  fetchNextCodUnic(furnizor);
 
   // Timestamp live
   const tsEl = document.getElementById('crm-timestamp');
@@ -465,6 +471,29 @@ function showToast(msg, type = 'info') {
 function debounce(fn, ms) {
   let t;
   return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+// ─── PREVIEW COD UNIC COMANDĂ ────────────────────────────────
+async function fetchNextCodUnic(furnizor) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/comenzi?select=nr_comanda&order=nr_comanda.desc&limit=1`,
+      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+    );
+    const data = await res.json();
+    const nextNr = ((data[0]?.nr_comanda || 0) + 1);
+    const prefix = furnizor.substring(0, 3).toUpperCase();
+    const nrPad  = String(nextNr).padStart(4, '0');
+    const today  = new Date();
+    const ddmm   = String(today.getDate()).padStart(2,'0') + String(today.getMonth()+1).padStart(2,'0');
+    const cod    = `${prefix}-${nrPad}-${ddmm}`;
+
+    const el = document.getElementById('crm-cod-unic-preview');
+    if(el) el.textContent = `🔑 ${cod}`;
+  } catch(e) {
+    const el = document.getElementById('crm-cod-unic-preview');
+    if(el) el.textContent = '🔑 —';
+  }
 }
 
 // ─── INIT ─────────────────────────────────────────────────────

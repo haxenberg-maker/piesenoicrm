@@ -277,6 +277,28 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
   0%,100% { opacity:1 }
   50%      { opacity:.4 }
 }
+
+/* ════ INLINE EDITING ════════════════════════════════════════ */
+.ie-cell {
+  cursor: pointer;
+  padding: 7px 10px !important;
+  transition: background .12s;
+  position: relative;
+}
+.ie-cell:hover { background: rgba(59,130,246,.08) !important; }
+.ie-cell.editing { padding: 2px 4px !important; }
+.ie-cell input.ie-input {
+  background: var(--s3);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  color: var(--text);
+  padding: 4px 7px;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+  min-width: 60px;
+}
+.sku-empty-cell { background: rgba(239,68,68,.06) !important; }
 </style>
 </head>
 <body>
@@ -418,7 +440,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
               <th>Cod aftermarket</th><th>Descriere</th>
               <th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th><th>Cant.</th>
               <th>SKU</th><th>Cod fact. furnizor</th>
-              <th>Status</th><th>💾</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody id="detail-products-body"></tbody>
@@ -528,7 +550,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
         <tr>
           <th>Cod Unic Comandă</th><th>Cod aftermarket</th><th>Descriere</th><th>SKU</th>
           <th>Cod fact. furnizor</th><th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th>
-          <th>Cant.</th><th>Status</th><th>Nr. Comandă</th><th>Client</th><th>💾</th>
+          <th>Cant.</th><th>Status</th><th>Nr. Comandă</th><th>Client</th>
         </tr>
       </thead>
       <tbody id="search-body">
@@ -1323,7 +1345,7 @@ async function loadDetailProducts(id) {
             <option value="predat"   ${p.status_produs==='predat'  ?'selected':''}>✅ Predat</option>
           </select>
         </td>
-        <td><button class="btn btn-primary btn-xs" onclick="saveProduct('${p.id}',this.closest('tr'))">💾</button></td>
+
       `;
       tbody.appendChild(tr);
     });
@@ -1992,23 +2014,23 @@ async function fetchAndRenderProducts(extraQuery='') {
       tr.innerHTML=`
         <td><span class="font-mono fw-bold" style="font-size:11px;color:var(--yellow);white-space:nowrap">${escHtml(codUnicCmd)}</span></td>
         <td class="text-yellow fw-bold font-mono" style="white-space:nowrap">${escHtml(p.cod_aftermarket)}</td>
-        <td><input value="${escHtml(p.descriere||'')}" data-sf="descriere" class="sf-input" style="min-width:120px"/></td>
-        <td><input value="${escHtml(p.sku||'')}" data-sf="sku" class="sf-input sku-input" style="width:80px" placeholder="SKU"/></td>
-        <td><input value="${escHtml(p.cod_factura_furnizor||'')}" data-sf="cod_factura_furnizor" class="sf-input" style="width:90px" placeholder="INV-001"/></td>
-        <td><input type="number" value="${p.pret_achizitie||0}" data-sf="pret_achizitie" class="sf-input" style="width:68px" oninput="recalcSearchRow(this)"/></td>
-        <td><input type="number" value="${adaos}" class="adaos-calc sf-input" style="width:55px" oninput="recalcSearchRow(this)"/></td>
-        <td><input type="number" value="${p.pret_vanzare||0}" data-sf="pret_vanzare" class="sf-input" style="width:68px"/></td>
+        <td class="ie-cell" data-field="descriere" data-id="${p.id}" data-val="${escHtml(p.descriere||'')}">${escHtml(p.descriere||'—')}</td>
+        <td class="ie-cell ${!p.sku?'sku-empty-cell':''}" data-field="sku" data-id="${p.id}" data-val="${escHtml(p.sku||'')}">${p.sku ? escHtml(p.sku) : '<span style="color:var(--red);font-size:11px">⚠ SKU lipsă</span>'}</td>
+        <td class="ie-cell" data-field="cod_factura_furnizor" data-id="${p.id}" data-val="${escHtml(p.cod_factura_furnizor||'')}">${escHtml(p.cod_factura_furnizor||'—')}</td>
+        <td class="ie-cell" data-field="pret_achizitie" data-id="${p.id}" data-val="${p.pret_achizitie||0}" data-type="number">${fmtRON(p.pret_achizitie)}</td>
+        <td class="ie-cell" data-field="adaos_calc" data-id="${p.id}" data-val="${adaos}" data-type="number">${adaos}%</td>
+        <td class="ie-cell" data-field="pret_vanzare" data-id="${p.id}" data-val="${p.pret_vanzare||0}" data-type="number">${fmtRON(p.pret_vanzare)}</td>
         <td style="text-align:center">${p.cantitate||1}</td>
         <td><span class="badge b-${p.status_produs}">${p.status_produs}</span></td>
         <td><span class="nr-cmd" style="cursor:pointer" onclick="jumpToOrder('${ord.id||''}','')">${fmtNr(ord.nr_comanda)}</span></td>
         <td style="font-size:12px;font-weight:600">${escHtml(ord.client_nume||'—')}</td>
-        <td><button class="btn btn-primary btn-xs" onclick="saveSearchProduct('${p.id}',this.closest('tr'))">💾</button></td>
+
       `;
       tbody.appendChild(tr);
     });
     attachAutosave(tbody, 'search');
-    // FIX 5: Highlight SKU gol cu roșu
     highlightEmptySku(tbody);
+    initInlineEditing(tbody);
   } catch(e){
     document.getElementById('search-loading').style.display='none';
     toast('Eroare: '+e.message,'error');
@@ -2981,6 +3003,254 @@ async function refreshOrderRowCount(orderId) {
       if(indicatorCell) indicatorCell.innerHTML = orderIndicator(o);
     }
   } catch(e) { console.warn('refreshOrderRowCount:', e.message); }
+}
+
+// ════════════════════════════════════════════════════════════
+// INLINE EDITING — Caută Produse
+// ════════════════════════════════════════════════════════════
+function initInlineEditing(tbody) {
+  tbody.querySelectorAll('.ie-cell').forEach(cell => {
+    cell.addEventListener('click', () => activateInlineCell(cell));
+  });
+}
+
+function activateInlineCell(cell) {
+  if(cell.classList.contains('editing')) return;
+
+  const field   = cell.dataset.field;
+  const prodId  = cell.dataset.id;
+  const val     = cell.dataset.val || '';
+  const isNum   = cell.dataset.type === 'number';
+  const origHTML = cell.innerHTML;
+
+  cell.classList.add('editing');
+  cell.innerHTML = `<input class="ie-input" type="${isNum?'number':'text'}" value="${escHtml(val)}" step="${isNum?'0.01':''}"/>`;
+
+  const input = cell.querySelector('.ie-input');
+  input.focus();
+  input.select();
+
+  const save = async () => {
+    const newVal = isNum ? parseFloat(input.value)||0 : input.value.trim();
+    cell.classList.remove('editing');
+    cell.dataset.val = newVal;
+
+    // Display value
+    if(field === 'sku') {
+      cell.innerHTML = newVal
+        ? escHtml(newVal)
+        : '<span style="color:var(--red);font-size:11px">⚠ SKU lipsă</span>';
+      cell.classList.toggle('sku-empty-cell', !newVal);
+    } else if(field === 'adaos_calc') {
+      cell.innerHTML = `${newVal}%`;
+      // Recalc pret_vanzare in same row
+      const row = cell.closest('tr');
+      const acqCell  = row.querySelector('[data-field="pret_achizitie"]');
+      const vanzCell = row.querySelector('[data-field="pret_vanzare"]');
+      if(acqCell && vanzCell) {
+        const acq  = parseFloat(acqCell.dataset.val)||0;
+        const vanz = acq*(1+newVal/100);
+        vanzCell.dataset.val = vanz.toFixed(2);
+        vanzCell.textContent = fmtRON(vanz);
+        // Save pret_vanzare too
+        await saveInlineField(prodId, 'pret_vanzare', vanz);
+      }
+      return; // adaos_calc nu e coloană DB
+    } else if(field === 'pret_achizitie' || field === 'pret_vanzare') {
+      cell.textContent = fmtRON(newVal);
+    } else {
+      cell.textContent = newVal || '—';
+    }
+
+    if(field !== 'adaos_calc') {
+      await saveInlineField(prodId, field, newVal);
+    }
+  };
+
+  const cancel = () => {
+    cell.classList.remove('editing');
+    cell.innerHTML = origHTML;
+  };
+
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', e => {
+    if(e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if(e.key === 'Escape') { input.removeEventListener('blur', save); cancel(); }
+  });
+}
+
+async function saveInlineField(prodId, field, value) {
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ [field]: value })
+    });
+    logAction('UPDATE', 'produs', prodId, { [field]: value });
+    showAutosaveStatus('Salvat ✓');
+  } catch(e) {
+    toast('Eroare salvare: '+e.message, 'error');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// EDITARE COMANDĂ COMPLETĂ (cu produse)
+// ════════════════════════════════════════════════════════════
+async function openEditOrder(id) {
+  const o = allOrders.find(x=>x.id===id);
+  if(!o) return;
+  editOrderId = id;
+
+  const [clients, prods] = await Promise.all([
+    api('clienti?select=id,nume&order=nume.asc&limit=200'),
+    api(`produse_comandate?comanda_id=eq.${id}&select=*&order=data_comanda.asc`)
+  ]);
+
+  document.getElementById('modal-order-title').textContent = `Editează ${fmtNr(o.nr_comanda)} · ${o.cod_comanda_unic||''}`;
+  document.getElementById('modal-order-body').innerHTML = `
+    <div class="grid2">
+      <div class="field">
+        <label>Client</label>
+        <select id="eo-client">
+          ${clients.map(c=>`<option value="${c.id}" ${c.id===o.client_id?'selected':''}>${escHtml(c.nume)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Furnizor</label>
+        <input id="eo-furnizor" value="${escHtml(o.furnizor||'')}"/>
+      </div>
+    </div>
+    <div class="grid3">
+      <div class="field">
+        <label>Status</label>
+        <select id="eo-status">
+          <option value="in_lucru"   ${o.status_general==='in_lucru'?'selected':''}>🔄 În Lucru</option>
+          <option value="finalizata" ${o.status_general==='finalizata'?'selected':''}>✅ Finalizată</option>
+          <option value="anulata"    ${o.status_general==='anulata'?'selected':''}>❌ Anulată</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tip plată</label>
+        <select id="eo-tip-plata">
+          <option value="avans"            ${o.tip_plata==='avans'?'selected':''}>Avans</option>
+          <option value="achitat_integral" ${o.tip_plata==='achitat_integral'?'selected':''}>Achitat integral</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Avans achitat (RON)</label>
+        <input type="number" id="eo-avans" value="${fmtRON(o.avans_achitat)}" min="0" step="0.01"/>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <strong style="font-size:13px">Produse (${prods.length})</strong>
+      <button class="btn btn-secondary btn-sm" onclick="addEditOrderProduct()">＋ Produs nou</button>
+    </div>
+    <div style="overflow-x:auto;max-height:300px;overflow-y:auto">
+      <table class="prod-tbl" id="eo-products-table">
+        <thead>
+          <tr><th>Cod aftermarket</th><th>Descriere</th><th>Preț vânz.</th><th>Cant.</th><th>Status</th><th>🗑</th></tr>
+        </thead>
+        <tbody id="eo-products-body">
+          ${prods.map(p=>`
+            <tr data-id="${p.id}">
+              <td><input value="${escHtml(p.cod_aftermarket)}" data-f="cod_aftermarket" class="prod-tbl input"/></td>
+              <td><input value="${escHtml(p.descriere||'')}" data-f="descriere" class="prod-tbl input" style="min-width:100px"/></td>
+              <td><input type="number" value="${p.pret_vanzare||0}" data-f="pret_vanzare" class="prod-tbl input" style="width:75px"/></td>
+              <td><input type="number" value="${p.cantitate||1}" data-f="cantitate" class="prod-tbl input" style="width:48px"/></td>
+              <td>
+                <select data-f="status_produs" class="prod-tbl input">
+                  <option value="comandat" ${p.status_produs==='comandat'?'selected':''}>📦</option>
+                  <option value="ajuns"    ${p.status_produs==='ajuns'?'selected':''}>🏠</option>
+                  <option value="predat"   ${p.status_produs==='predat'?'selected':''}>✅</option>
+                </select>
+              </td>
+              <td><button class="icon-btn" style="color:var(--red)" onclick="removeEditOrderProduct('${p.id}',this.closest('tr'))">✕</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label>Note</label>
+      <textarea id="eo-note">${escHtml(o.note_comanda||'')}</textarea>
+    </div>
+  `;
+
+  document.querySelector('#modal-order .modal-foot .btn-primary').onclick = editOrder;
+  openModal('modal-order');
+}
+
+function addEditOrderProduct() {
+  const tbody = document.getElementById('eo-products-body');
+  const tr = document.createElement('tr');
+  tr.dataset.id = 'new-' + Date.now();
+  tr.innerHTML = `
+    <td><input value="" data-f="cod_aftermarket" placeholder="Cod" class="prod-tbl input"/></td>
+    <td><input value="" data-f="descriere" placeholder="Descriere" class="prod-tbl input" style="min-width:100px"/></td>
+    <td><input type="number" value="0" data-f="pret_vanzare" class="prod-tbl input" style="width:75px"/></td>
+    <td><input type="number" value="1" data-f="cantitate" class="prod-tbl input" style="width:48px"/></td>
+    <td>
+      <select data-f="status_produs" class="prod-tbl input">
+        <option value="comandat">📦</option>
+        <option value="ajuns">🏠</option>
+        <option value="predat">✅</option>
+      </select>
+    </td>
+    <td><button class="icon-btn" style="color:var(--red)" onclick="this.closest('tr').remove()">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+  tr.querySelector('input').focus();
+}
+
+async function removeEditOrderProduct(prodId, row) {
+  if(!confirm('Ștergi acest produs din comandă?')) return;
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, { method:'DELETE', headers:{'Prefer':'return=minimal'} });
+    await logAction('DELETE','produs',prodId,{comanda:editOrderId});
+    row.remove();
+    toast('Produs șters.','info');
+  } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+async function editOrder() {
+  const patch = {
+    client_id:     document.getElementById('eo-client').value,
+    furnizor:      document.getElementById('eo-furnizor').value,
+    tip_plata:     document.getElementById('eo-tip-plata').value,
+    avans_achitat: parseFloat(document.getElementById('eo-avans').value)||0,
+    status_general:document.getElementById('eo-status').value,
+    note_comanda:  document.getElementById('eo-note').value,
+  };
+
+  try {
+    // Salvează comanda
+    await api(`comenzi?id=eq.${editOrderId}`, { method:'PATCH', body:JSON.stringify(patch) });
+    await logAction('UPDATE','comanda',editOrderId, patch);
+
+    // Salvează/creează produsele modificate
+    const rows = document.querySelectorAll('#eo-products-body tr');
+    for(const row of rows) {
+      const rowId  = row.dataset.id;
+      const isNew  = rowId.startsWith('new-');
+      const prodPatch = {};
+      row.querySelectorAll('[data-f]').forEach(el => {
+        prodPatch[el.dataset.f] = el.type==='number' ? parseFloat(el.value)||0 : el.value;
+      });
+      if(!prodPatch.cod_aftermarket) continue;
+
+      if(isNew) {
+        await api('produse_comandate', { method:'POST', body:JSON.stringify({ ...prodPatch, comanda_id: editOrderId }) });
+      } else {
+        await api(`produse_comandate?id=eq.${rowId}`, { method:'PATCH', body:JSON.stringify(prodPatch) });
+      }
+    }
+
+    toast('Comanda salvată!','success');
+    closeModal('modal-order');
+    await loadOrders();
+    if(currentOrderId===editOrderId) await loadDetailProducts(editOrderId);
+  } catch(e){ toast('Eroare: '+e.message,'error'); }
 }
 
 // ════ INIT — verifică sesiune salvată ════
