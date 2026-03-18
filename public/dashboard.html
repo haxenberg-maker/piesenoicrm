@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>CRM Piese Auto — Dashboard</title>
+<title>CRM Piese Auto</title>
 <style>
 :root {
   --bg:      #0d1117;
@@ -205,130 +205,8 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .fw-bold { font-weight:700 }
 .font-mono { font-family:monospace }
 .saving { opacity:.5; transition:opacity .15s }
-
-/* ── GLOBAL SEARCH ── */
-#global-search-wrap {
-  position:relative; flex:1; max-width:380px;
-}
-#global-search {
-  width:100%; background:var(--s2); border:1px solid var(--border);
-  border-radius:10px; color:var(--text); padding:8px 14px 8px 36px;
-  font-size:13px; outline:none; font-family:inherit; transition:border-color .15s;
-}
-#global-search:focus { border-color:var(--accent) }
-#global-search-icon {
-  position:absolute; left:11px; top:50%; transform:translateY(-50%);
-  color:var(--muted); font-size:14px; pointer-events:none;
-}
-#search-results-dropdown {
-  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:200;
-  background:var(--s1); border:1px solid var(--border); border-radius:12px;
-  box-shadow:0 16px 40px rgba(0,0,0,.5); overflow:hidden; display:none;
-  max-height:420px; overflow-y:auto;
-}
-.search-group-title {
-  padding:8px 14px 4px; font-size:10px; color:var(--muted);
-  text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid var(--border);
-  background:var(--s2);
-}
-.search-result-item {
-  padding:10px 14px; cursor:pointer; transition:background .1s;
-  display:flex; align-items:center; gap:10px; border-bottom:1px solid #0c1420;
-}
-.search-result-item:hover { background:var(--s2) }
-.search-result-item .icon { font-size:16px; flex-shrink:0 }
-.search-result-main { font-size:13px; font-weight:600 }
-.search-result-sub  { font-size:11px; color:var(--muted) }
-#search-shortcut {
-  position:absolute; right:10px; top:50%; transform:translateY(-50%);
-  background:var(--s3); border:1px solid var(--border); border-radius:4px;
-  padding:1px 6px; font-size:10px; color:var(--muted);
-}
-
-/* ── KANBAN ── */
-#kanban-view { display:none }
-.kanban-board { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; align-items:start }
-.kanban-col { background:var(--s2); border-radius:12px; border:1px solid var(--border); overflow:hidden }
-.kanban-col-header {
-  padding:11px 14px; font-size:12px; font-weight:700; text-transform:uppercase;
-  letter-spacing:.5px; border-bottom:1px solid var(--border); display:flex;
-  align-items:center; justify-content:space-between;
-}
-.kanban-cards { padding:10px; display:flex; flex-direction:column; gap:8px; min-height:60px }
-.kanban-card {
-  background:var(--s1); border:1px solid var(--border); border-radius:10px;
-  padding:12px 14px; cursor:pointer; transition:border-color .15s, transform .1s;
-}
-.kanban-card:hover { border-color:var(--accent); transform:translateY(-1px) }
-.kanban-card-name { font-weight:700; font-size:14px; margin-bottom:3px }
-.kanban-card-sub  { font-size:11px; color:var(--muted); margin-bottom:8px; display:flex; gap:8px; flex-wrap:wrap }
-.kanban-card-products { margin-bottom:8px }
-.kanban-prod-row {
-  display:flex; align-items:center; gap:6px; padding:3px 0;
-  border-bottom:1px solid #0c1420; font-size:11px;
-}
-.kanban-prod-row:last-child { border-bottom:none }
-.kanban-prod-cod  { color:var(--yellow); font-family:monospace; font-weight:600; flex-shrink:0 }
-.kanban-prod-desc { color:var(--muted); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.kanban-prod-st   { flex-shrink:0; font-size:10px }
-.kanban-card-footer { display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px solid var(--border) }
-.kanban-progress { height:4px; background:var(--border); border-radius:2px; flex:1; margin-right:8px; overflow:hidden }
-.kanban-progress-bar { height:100%; border-radius:2px; background:var(--green); transition:width .3s }
-.kanban-more { font-size:10px; color:var(--muted); font-style:italic }
-@media(max-width:800px){ .kanban-board { grid-template-columns:1fr } }
-
-/* ── VIEW TOGGLE ── */
-.view-toggle { display:flex; background:var(--s2); border:1px solid var(--border); border-radius:8px; padding:3px; gap:2px }
-.view-btn {
-  background:none; border:none; color:var(--muted); padding:5px 10px;
-  border-radius:6px; cursor:pointer; font-size:13px; transition:all .13s;
-}
-.view-btn.active { background:var(--accent); color:#fff }
-
-/* ── STOCK ALERTS ── */
-#stock-alert-badge {
-  display:none; background:var(--yellow); color:#000; border-radius:99px;
-  font-size:10px; font-weight:700; padding:2px 7px; margin-left:6px;
-  animation:pulse 2s ease infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
-#stock-alert-panel {
-  display:none; margin-bottom:16px; background:rgba(245,158,11,.08);
-  border:1px solid rgba(245,158,11,.3); border-radius:12px; padding:14px 16px;
-}
-.stock-alert-item {
-  display:flex; align-items:center; gap:10px; padding:6px 0;
-  border-bottom:1px solid rgba(245,158,11,.15); font-size:13px;
-}
-.stock-alert-item:last-child { border-bottom:none }
-
-/* ── PRICE HISTORY ── */
-.ph-chart { display:flex; align-items:flex-end; gap:4px; height:50px; margin:8px 0 }
-.ph-bar {
-  flex:1; background:var(--accent); border-radius:3px 3px 0 0;
-  min-height:4px; transition:height .3s; cursor:pointer; position:relative;
-}
-.ph-bar:hover::after {
-  content:attr(data-tip); position:absolute; bottom:calc(100% + 4px); left:50%;
-  transform:translateX(-50%); background:#000; color:#fff; font-size:10px;
-  padding:3px 7px; border-radius:5px; white-space:nowrap; z-index:10;
-}
-.ph-bar.highest { background:var(--red) }
-.ph-bar.lowest  { background:var(--green) }
-
-/* ── NOTIFICATIONS ── */
-#notif-badge {
-  display:none; position:absolute; top:-3px; right:-3px;
-  width:8px; height:8px; background:var(--red); border-radius:50%;
-  border:2px solid var(--bg);
-}
-.notif-btn-wrap { position:relative; display:inline-flex }
-
-
-.saved-flash { animation: savedFlash .8s ease }
-@keyframes savedFlash { 0%{background:rgba(16,185,129,.18)} 100%{background:transparent} }
-.row-saved-dot { width:5px;height:5px;border-radius:50%;background:var(--green);opacity:0;transition:opacity .4s;margin:auto }
-.saved-flash .row-saved-dot { opacity:1 }
+.saved-flash { animation: savedFlash .6s ease }
+@keyframes savedFlash { 0%{background:rgba(16,185,129,.25)} 100%{background:transparent} }
 .autosave-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--green); margin-left:4px; opacity:0; transition:opacity .3s }
 .autosave-dot.visible { opacity:1 }
 </style>
@@ -340,39 +218,19 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 <aside id="sidebar">
   <div class="sidebar-logo">🔧 <span>CRM</span> Auto</div>
   <nav class="sidebar-nav">
-    <button class="nav-item active" onclick="navigate('comenzi')" id="nav-comenzi">
+    <button class="nav-item active" onclick="navigate('comenzi')"    id="nav-comenzi">
       <span class="icon">📋</span> Comenzi
     </button>
-    <button class="nav-item" onclick="navigate('clienti')" id="nav-clienti">
+    <button class="nav-item" onclick="navigate('clienti')"   id="nav-clienti">
       <span class="icon">👥</span> Clienți
     </button>
-    <button class="nav-item" onclick="navigate('produse')" id="nav-produse">
+    <button class="nav-item" onclick="navigate('produse')"   id="nav-produse">
       <span class="icon">🔍</span> Caută Produse
-    </button>
-    <button class="nav-item" onclick="navigate('preturi')" id="nav-preturi">
-      <span class="icon">📈</span> Istoric Prețuri
-    </button>
-    <button class="nav-item" onclick="navigate('audit')" id="nav-audit" style="display:none">
-      <span class="icon">📜</span> Loguri
-    </button>
-    <button class="nav-item" onclick="navigate('admin')" id="nav-admin" style="display:none">
-      <span class="icon">⚙️</span> Utilizatori
     </button>
   </nav>
   <div class="sidebar-footer">
-    <div id="sidebar-user" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-      <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0" id="user-avatar">?</div>
-      <div style="min-width:0">
-        <div id="user-name" style="font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
-        <div id="user-email" style="font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
-        <div id="user-role-badge" style="font-size:10px;color:var(--muted);margin-top:2px">—</div>
-      </div>
-    </div>
-    <div id="sidebar-time" style="font-size:11px">—</div>
+    <div id="sidebar-time">—</div>
     <div id="autosave-status" style="font-size:10px;color:var(--green);margin-top:3px;min-height:14px"></div>
-    <button onclick="logout()" style="margin-top:10px;width:100%;background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);padding:7px;font-size:12px;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='var(--s2)';this.style.color='var(--red)'" onmouseout="this.style.background='none';this.style.color='var(--muted)'">
-      ⏻ Deconectare
-    </button>
   </div>
 </aside>
 
@@ -414,49 +272,6 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <button class="btn btn-secondary btn-sm" onclick="loadOrders()">↻</button>
   </div>
 
-  <!-- Stock Alerts Panel -->
-  <div id="stock-alert-panel">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <strong style="color:var(--yellow)">⚠️ Coduri în cerere repetată</strong>
-      <button class="icon-btn" onclick="document.getElementById('stock-alert-panel').style.display='none'">✕</button>
-    </div>
-    <div id="stock-alert-list"></div>
-  </div>
-
-  <!-- View Toggle -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-    <div class="view-toggle">
-      <button class="view-btn active" id="view-btn-table"  onclick="switchView('table')">☰ Tabel</button>
-      <button class="view-btn"        id="view-btn-kanban" onclick="switchView('kanban')">⬜ Kanban</button>
-    </div>
-    <span style="font-size:12px;color:var(--muted)" id="orders-count-label"></span>
-  </div>
-
-  <!-- Kanban View -->
-  <div id="kanban-view">
-    <div class="kanban-board">
-      <div class="kanban-col">
-        <div class="kanban-col-header" style="color:var(--yellow)">
-          🔄 În Lucru <span id="k-count-lucru" class="badge b-in_lucru">0</span>
-        </div>
-        <div class="kanban-cards" id="k-col-lucru"></div>
-      </div>
-      <div class="kanban-col">
-        <div class="kanban-col-header" style="color:var(--green)">
-          ✅ Finalizate <span id="k-count-final" class="badge b-finalizata">0</span>
-        </div>
-        <div class="kanban-cards" id="k-col-final"></div>
-      </div>
-      <div class="kanban-col">
-        <div class="kanban-col-header" style="color:var(--red)">
-          ❌ Anulate <span id="k-count-anulat" class="badge b-anulata">0</span>
-        </div>
-        <div class="kanban-cards" id="k-col-anulat"></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="tbl-view">
   <div class="tbl-wrap">
     <div id="orders-loading"><span class="spinner"></span>Se încarcă...</div>
     <table id="orders-table" style="display:none">
@@ -470,8 +285,6 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
       <tbody id="orders-body"></tbody>
     </table>
   </div>
-
-  </div><!-- /tbl-view -->
 
   <!-- DETAIL PANEL -->
   <div id="detail-panel">
@@ -495,7 +308,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
             style="background:var(--s3);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:13px;width:70px;outline:none;text-align:center"/>
           <span style="color:var(--muted);font-size:13px">%</span>
         </div>
-        <button class="btn btn-secondary btn-sm" id="btn-apply-adaos-old">Aplică &amp; recalculează</button>
+        <button class="btn btn-secondary btn-sm" onclick="applyDetailAdaos()">Aplică &amp; recalculează</button>
         <span style="font-size:12px;color:var(--muted);margin-left:auto">
           Total vânzare: <strong class="text-blue" id="detail-total-vanz">—</strong> RON
           &nbsp;|&nbsp; Profit: <strong class="text-green" id="detail-profit">—</strong> RON
@@ -508,7 +321,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
               <th>Cod aftermarket</th><th>Descriere</th>
               <th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th><th>Cant.</th>
               <th>SKU</th><th>Cod fact. furnizor</th>
-              <th>Status</th>
+              <th>Status</th><th>💾</th>
             </tr>
           </thead>
           <tbody id="detail-products-body"></tbody>
@@ -595,7 +408,11 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 ═══════════════════════════════════════════════════════════ -->
 <div class="page" id="page-produse">
   <div class="page-header">
-    <div class="page-title">Caută Produse</div>
+    <div class="page-title">Produse</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="openAddProduct()">＋ Produs individual</button>
+      <button class="btn btn-primary"   onclick="openInvoiceWizard()">🧾 Procesează factură furnizor</button>
+    </div>
   </div>
 
   <div class="filters" style="margin-bottom:12px">
@@ -620,107 +437,6 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
       <tbody id="search-body">
         <tr><td colspan="12" class="empty-state">Apasă "Toate produsele" sau caută după un criteriu.</td></tr>
       </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════
-     PAGE: ISTORIC PREȚURI
-═══════════════════════════════════════════════════════════ -->
-<div class="page" id="page-preturi">
-  <div class="page-header">
-    <div class="page-title">Istoric Prețuri</div>
-  </div>
-  <div class="filters">
-    <input type="text" id="ph-cod" placeholder="Cod aftermarket..." style="flex:1;min-width:160px"/>
-    <input type="text" id="ph-furnizor" placeholder="Furnizor..." style="min-width:130px"/>
-    <button class="btn btn-primary" onclick="loadPriceHistory()">🔍 Caută</button>
-  </div>
-
-  <!-- Chart + stats per cod -->
-  <div id="ph-stats" style="display:none;margin-bottom:18px">
-    <div style="background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div>
-          <span class="text-yellow fw-bold font-mono" id="ph-stat-cod">—</span>
-          <span style="color:var(--muted);font-size:12px;margin-left:8px" id="ph-stat-desc">—</span>
-        </div>
-        <div style="display:flex;gap:14px;font-size:12px">
-          <span>Min: <strong class="text-green" id="ph-min">—</strong></span>
-          <span>Max: <strong class="text-red"   id="ph-max">—</strong></span>
-          <span>Medie: <strong class="text-blue" id="ph-avg">—</strong></span>
-          <span>Cumpărări: <strong id="ph-count">—</strong></span>
-        </div>
-      </div>
-      <div class="ph-chart" id="ph-chart"></div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px">
-        <span id="ph-date-first">—</span><span id="ph-date-last">—</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="tbl-wrap">
-    <div id="ph-loading" style="display:none"><span class="spinner"></span>Se caută...</div>
-    <table id="ph-table">
-      <thead>
-        <tr><th>Data</th><th>Cod</th><th>Descriere</th><th>Furnizor</th><th>Preț acq.</th><th>Preț vânz.</th><th>Comandă</th><th>Client</th></tr>
-      </thead>
-      <tbody id="ph-body">
-        <tr><td colspan="8" class="empty-state">Caută un cod aftermarket pentru a vedea istoricul.</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════
-     PAGE: AUDIT LOGS
-═══════════════════════════════════════════════════════════ -->
-<div class="page" id="page-audit">
-  <div class="page-header">
-    <div class="page-title">Loguri activitate <small id="audit-count"></small></div>
-    <div style="display:flex;gap:8px">
-      <select id="f-audit-action" style="background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 11px;font-size:13px;outline:none">
-        <option value="">Toate acțiunile</option>
-        <option value="CREATE">Creat</option>
-        <option value="UPDATE">Modificat</option>
-        <option value="DELETE">Șters</option>
-        <option value="LOGIN">Login</option>
-      </select>
-      <select id="f-audit-entity" style="background:var(--s1);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 11px;font-size:13px;outline:none">
-        <option value="">Toate entitățile</option>
-        <option value="comenzi">Comenzi</option>
-        <option value="clienti">Clienți</option>
-        <option value="produse_comandate">Produse</option>
-        <option value="auth">Auth</option>
-      </select>
-      <button class="btn btn-secondary btn-sm" onclick="loadAuditLogs()">↻</button>
-    </div>
-  </div>
-  <div class="tbl-wrap">
-    <div id="audit-loading"><span class="spinner"></span>Se încarcă...</div>
-    <table id="audit-table" style="display:none">
-      <thead>
-        <tr><th>Data/Ora</th><th>Utilizator</th><th>Acțiune</th><th>Entitate</th><th>Detalii</th><th>Modificări</th></tr>
-      </thead>
-      <tbody id="audit-body"></tbody>
-    </table>
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════════
-     PAGE: ADMIN — UTILIZATORI
-═══════════════════════════════════════════════════════════ -->
-<div class="page" id="page-admin">
-  <div class="page-header">
-    <div class="page-title">Utilizatori <small id="users-count"></small></div>
-  </div>
-  <div class="tbl-wrap">
-    <div id="users-loading"><span class="spinner"></span>Se încarcă...</div>
-    <table id="users-table" style="display:none">
-      <thead>
-        <tr><th>Nume</th><th>Email</th><th>Rol</th><th>Creat la</th><th>Schimbă rol</th></tr>
-      </thead>
-      <tbody id="users-body"></tbody>
     </table>
   </div>
 </div>
@@ -766,84 +482,172 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
   </div>
 </div>
 
+<!-- ════ MODAL: PROCESEAZĂ FACTURĂ ════ -->
+<div class="modal-overlay" id="modal-invoice">
+  <div class="modal modal-lg" style="max-width:1000px">
+    <div class="modal-head">
+      <div>
+        <h3 id="invoice-title">🧾 Procesează factură furnizor</h3>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="invoice-subtitle">Pas 1 din 2 — Identificare factură</div>
+      </div>
+      <button class="icon-btn" onclick="closeModal('modal-invoice')">✕</button>
+    </div>
+
+    <!-- PAS 1: Identificare -->
+    <div class="modal-body" id="invoice-step1">
+      <div class="grid2">
+        <div class="field">
+          <label>Număr factură furnizor *</label>
+          <input id="inv-nr" placeholder="Ex: INV-2026-0451" oninput="debounceInvoiceSearch()"/>
+        </div>
+        <div class="field">
+          <label>Furnizor</label>
+          <select id="inv-furnizor">
+            <option value="">— toți furnizorii —</option>
+          </select>
+        </div>
+      </div>
+      <div id="inv-existing-warning" style="display:none;padding:10px 14px;background:#78350f22;border:1px solid var(--yellow);border-radius:8px;font-size:13px;color:var(--yellow)">
+        ⚠️ Există deja produse cu această factură în sistem. Ele vor apărea mai jos.
+      </div>
+      <div style="margin-top:6px;font-size:12px;color:var(--muted)">
+        Produsele cu status <strong style="color:var(--yellow)">Comandat</strong> de la furnizorul selectat vor apărea automat.
+      </div>
+    </div>
+
+    <!-- PAS 2: Produse -->
+    <div id="invoice-step2" style="display:none">
+      <div style="padding:14px 22px;border-bottom:1px solid var(--border);background:#08101a;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--muted)">Factură: <strong style="color:var(--yellow)" id="inv-nr-display">—</strong></span>
+        <span style="font-size:13px;color:var(--muted)">Furnizor: <strong style="color:var(--text)" id="inv-furn-display">—</strong></span>
+        <span style="font-size:13px;color:var(--muted)" id="inv-count-display">0 produse</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="invSelectAll()">✓ Selectează toate</button>
+          <button class="btn btn-secondary btn-sm" onclick="invDeselectAll()">✗ Deselectează</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
+        <table class="prod-tbl" style="min-width:900px">
+          <thead style="position:sticky;top:0;z-index:1">
+            <tr>
+              <th style="width:36px"><input type="checkbox" id="inv-check-all" onchange="invToggleAll(this.checked)"/></th>
+              <th>SKU</th>
+              <th>Cod aftermarket</th>
+              <th>Descriere</th>
+              <th>Comandă</th>
+              <th>Client</th>
+              <th>Cod furnizor <span style="color:var(--accent)">*nou*</span></th>
+              <th>Preț acq. real</th>
+              <th>Cant.</th>
+            </tr>
+          </thead>
+          <tbody id="invoice-products-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-foot" id="invoice-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-invoice')">Anulează</button>
+      <button class="btn btn-primary" id="inv-next-btn" onclick="invoiceNext()" disabled>
+        Continuă →
+      </button>
+    </div>
+    <div class="modal-foot" id="invoice-foot2" style="display:none">
+      <button class="btn btn-ghost" onclick="invoiceBack()">← Înapoi</button>
+      <span style="font-size:13px;color:var(--muted)" id="inv-selected-count">0 produse selectate</span>
+      <button class="btn btn-primary" id="inv-confirm-btn" onclick="invoiceConfirm()">
+        ✅ Marchează ca Ajunse
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: ADAUGĂ PRODUS INDIVIDUAL ════ -->
+<div class="modal-overlay" id="modal-add-product">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>＋ Adaugă produs individual</h3>
+      <button class="icon-btn" onclick="closeModal('modal-add-product')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Comandă *</label>
+        <select id="ap-comanda">
+          <option value="">— selectează comanda —</option>
+        </select>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Cod aftermarket *</label>
+          <input id="ap-cod" placeholder="Ex: D7B006TT"/>
+        </div>
+        <div class="field">
+          <label>SKU (auto-generat)</label>
+          <input id="ap-sku" placeholder="Se generează automat" style="opacity:.6" readonly/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Descriere</label>
+        <input id="ap-desc" placeholder="Ex: Radiator racire motor"/>
+      </div>
+      <div class="grid3">
+        <div class="field">
+          <label>Preț achiziție (RON)</label>
+          <input type="number" id="ap-pret" value="0" min="0" step="0.01" oninput="apRecalc()"/>
+        </div>
+        <div class="field">
+          <label>Adaos (%)</label>
+          <input type="number" id="ap-adaos" value="0" min="0" step="0.5" oninput="apRecalc()"/>
+        </div>
+        <div class="field">
+          <label>Preț vânzare (RON)</label>
+          <input type="number" id="ap-vanz" value="0" min="0" step="0.01"/>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Cantitate</label>
+          <input type="number" id="ap-cant" value="1" min="1"/>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="ap-status">
+            <option value="comandat">📦 Comandat</option>
+            <option value="ajuns">🏠 Ajuns</option>
+            <option value="predat">✅ Predat</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-product')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveAddProduct()">💾 Adaugă produs</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 // ════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════
-const SB      = 'https://ddieqobpxejocfnbmfck.supabase.co';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
-
-// ── AUTH GUARD ────────────────────────────────────────────────
-function getSession() {
-  try { return JSON.parse(localStorage.getItem('crm_session')); } catch { return null; }
-}
-function getUser() {
-  try { return JSON.parse(localStorage.getItem('crm_user')); } catch { return null; }
-}
-function getToken() {
-  const s = getSession();
-  if (!s) return null;
-  // Refresh check
-  if (s.expires_at && new Date(s.expires_at * 1000) < new Date()) {
-    localStorage.removeItem('crm_session');
-    return null;
-  }
-  return s.access_token;
-}
-function logout() {
-  // Revoke token silently
-  const token = getToken();
-  if (token) {
-    fetch(`${SB}/auth/v1/logout`, {
-      method:'POST',
-      headers:{'apikey':ANON_KEY,'Authorization':`Bearer ${token}`}
-    }).catch(()=>{});
-  }
-  localStorage.removeItem('crm_session');
-  localStorage.removeItem('crm_user');
-  window.location.href = '/index.html';
-}
-
-// Redirect to login if not authenticated
-const _token = getToken();
-if (!_token) { window.location.href = '/index.html'; }
-
-// Show user info
-const _user = getUser();
-
-function authHeaders() {
-  const token = getToken();
-  if (!token) { logout(); throw new Error('Sesiune expirată'); }
-  return {
-    'apikey':        ANON_KEY,
-    'Authorization': `Bearer ${token}`,
-    'Content-Type':  'application/json',
-    'Prefer':        'return=representation',
-  };
-}
+const SB  = 'https://ddieqobpxejocfnbmfck.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
+const H   = { 'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Content-Type':'application/json','Prefer':'return=representation' };
 
 async function api(path, opts={}) {
-  const res = await fetch(`${SB}/rest/v1/${path}`, {
-    ...opts,
-    headers: { ...authHeaders(), ...opts.headers }
-  });
-  if (res.status === 401) { logout(); return; }
+  const res = await fetch(`${SB}/rest/v1/${path}`, { ...opts, headers:{...H,...opts.headers} });
   if (!res.ok) throw new Error(await res.text());
   return res.status===204 ? null : res.json();
 }
 
 async function storageUpload(bucket, path, file) {
   const res = await fetch(`${SB}/storage/v1/object/${bucket}/${path}`, {
-    method:'POST',
-    headers:{'apikey':ANON_KEY,'Authorization':`Bearer ${getToken()}`,'Content-Type':file.type},
-    body:file,
+    method:'POST', headers:{'apikey':KEY,'Authorization':`Bearer ${KEY}`,'Content-Type':file.type}, body:file,
   });
   if (!res.ok) throw new Error(await res.text());
   return `${SB}/storage/v1/object/public/${bucket}/${path}`;
 }
-
-// storageUpload defined above with auth
 
 // ════════════════════════════════════════════════════════════
 // STATE
@@ -854,9 +658,8 @@ let currentOrderId  = null;
 let currentClientId = null;
 let editOrderId  = null;
 let editClientId = null;
+// For new order modal product rows
 let newOrderProducts = [];
-let currentUserRole = 'user'; // 'administrator' | 'user'
-let currentUserProfile = null;
 
 // ════════════════════════════════════════════════════════════
 // NAVIGATION
@@ -869,9 +672,6 @@ function navigate(page) {
   if (page==='comenzi' && allOrders.length===0) loadOrders();
   if (page==='clienti') loadClients();
   if (page==='produse') loadAllProducts();
-  if (page==='audit')   loadAuditLogs();
-  if (page==='admin')   loadUsers();
-  if (page==='preturi') { document.getElementById('ph-cod').focus(); }
 }
 
 // Sidebar clock
@@ -932,8 +732,6 @@ async function loadOrders() {
     renderStats(data);
     populateFilter('f-furnizor', [...new Set(data.map(o=>o.furnizor).filter(Boolean))]);
     renderOrdersTable(applyOrderFilters(data));
-    // Update kanban dacă e activ
-    if(currentView==='kanban') renderKanban(applyOrderFilters(data));
     document.getElementById('orders-count').textContent = `(${data.length})`;
   } catch(e) {
     document.getElementById('orders-loading').innerHTML=`<span class="text-red">❌ ${e.message}</span>`;
@@ -999,14 +797,8 @@ function renderOrdersTable(orders) {
   document.getElementById('orders-table').style.display='table';
   const tbody = document.getElementById('orders-body');
   tbody.innerHTML='';
-  // Update label count
-  const countLabelEl = document.getElementById('orders-count-label');
-  if(countLabelEl) countLabelEl.textContent = `${orders.length} comenzi`;
-
   if(!orders.length) {
     tbody.innerHTML='<tr><td colspan="12" class="empty-state">Nicio comandă.</td></tr>';
-    // Update kanban dacă e activ
-    if(typeof currentView!=='undefined' && currentView==='kanban') renderKanban(orders);
     return;
   }
   orders.forEach(o=>{
@@ -1047,7 +839,7 @@ function renderOrdersTable(orders) {
       </td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="icon-btn" onclick="openEditOrder('${o.id}')" title="Editează">✏️</button>
-        ${(currentUserRole==='administrator' || o.creat_de===getUser()?.id) ? `<button class="icon-btn" onclick="confirmDeleteOrder('${o.id}','${escHtml(o.client_nume)}')" title="Șterge" style="color:var(--red)">🗑</button>` : '<span title="Nu ai permisiunea" style="font-size:13px;opacity:.3">🔒</span>'}
+        <button class="icon-btn" onclick="confirmDeleteOrder('${o.id}','${escHtml(o.client_nume)}')" title="Șterge" style="color:var(--red)">🗑</button>
       </td>
     `;
     tr.addEventListener('click', ()=>loadDetail(o.id, o));
@@ -1060,10 +852,8 @@ function renderOrdersTable(orders) {
 // ════════════════════════════════════════════════════════════
 async function updateOrderStatus(sel) {
   try {
-    const o = allOrders.find(x=>x.id===sel.dataset.id);
-    const oldStatus = o?.status_general;
     await api(`comenzi?id=eq.${sel.dataset.id}`,{method:'PATCH',body:JSON.stringify({status_general:sel.value})});
-    await auditLog('UPDATE','comenzi', sel.dataset.id, fmtNr(o?.nr_comanda), {status_general:oldStatus}, {status_general:sel.value});
+    const o = allOrders.find(x=>x.id===sel.dataset.id);
     if(o){ o.status_general=sel.value; renderStats(allOrders); }
     toast('Status actualizat.','success');
   } catch(e){ toast('Eroare: '+e.message,'error'); }
@@ -1073,17 +863,10 @@ async function updateOrderStatus(sel) {
 // DELETE COMANDĂ
 // ════════════════════════════════════════════════════════════
 async function confirmDeleteOrder(id, clientNume) {
-  // Verificare rol: userul normal poate șterge doar comenzile proprii
-  const order = allOrders.find(o=>o.id===id);
-  if (currentUserRole !== 'administrator' && order?.creat_de !== getUser()?.id) {
-    toast('❌ Nu ai permisiunea să ștergi comenzile altora.','error');
-    return;
-  }
   if(!confirm(`Ștergi comanda lui ${clientNume}?\nAceastă acțiune este ireversibilă și va șterge și toate produsele asociate.`)) return;
   try {
-    const label = `${fmtNr(order?.nr_comanda)} — ${clientNume}`;
+    // produse se șterg automat prin CASCADE
     await api(`comenzi?id=eq.${id}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
-    await auditLog('DELETE','comenzi', id, label, order, null);
     allOrders = allOrders.filter(o=>o.id!==id);
     renderStats(allOrders);
     renderOrdersTable(applyOrderFilters(allOrders));
@@ -1106,8 +889,6 @@ async function loadDetail(id, o) {
 
   document.getElementById('btn-edit-order').onclick   = ()=>openEditOrder(id);
   document.getElementById('btn-delete-order').onclick = ()=>confirmDeleteOrder(id, o.client_nume);
-  const applyBtn = document.getElementById('btn-apply-adaos');
-  if(applyBtn) applyBtn.onclick = applyDetailAdaos;
 
   // Reset tabs
   document.querySelectorAll('#detail-panel .tab').forEach((t,i)=>{
@@ -1162,9 +943,7 @@ async function loadDetailProducts(id) {
             <option value="predat"   ${p.status_produs==='predat'  ?'selected':''}>✅ Predat</option>
           </select>
         </td>
-        <td style="width:6px;padding:0">
-          <div class="row-saved-dot" title="Salvat automat"></div>
-        </td>
+        <td><button class="btn btn-primary btn-xs" onclick="saveProduct('${p.id}',this.closest('tr'))">💾</button></td>
       `;
       tbody.appendChild(tr);
     });
@@ -1212,20 +991,7 @@ function applyDetailAdaos() {
     vanzInput.value = vanz.toFixed(2);
   });
   updateDetailTotals();
-  // Salvează adaos în comenzi
-  if(currentOrderId) {
-    api(`comenzi?id=eq.${currentOrderId}`, {
-      method:'PATCH', body:JSON.stringify({adaos_procent:adaos})
-    }).then(()=>{
-      // Actualizează local
-      const o = allOrders.find(x=>x.id===currentOrderId);
-      if(o) o.adaos_procent = adaos;
-      // Indicator vizual
-      const ind = document.getElementById('adaos-saved-indicator');
-      if(ind){ ind.style.opacity='1'; setTimeout(()=>ind.style.opacity='0',1500); }
-    }).catch(e=>toast('Eroare salvare adaos: '+e.message,'error'));
-  }
-  // Autosave toate produsele
+  // Autosave all rows
   document.querySelectorAll('#detail-products-body tr').forEach(row=>{
     const id = row.dataset.id;
     if(id) saveProductSilent(id, row);
@@ -1338,9 +1104,7 @@ async function editOrder() {
     note_comanda:  document.getElementById('eo-note').value,
   };
   try {
-    const oldOrder = allOrders.find(o=>o.id===editOrderId);
     await api(`comenzi?id=eq.${editOrderId}`,{method:'PATCH',body:JSON.stringify(patch)});
-    await auditLog('UPDATE','comenzi', editOrderId, fmtNr(oldOrder?.nr_comanda), oldOrder, patch);
     toast('Comanda salvată!','success');
     closeModal('modal-order');
     await loadOrders();
@@ -1499,7 +1263,6 @@ async function saveOrder() {
       adaos_procent: adaosGlobal,
       furnizor:      document.getElementById('no-furnizor').value||null,
       note_comanda:  document.getElementById('no-note').value||null,
-      creat_de:      getUser()?.id || null,
     })});
 
     const produse = newOrderProducts.filter(p=>p.cod_aftermarket).map(p=>{
@@ -1515,7 +1278,6 @@ async function saveOrder() {
     });
     await api('produse_comandate',{method:'POST',body:JSON.stringify(produse)});
 
-    await auditLog('CREATE','comenzi', comanda.id, `${fmtNr(comanda.nr_comanda)} — ${document.getElementById('no-client').options[document.getElementById('no-client').selectedIndex].text}`, null, comanda);
     toast(`✅ Comanda ${fmtNr(comanda.nr_comanda)} creată!`,'success');
     closeModal('modal-order');
     await loadOrders();
@@ -1668,12 +1430,9 @@ async function loadClientDetail(id) {
       <div><span class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">Adresă</span><div style="font-size:14px;margin-top:3px">${escHtml(c.adresa||'—')}</div></div>
     </div>
     ${c.note?`<div><span class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px">Note</span><div style="margin-top:4px;font-size:13px">${escHtml(c.note)}</div></div>`:''}
-    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div style="display:flex;gap:14px;font-size:13px">
-        <span>📋 <strong>${allOrders.filter(o=>o.client_id===id).length}</strong> comenzi</span>
-        <span>💰 <strong class="text-green">${fmtRON(allOrders.filter(o=>o.client_id===id).reduce((s,o)=>s+(+o.total_plata||0),0))} RON</strong></span>
-      </div>
-
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:10px;font-size:13px">
+      <span>📋 <strong>${allOrders.filter(o=>o.client_id===id).length}</strong> comenzi</span>
+      <span>💰 Total: <strong class="text-green">${fmtRON(allOrders.filter(o=>o.client_id===id).reduce((s,o)=>s+(+o.total_plata||0),0))} RON</strong></span>
     </div>
   `;
 
@@ -1750,13 +1509,10 @@ async function saveClient() {
   };
   try {
     if(editClientId){
-      const oldClient = allClients.find(c=>c.id===editClientId);
       await api(`clienti?id=eq.${editClientId}`,{method:'PATCH',body:JSON.stringify(body)});
-      await auditLog('UPDATE','clienti', editClientId, body.nume, oldClient, body);
       toast('Client actualizat!','success');
     } else {
-      const [newC] = await api('clienti',{method:'POST',body:JSON.stringify(body)});
-      await auditLog('CREATE','clienti', newC?.id, body.nume, null, body);
+      await api('clienti',{method:'POST',body:JSON.stringify(body)});
       toast('Client adăugat!','success');
     }
     closeModal('modal-client');
@@ -1886,211 +1642,37 @@ async function jumpToOrder(id, nr) {
 });
 
 // ════════════════════════════════════════════════════════════
-// PAGE: AUDIT LOGS
-// ════════════════════════════════════════════════════════════
-const ACTION_LABELS = { CREATE:'🟢 Creat', UPDATE:'🔵 Modificat', DELETE:'🔴 Șters', LOGIN:'🔑 Login', LOGOUT:'🚪 Logout' };
-const ACTION_COLORS = { CREATE:'var(--green)', UPDATE:'var(--blue)', DELETE:'var(--red)', LOGIN:'var(--yellow)', LOGOUT:'var(--muted)' };
-const ENTITY_LABELS = { comenzi:'Comandă', clienti:'Client', produse_comandate:'Produs', auth:'Auth' };
-
-async function loadAuditLogs() {
-  document.getElementById('audit-loading').style.display='block';
-  document.getElementById('audit-table').style.display='none';
-  try {
-    const action = document.getElementById('f-audit-action').value;
-    const entity = document.getElementById('f-audit-entity').value;
-    let q = 'audit_logs?select=*&order=created_at.desc&limit=300';
-    if(action) q += `&action=eq.${action}`;
-    if(entity) q += `&entity=eq.${entity}`;
-    const logs = await api(q);
-    document.getElementById('audit-count').textContent = `(${logs.length})`;
-    renderAuditTable(logs);
-  } catch(e) {
-    document.getElementById('audit-loading').innerHTML=`<span class="text-red">❌ ${e.message}</span>`;
-  }
-}
-
-function renderAuditTable(logs) {
-  document.getElementById('audit-loading').style.display='none';
-  document.getElementById('audit-table').style.display='table';
-  const tbody = document.getElementById('audit-body');
-  tbody.innerHTML='';
-  if(!logs.length) {
-    tbody.innerHTML='<tr><td colspan="6" class="empty-state">Niciun log găsit.</td></tr>';
-    return;
-  }
-  logs.forEach(l=>{
-    const d = new Date(l.created_at);
-    const dateStr = d.toLocaleDateString('ro-RO') + ' ' + d.toLocaleTimeString('ro-RO');
-    const actionLabel = ACTION_LABELS[l.action] || l.action;
-    const actionColor = ACTION_COLORS[l.action] || 'var(--text)';
-    const entityLabel = ENTITY_LABELS[l.entity] || l.entity;
-
-    // Build diff summary
-    let diffHtml = '—';
-    if(l.new_data && l.old_data) {
-      const changes = [];
-      Object.keys(l.new_data).forEach(k=>{
-        const oldV = l.old_data[k];
-        const newV = l.new_data[k];
-        if(JSON.stringify(oldV) !== JSON.stringify(newV) && k !== 'actualizat_la') {
-          changes.push(`<span style="color:var(--muted)">${k}:</span> <span style="color:var(--red);text-decoration:line-through">${oldV??'—'}</span> → <span style="color:var(--green)">${newV??'—'}</span>`);
-        }
-      });
-      if(changes.length) diffHtml = `<div style="font-size:11px;line-height:1.7">${changes.slice(0,3).join('<br>')}</div>`;
-    } else if(l.new_data && l.action==='CREATE') {
-      const keys = Object.keys(l.new_data).filter(k=>!['id','created_at','actualizat_la'].includes(k)).slice(0,2);
-      diffHtml = `<span style="font-size:11px;color:var(--muted)">${keys.map(k=>`${k}: ${l.new_data[k]}`).join(', ')}</span>`;
-    } else if(l.action==='DELETE' && l.old_data) {
-      diffHtml = `<span style="font-size:11px;color:var(--red)">Înregistrare ștearsă</span>`;
-    }
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="white-space:nowrap;font-size:12px;color:var(--muted)">${dateStr}</td>
-      <td>
-        <div style="font-weight:600;font-size:12px">${escHtml(l.user_name||'—')}</div>
-        <div style="font-size:11px;color:var(--muted)">${escHtml(l.user_email||'—')}</div>
-      </td>
-      <td><span style="color:${actionColor};font-weight:600;font-size:12px">${actionLabel}</span></td>
-      <td style="font-size:12px;color:var(--muted)">${entityLabel}</td>
-      <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(l.entity_label||'')}">
-        ${escHtml(l.entity_label||'—')}
-      </td>
-      <td style="max-width:280px">${diffHtml}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-// Filters pentru audit
-document.getElementById('f-audit-action')?.addEventListener('change', loadAuditLogs);
-document.getElementById('f-audit-entity')?.addEventListener('change', loadAuditLogs);
-
-// ════════════════════════════════════════════════════════════
-// PAGE: ADMIN — UTILIZATORI
-// ════════════════════════════════════════════════════════════
-async function loadUsers() {
-  if(currentUserRole !== 'administrator') { toast('Acces interzis.','error'); return; }
-  document.getElementById('users-loading').style.display='block';
-  document.getElementById('users-table').style.display='none';
-  try {
-    const users = await api('user_profiles?select=*&order=created_at.asc');
-    document.getElementById('users-count').textContent=`(${users.length})`;
-    renderUsersTable(users);
-  } catch(e) {
-    document.getElementById('users-loading').innerHTML=`<span class="text-red">❌ ${e.message}</span>`;
-  }
-}
-
-function renderUsersTable(users) {
-  document.getElementById('users-loading').style.display='none';
-  document.getElementById('users-table').style.display='table';
-  const tbody = document.getElementById('users-body');
-  tbody.innerHTML='';
-  users.forEach(u=>{
-    const isMe = u.id === getUser()?.id;
-    const tr   = document.createElement('tr');
-    tr.innerHTML = `
-      <td>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="width:30px;height:30px;border-radius:50%;background:${u.role==='administrator'?'var(--accent)':'var(--s2)'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:1px solid var(--border)">
-            ${(u.name||u.email||'?')[0].toUpperCase()}
-          </div>
-          <div>
-            <div style="font-weight:600">${escHtml(u.name||'—')} ${isMe?'<span style="font-size:10px;color:var(--muted)">(tu)</span>':''}</div>
-          </div>
-        </div>
-      </td>
-      <td style="color:var(--muted);font-size:12px">${escHtml(u.email)}</td>
-      <td>
-        <span class="badge ${u.role==='administrator'?'b-finalizata':'b-comandat'}" style="font-size:11px">
-          ${u.role==='administrator'?'⭐ Administrator':'👤 User'}
-        </span>
-      </td>
-      <td style="color:var(--muted);font-size:12px">${fmtDate(u.created_at)}</td>
-      <td>
-        ${isMe ? '<span style="color:var(--muted);font-size:11px">—</span>' : `
-          <select onchange="changeUserRole('${u.id}','${u.name||u.email}',this.value)"
-            style="background:var(--s3);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none;cursor:pointer">
-            <option value="user"          ${u.role==='user'         ?'selected':''}>👤 User</option>
-            <option value="administrator" ${u.role==='administrator'?'selected':''}>⭐ Administrator</option>
-          </select>
-        `}
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-async function changeUserRole(userId, userName, newRole) {
-  if(!confirm(`Schimbi rolul lui ${userName} în "${newRole}"?`)) {
-    await loadUsers(); // reset select
-    return;
-  }
-  try {
-    await api(`user_profiles?id=eq.${userId}`,{method:'PATCH',body:JSON.stringify({role:newRole})});
-    await auditLog('UPDATE','user_profiles', userId, userName, null, {role:newRole});
-    toast(`Rol actualizat: ${userName} → ${newRole}`,'success');
-    await loadUsers();
-  } catch(e){ toast('Eroare: '+e.message,'error'); }
-}
-
-// ════════════════════════════════════════════════════════════
-// AUDIT LOG
-// ════════════════════════════════════════════════════════════
-async function auditLog(action, entity, entityId, entityLabel, oldData=null, newData=null) {
-  try {
-    const u = getUser();
-    await api('audit_logs', {
-      method: 'POST',
-      headers: { 'Prefer': 'return=minimal' },
-      body: JSON.stringify({
-        user_id:      u?.id    || null,
-        user_email:   u?.email || null,
-        user_name:    u?.name  || null,
-        action,
-        entity,
-        entity_id:    entityId    || null,
-        entity_label: entityLabel || null,
-        old_data:     oldData  ? oldData  : null,
-        new_data:     newData  ? newData  : null,
-      }),
-    });
-  } catch(e) { console.warn('Audit log failed:', e.message); }
-}
-
-// ════════════════════════════════════════════════════════════
 // AUTOSAVE
 // ════════════════════════════════════════════════════════════
 const autosaveTimers = {};
 
-function showAutosaveStatus(msg='✓') {
+function showAutosaveStatus(msg='Salvat automat ✓') {
   const el = document.getElementById('autosave-status');
   if(!el) return;
   el.textContent = msg;
-  el.style.opacity='1';
   clearTimeout(el._timer);
-  el._timer = setTimeout(()=>{ el.style.opacity='0'; el.textContent=''; }, 1200);
+  el._timer = setTimeout(()=>{ el.textContent=''; }, 2500);
 }
 
 // Generic debounced autosave for any input with data-f or data-sf attribute
 // Call after rendering editable rows
 function attachAutosave(container, saveMode) {
+  // saveMode: 'product' uses data-f, 'search' uses data-sf
   const attr = saveMode==='search' ? '[data-sf]' : '[data-f]';
   container.querySelectorAll(`input${attr}, select${attr}`).forEach(el=>{
-    // Text inputs → blur (când iese din câmp)
-    // Number inputs și select → change (imediat)
-    const evName = (el.tagName==='SELECT' || el.dataset.f==='status_produs') ? 'change' : 'blur';
-    el.addEventListener(evName, ()=>{
+    el.addEventListener('change', ()=>{
       const row = el.closest('tr');
       if(!row) return;
       const id = row.dataset.id || row.dataset.prodId;
       if(!id) return;
       clearTimeout(autosaveTimers[id]);
       autosaveTimers[id] = setTimeout(()=>{
-        if(saveMode==='search') saveSearchProductSilent(id, row);
-        else                    saveProductSilent(id, row);
-      }, 300);
+        if(saveMode==='search') {
+          saveSearchProductSilent(id, row);
+        } else {
+          saveProductSilent(id, row);
+        }
+      }, 800);
     });
   });
 }
@@ -2104,13 +1686,10 @@ async function saveProductSilent(prodId, row) {
   });
   try {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
-    // Flash subtil pe rând — fără toast deranjant
     row.classList.add('saved-flash');
-    const dot = row.querySelector('.row-saved-dot');
-    if(dot){ dot.style.opacity='1'; setTimeout(()=>dot.style.opacity='0',1200); }
-    setTimeout(()=>row.classList.remove('saved-flash'),800);
-    showAutosaveStatus('✓');
-  } catch(e){ toast('Eroare salvare: '+e.message,'error'); }
+    setTimeout(()=>row.classList.remove('saved-flash'),600);
+    showAutosaveStatus('Salvat automat ✓');
+  } catch(e){ toast('Autosave eroare: '+e.message,'error'); }
 }
 
 async function saveSearchProductSilent(prodId, row) {
@@ -2121,528 +1700,312 @@ async function saveSearchProductSilent(prodId, row) {
   try {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
     row.classList.add('saved-flash');
-    setTimeout(()=>row.classList.remove('saved-flash'),800);
-    showAutosaveStatus('✓');
-  } catch(e){ toast('Eroare salvare: '+e.message,'error'); }
+    setTimeout(()=>row.classList.remove('saved-flash'),600);
+    showAutosaveStatus('Salvat automat ✓');
+  } catch(e){ toast('Autosave eroare: '+e.message,'error'); }
 }
 
 // Status order autosave (already instant via onchange)
 // Product status autosave (instant)
 
 // ════════════════════════════════════════════════════════════
-// GLOBAL SEARCH
+// INVOICE WIZARD
 // ════════════════════════════════════════════════════════════
-let searchDebounceTimer = null;
+let invoiceProducts = []; // produsele selectate pentru procesare
 
-document.getElementById('global-search')?.addEventListener('input', e => {
-  clearTimeout(searchDebounceTimer);
-  const q = e.target.value.trim();
-  if (q.length < 2) { closeSearchDropdown(); return; }
-  searchDebounceTimer = setTimeout(() => globalSearch(q), 250);
-});
-
-document.getElementById('global-search')?.addEventListener('blur', () => {
-  setTimeout(closeSearchDropdown, 200);
-});
-
-document.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-    e.preventDefault();
-    document.getElementById('global-search')?.focus();
-  }
-  if (e.key === 'Escape') closeSearchDropdown();
-});
-
-function closeSearchDropdown() {
-  const dd = document.getElementById('search-results-dropdown');
-  if (dd) dd.style.display = 'none';
-}
-
-async function globalSearch(q) {
-  const dd = document.getElementById('search-results-dropdown');
-  dd.style.display = 'block';
-  dd.innerHTML = '<div style="padding:12px 14px;color:var(--muted);font-size:12px"><span class="spinner"></span>Se caută...</div>';
-
-  const ql = q.toLowerCase();
-  const results = { comenzi:[], clienti:[], produse:[] };
-
-  // Search local în allOrders
-  results.comenzi = allOrders.filter(o =>
-    o.client_nume?.toLowerCase().includes(ql) ||
-    (o.nr_comanda && `cmd-${String(o.nr_comanda).padStart(4,'0')}`.includes(ql)) ||
-    o.furnizor?.toLowerCase().includes(ql)
-  ).slice(0, 5);
-
-  // Search local în allClients
-  results.clienti = allClients.filter(c =>
-    c.nume?.toLowerCase().includes(ql) ||
-    c.telefon?.includes(q) ||
-    c.vin?.toLowerCase().includes(ql)
-  ).slice(0, 4);
-
-  // Search produse în DB
-  try {
-    results.produse = await api(
-      `produse_comandate?select=id,cod_aftermarket,descriere,comanda_id&cod_aftermarket=ilike.*${encodeURIComponent(q)}*&limit=4`
-    );
-  } catch {}
-
-  renderSearchDropdown(results, q);
-}
-
-function renderSearchDropdown(results, q) {
-  const dd = document.getElementById('search-results-dropdown');
-  const total = results.comenzi.length + results.clienti.length + results.produse.length;
-
-  if (total === 0) {
-    dd.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">Niciun rezultat pentru "' + escHtml(q) + '"</div>';
-    return;
-  }
-
-  let html = '';
-
-  if (results.comenzi.length) {
-    html += '<div class="search-group-title">📋 Comenzi</div>';
-    results.comenzi.forEach(o => {
-      html += `<div class="search-result-item" onclick="navigate('comenzi');setTimeout(()=>loadDetail('${o.id}',o_${o.id}),100)">
-        <span class="icon">📋</span>
-        <div><div class="search-result-main">${fmtNr(o.nr_comanda)} — ${escHtml(o.client_nume)}</div>
-        <div class="search-result-sub">${fmtRON(o.total_plata)} RON · ${escHtml(o.furnizor||'—')} · ${o.status_general}</div></div>
-      </div>`;
-    });
-  }
-
-  if (results.clienti.length) {
-    html += '<div class="search-group-title">👥 Clienți</div>';
-    results.clienti.forEach(c => {
-      html += `<div class="search-result-item" onclick="navigate('clienti');setTimeout(()=>loadClientDetail('${c.id}'),100)">
-        <span class="icon">👤</span>
-        <div><div class="search-result-main">${escHtml(c.nume)}</div>
-        <div class="search-result-sub">${escHtml(c.telefon||'—')} ${c.vin?'· VIN: '+c.vin:''}</div></div>
-      </div>`;
-    });
-  }
-
-  if (results.produse.length) {
-    html += '<div class="search-group-title">🔧 Produse</div>';
-    results.produse.forEach(p => {
-      const ord = allOrders.find(o=>o.id===p.comanda_id)||{};
-      html += `<div class="search-result-item" onclick="navigate('produse');setTimeout(()=>{document.getElementById('search-prod-cod').value='${escHtml(p.cod_aftermarket)}';searchProducts();},100)">
-        <span class="icon">🔧</span>
-        <div><div class="search-result-main">${escHtml(p.cod_aftermarket)}</div>
-        <div class="search-result-sub">${escHtml(p.descriere||'—')} · ${fmtNr(ord.nr_comanda)}</div></div>
-      </div>`;
-    });
-  }
-
-  dd.innerHTML = html;
-  dd.style.display = 'block';
-
-  // Atașează click handlers cu datele corecte
-  results.comenzi.forEach(o => {
-    window[`o_${o.id}`] = o;
+async function openInvoiceWizard() {
+  // Populează dropdown furnizori din comenzi existente
+  const sel = document.getElementById('inv-furnizor');
+  sel.innerHTML = '<option value="">— toți furnizorii —</option>';
+  const furnizori = [...new Set(allOrders.map(o=>o.furnizor).filter(Boolean))].sort();
+  furnizori.forEach(f => {
+    const o = document.createElement('option');
+    o.value = o.textContent = f;
+    sel.appendChild(o);
   });
+
+  // Reset state
+  document.getElementById('inv-nr').value = '';
+  document.getElementById('invoice-step1').style.display = 'block';
+  document.getElementById('invoice-step2').style.display = 'none';
+  document.getElementById('invoice-foot').style.display  = 'flex';
+  document.getElementById('invoice-foot2').style.display = 'none';
+  document.getElementById('inv-next-btn').disabled = true;
+  document.getElementById('inv-existing-warning').style.display = 'none';
+  document.getElementById('invoice-subtitle').textContent = 'Pas 1 din 2 — Identificare factură';
+
+  sel.addEventListener('change', debounceInvoiceSearch);
+  openModal('modal-invoice');
 }
 
-// ════════════════════════════════════════════════════════════
-// KANBAN VIEW
-// ════════════════════════════════════════════════════════════
-let currentView = 'table';
-
-function switchView(view) {
-  currentView = view;
-  document.getElementById('tbl-view').style.display    = view==='table'  ? 'block' : 'none';
-  document.getElementById('kanban-view').style.display = view==='kanban' ? 'block' : 'none';
-  document.getElementById('view-btn-table').classList.toggle('active',  view==='table');
-  document.getElementById('view-btn-kanban').classList.toggle('active', view==='kanban');
-  if (view==='kanban') renderKanban(applyOrderFilters(allOrders));
+let _invSearchTimer;
+function debounceInvoiceSearch() {
+  clearTimeout(_invSearchTimer);
+  const nr = document.getElementById('inv-nr').value.trim();
+  document.getElementById('inv-next-btn').disabled = nr.length < 2;
+  if(nr.length < 2) return;
+  _invSearchTimer = setTimeout(checkExistingInvoice, 400);
 }
 
-// Cache produse per comandă pentru kanban
-const kanbanProdsCache = {};
-
-async function renderKanban(orders) {
-  const cols = {
-    in_lucru:   { el: document.getElementById('k-col-lucru'),  count: document.getElementById('k-count-lucru') },
-    finalizata: { el: document.getElementById('k-col-final'),  count: document.getElementById('k-count-final') },
-    anulata:    { el: document.getElementById('k-col-anulat'), count: document.getElementById('k-count-anulat') },
-  };
-  Object.values(cols).forEach(c => { c.el.innerHTML='<div style="padding:14px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span></div>'; c.count.textContent='0'; });
-
-  const grouped = { in_lucru:[], finalizata:[], anulata:[] };
-  orders.forEach(o => { if(grouped[o.status_general]) grouped[o.status_general].push(o); });
-
-  // Fetch produse pentru toate comenzile vizibile (max 30 comenzi)
-  const visibleIds = orders.slice(0,30).map(o=>o.id).filter(id=>!kanbanProdsCache[id]);
-  if(visibleIds.length) {
-    try {
-      const prods = await api(`produse_comandate?comanda_id=in.(${visibleIds.join(',')})&select=comanda_id,cod_aftermarket,descriere,status_produs&order=status_produs.asc`);
-      // Grupează pe comanda_id
-      prods.forEach(p => {
-        if(!kanbanProdsCache[p.comanda_id]) kanbanProdsCache[p.comanda_id]=[];
-        kanbanProdsCache[p.comanda_id].push(p);
-      });
-      // Marchează comenzile fără produse
-      visibleIds.forEach(id => { if(!kanbanProdsCache[id]) kanbanProdsCache[id]=[]; });
-    } catch {}
-  }
-
-  const statusIcon = { comandat:'📦', ajuns:'🏠', predat:'✅' };
-
-  Object.entries(grouped).forEach(([status, list]) => {
-    const col = cols[status];
-    if(!col) return;
-    col.count.textContent = list.length;
-    col.el.innerHTML='';
-
-    list.forEach(o => {
-      const arrived = (+o.produse_ajunse||0)+(+o.produse_predate||0);
-      const total   = +o.nr_produse||0;
-      const pct     = total>0 ? Math.round(arrived/total*100) : 0;
-      const prods   = kanbanProdsCache[o.id] || [];
-      const maxShow = 4;
-      const extra   = prods.length - maxShow;
-
-      const prodsHtml = prods.slice(0, maxShow).map(p => `
-        <div class="kanban-prod-row">
-          <span class="kanban-prod-cod">${escHtml(p.cod_aftermarket)}</span>
-          <span class="kanban-prod-desc">${escHtml(p.descriere||'—')}</span>
-          <span class="kanban-prod-st">${statusIcon[p.status_produs]||''}</span>
-        </div>
-      `).join('');
-
-      const card = document.createElement('div');
-      card.className = 'kanban-card';
-      card.innerHTML = `
-        <div class="kanban-card-name">${escHtml(o.client_nume)}</div>
-        <div class="kanban-card-sub">
-          <span class="nr-cmd">${fmtNr(o.nr_comanda)}</span>
-          <span>📦 ${escHtml(o.furnizor||'—')}</span>
-          <span>🗓 ${fmtDate(o.data_creare)}</span>
-        </div>
-        ${prods.length ? `<div class="kanban-card-products">${prodsHtml}${extra>0?`<div class="kanban-more">+${extra} mai multe...</div>`:''}</div>` : ''}
-        <div class="kanban-card-footer">
-          <div>
-            <div class="kanban-progress" style="width:100px">
-              <div class="kanban-progress-bar" style="width:${pct}%"></div>
-            </div>
-            <span style="font-size:10px;color:var(--muted)">${arrived}/${total} ajunse</span>
-          </div>
-          <div style="text-align:right">
-            <div class="text-blue fw-bold" style="font-size:13px">${fmtRON(o.total_plata)} RON</div>
-            ${calcRest(o)>0 ? `<div style="font-size:11px;color:var(--yellow)">Rest: ${fmtRON(calcRest(o))} RON</div>` : '<div style="font-size:11px;color:var(--green)">✅ Achitat</div>'}
-          </div>
-        </div>
-      `;
-      card.addEventListener('click', () => loadDetail(o.id, o));
-      col.el.appendChild(card);
-    });
-
-    if(!list.length) {
-      col.el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px">Nicio comandă</div>';
-    }
-  });
-}
-
-// ════════════════════════════════════════════════════════════
-// STOCK ALERTS
-// ════════════════════════════════════════════════════════════
-async function checkStockAlerts() {
+async function checkExistingInvoice() {
+  const nr = document.getElementById('inv-nr').value.trim();
+  if(!nr) return;
   try {
-    const alerts = await api('rpc/get_stock_alerts', { method:'POST', body:'{}' });
-    const badge  = document.getElementById('stock-alert-badge');
-    const panel  = document.getElementById('stock-alert-panel');
-    const list   = document.getElementById('stock-alert-list');
-
-    if (!alerts?.length) {
-      if(badge) badge.style.display='none';
-      if(panel) panel.style.display='none';
-      return;
-    }
-
-    if(badge) { badge.textContent=alerts.length; badge.style.display='inline'; }
-    if(panel) panel.style.display='block';
-    if(list) {
-      list.innerHTML = alerts.map(a => `
-        <div class="stock-alert-item">
-          <span style="font-size:18px">⚠️</span>
-          <div>
-            <span class="text-yellow fw-bold font-mono">${escHtml(a.cod_aftermarket)}</span>
-            <span style="color:var(--muted);font-size:12px;margin-left:6px">${escHtml(a.descriere||'')}</span>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">
-              Apare în <strong>${a.nr_comenzi}</strong> comenzi active · CMD: ${escHtml(a.comenzi_ids||'')}
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
-  } catch(e) { console.warn('Stock alerts error:', e.message); }
+    const existing = await api(`produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nr)}&select=id&limit=1`);
+    document.getElementById('inv-existing-warning').style.display = existing.length ? 'block' : 'none';
+  } catch(e) { /* silent */ }
 }
 
-// kanban + count integrat în renderOrdersTable original
+async function invoiceNext() {
+  const nr      = document.getElementById('inv-nr').value.trim();
+  const furnizor = document.getElementById('inv-furnizor').value;
+  if(!nr) { toast('Introduceți numărul facturii!','warn'); return; }
 
-// ════════════════════════════════════════════════════════════
-// NOTIFICĂRI REALTIME (Supabase Realtime)
-// ════════════════════════════════════════════════════════════
-let realtimeChannel = null;
-let notifEnabled    = false;
-
-async function initRealtime() {
-  if ('Notification' in window && Notification.permission === 'default') {
-    await Notification.requestPermission();
-  }
+  const btn = document.getElementById('inv-next-btn');
+  btn.disabled = true; btn.textContent = '⏳ Se încarcă...';
 
   try {
-    const wsUrl   = `wss://ddieqobpxejocfnbmfck.supabase.co/realtime/v1/websocket?apikey=${ANON_KEY}&vsn=1.0.0`;
-    const ws      = new WebSocket(wsUrl);
-    let heartbeat = null;
-    let refCount  = 0;
+    // Găsește toate comenzile de la furnizorul selectat cu produse comandate
+    let ordersQuery = 'comenzi?select=id,nr_comanda,clienti(nume)';
+    if(furnizor) ordersQuery += `&furnizor=eq.${encodeURIComponent(furnizor)}`;
 
-    function joinChannel(topic) {
-      refCount++;
-      ws.send(JSON.stringify({
-        topic,
-        event:   'phx_join',
-        payload: { config:{ broadcast:{ self:false }, presence:{ key:'' } } },
-        ref:     String(refCount),
-      }));
-    }
+    const orders = await api(ordersQuery + '&status_general=in.(in_lucru,finalizata)');
+    const orderIds = orders.map(o=>o.id);
 
-    ws.onopen = () => {
-      // Ascultă schimbări produse
-      joinChannel('realtime:public:produse_comandate');
-      // Ascultă comenzi noi
-      joinChannel('realtime:public:comenzi');
-
-      heartbeat = setInterval(() => {
-        ws.send(JSON.stringify({ topic:'phoenix', event:'heartbeat', payload:{}, ref:'hb' }));
-      }, 25000);
-
-      notifEnabled = true;
-      const bell = document.getElementById('btn-notif-toggle');
-      if(bell) bell.style.background = 'rgba(16,185,129,.2)';
-      showAutosaveStatus('🔔 Live');
-    };
-
-    ws.onmessage = e => {
-      try {
-        const msg = JSON.parse(e.data);
-        if (!['INSERT','UPDATE'].includes(msg.event)) return;
-        const rec    = msg.payload?.record;
-        const old    = msg.payload?.old_record;
-        if (!rec) return;
-
-        // ── PRODUSE: orice schimbare de status ──────────────
-        if (msg.topic?.includes('produse_comandate') && msg.event === 'UPDATE') {
-          const oldStatus = old?.status_produs;
-          const newStatus = rec.status_produs;
-          if (oldStatus === newStatus) return; // nu s-a schimbat statusul
-
-          const order = allOrders.find(o=>o.id===rec.comanda_id);
-          const icons = { comandat:'📦', ajuns:'🏠', predat:'✅' };
-          const labels = { comandat:'Comandat', ajuns:'Ajuns în depozit', predat:'Predat clientului' };
-
-          sendBrowserNotif(
-            `${icons[newStatus]||'🔔'} ${labels[newStatus]||newStatus}`,
-            `${rec.cod_aftermarket}${order?' · '+fmtNr(order.nr_comanda)+' — '+order.client_nume:''}`,
-            () => {
-              navigate('comenzi');
-              if(order) setTimeout(()=>loadDetail(order.id,order),200);
-            }
-          );
-          loadOrders();
-          // Invalidează cache kanban pentru această comandă
-          delete kanbanProdsCache[rec.comanda_id];
-        }
-
-        // ── COMENZI: comandă nouă creată ────────────────────
-        if (msg.topic?.includes(':comenzi') && msg.event === 'INSERT') {
-          const myId = getUser()?.id;
-          // Notifică doar dacă a creat altcineva (nu eu)
-          if (rec.creat_de && rec.creat_de === myId) return;
-
-          sendBrowserNotif(
-            '🆕 Comandă nouă creată',
-            `${rec.furnizor||'—'} · ${fmtRON(rec.total_plata)} RON`,
-            () => navigate('comenzi')
-          );
-          loadOrders();
-        }
-
-      } catch(err) { console.warn('Realtime msg error:', err); }
-    };
-
-    ws.onclose = () => {
-      clearInterval(heartbeat);
-      notifEnabled = false;
-      const bell = document.getElementById('btn-notif-toggle');
-      if(bell) bell.style.background = '';
-      // Reconectare exponențială
-      setTimeout(initRealtime, 8000);
-    };
-
-    ws.onerror = () => ws.close();
-
-  } catch(e) { console.warn('Realtime init failed:', e.message); }
-}
-
-function sendBrowserNotif(title, body, onClick) {
-  // Badge în header
-  const badge = document.getElementById('notif-badge');
-  if(badge) badge.style.display = 'block';
-
-  // Browser notification
-  if ('Notification' in window && Notification.permission === 'granted') {
-    const n = new Notification(title, { body, icon:'/favicon.ico', badge:'/favicon.ico' });
-    n.onclick = () => { window.focus(); n.close(); if(onClick) onClick(); };
-    setTimeout(() => n.close(), 8000);
-  }
-  toast(`${title} ${body}`, 'success');
-}
-
-document.getElementById('btn-notif-toggle')?.addEventListener('click', () => {
-  const badge = document.getElementById('notif-badge');
-  if(badge) badge.style.display='none'; // Clear badge on click
-  if(!notifEnabled) initRealtime();
-});
-
-// ════════════════════════════════════════════════════════════
-// ISTORIC PREȚURI
-// ════════════════════════════════════════════════════════════
-async function loadPriceHistory() {
-  const cod      = document.getElementById('ph-cod')?.value.trim();
-  const furnizor = document.getElementById('ph-furnizor')?.value.trim();
-  if(!cod && !furnizor) { toast('Introdu cel puțin un cod aftermarket.','warn'); return; }
-
-  document.getElementById('ph-loading').style.display='block';
-  document.getElementById('ph-body').innerHTML='';
-  document.getElementById('ph-stats').style.display='none';
-
-  try {
-    let q = 'v_price_history?select=*&order=inregistrat_la.desc&limit=100';
-    if(cod)      q += `&cod_aftermarket=ilike.*${encodeURIComponent(cod)}*`;
-    if(furnizor) q += `&furnizor=ilike.*${encodeURIComponent(furnizor)}*`;
-
-    const rows = await api(q);
-    document.getElementById('ph-loading').style.display='none';
-    const tbody = document.getElementById('ph-body');
-    tbody.innerHTML='';
-
-    if(!rows.length) {
-      tbody.innerHTML='<tr><td colspan="8" class="empty-state">Niciun istoric găsit.</td></tr>';
-      return;
-    }
-
-    // Stats & chart pentru primul cod din rezultate
-    if(cod) {
-      const prices = rows.map(r=>+r.pret_achizitie).filter(Boolean);
-      if(prices.length) {
-        const min=Math.min(...prices), max=Math.max(...prices), avg=prices.reduce((a,b)=>a+b,0)/prices.length;
-        document.getElementById('ph-stat-cod').textContent  = rows[0].cod_aftermarket;
-        document.getElementById('ph-stat-desc').textContent = rows[0].descriere||'';
-        document.getElementById('ph-min').textContent       = fmtRON(min)+' RON';
-        document.getElementById('ph-max').textContent       = fmtRON(max)+' RON';
-        document.getElementById('ph-avg').textContent       = fmtRON(avg)+' RON';
-        document.getElementById('ph-count').textContent     = rows.length;
-
-        const sorted = [...rows].sort((a,b)=>new Date(a.inregistrat_la)-new Date(b.inregistrat_la));
-        document.getElementById('ph-date-first').textContent = fmtDate(sorted[0].inregistrat_la);
-        document.getElementById('ph-date-last').textContent  = fmtDate(sorted[sorted.length-1].inregistrat_la);
-
-        // Render chart
-        const chartEl = document.getElementById('ph-chart');
-        chartEl.innerHTML='';
-        sorted.forEach(r=>{
-          const p = +r.pret_achizitie;
-          const h = Math.round((p/max)*100);
-          const bar = document.createElement('div');
-          bar.className = 'ph-bar' + (p===max?' highest':p===min?' lowest':'');
-          bar.style.height = h+'%';
-          bar.dataset.tip = `${fmtRON(p)} RON
-${fmtDate(r.inregistrat_la)}`;
-          chartEl.appendChild(bar);
-        });
-        document.getElementById('ph-stats').style.display='block';
+    let prods = [];
+    if(orderIds.length > 0) {
+      // Fetch produse comandate din aceste comenzi
+      const chunks = [];
+      for(let i=0; i<orderIds.length; i+=20) chunks.push(orderIds.slice(i,i+20));
+      for(const chunk of chunks) {
+        const p = await api(`produse_comandate?comanda_id=in.(${chunk.join(',')})&status_produs=eq.comandat&select=*`);
+        prods.push(...p);
       }
     }
 
-    // Tabel
-    rows.forEach(r=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML=`
-        <td style="white-space:nowrap;font-size:12px;color:var(--muted)">${fmtDate(r.inregistrat_la)}</td>
-        <td class="text-yellow fw-bold font-mono">${escHtml(r.cod_aftermarket)}</td>
-        <td style="font-size:12px">${escHtml(r.descriere||'—')}</td>
-        <td style="font-size:12px;color:var(--muted)">${escHtml(r.furnizor||'—')}</td>
-        <td class="fw-bold">${fmtRON(r.pret_achizitie)} RON</td>
-        <td class="text-blue">${fmtRON(r.pret_vanzare)} RON</td>
-        <td><span class="nr-cmd">${fmtNr(r.nr_comanda)}</span></td>
-        <td style="font-size:12px">${escHtml(r.client_nume||'—')}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+    // Mapare orderId → order info
+    const orderMap = {};
+    orders.forEach(o => orderMap[o.id] = o);
+
+    // Render tabel pas 2
+    renderInvoiceProducts(prods, orderMap, nr, furnizor);
+
+    document.getElementById('invoice-step1').style.display = 'none';
+    document.getElementById('invoice-step2').style.display = 'block';
+    document.getElementById('invoice-foot').style.display  = 'none';
+    document.getElementById('invoice-foot2').style.display = 'flex';
+    document.getElementById('invoice-subtitle').textContent = 'Pas 2 din 2 — Completează detalii';
+    document.getElementById('inv-nr-display').textContent   = nr;
+    document.getElementById('inv-furn-display').textContent = furnizor || 'toți';
+    document.getElementById('inv-count-display').textContent = `${prods.length} produse găsite`;
+
   } catch(e) {
-    document.getElementById('ph-loading').style.display='none';
     toast('Eroare: '+e.message,'error');
+  }
+  btn.disabled = false; btn.textContent = 'Continuă →';
+}
+
+function renderInvoiceProducts(prods, orderMap, nrFactura, furnizor) {
+  invoiceProducts = prods;
+  const tbody = document.getElementById('invoice-products-body');
+  tbody.innerHTML = '';
+
+  if(!prods.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">
+      Nu există produse cu status <strong>Comandat</strong>${furnizor?' de la '+furnizor:''}.
+      <br><span style="font-size:12px;color:var(--muted)">Toate produsele sunt deja procesate sau nu există comenzi.</span>
+    </td></tr>`;
+    document.getElementById('inv-confirm-btn').disabled = true;
+    return;
+  }
+
+  prods.forEach((p, i) => {
+    const ord = orderMap[p.comanda_id] || {};
+    const tr  = document.createElement('tr');
+    tr.dataset.idx = i;
+    tr.innerHTML = `
+      <td><input type="checkbox" class="inv-check" checked onchange="updateInvSelectedCount()"/></td>
+      <td>
+        <span class="font-mono text-blue fw-bold" style="font-size:12px">${escHtml(p.sku||'—')}</span>
+      </td>
+      <td class="text-yellow fw-bold font-mono" style="white-space:nowrap;font-size:12px">${escHtml(p.cod_aftermarket)}</td>
+      <td style="font-size:12px;max-width:160px">${escHtml(p.descriere||'—')}</td>
+      <td><span class="nr-cmd" style="font-size:11px">${fmtNr(ord.nr_comanda)}</span></td>
+      <td style="font-size:12px">${escHtml(ord.clienti?.nume||'—')}</td>
+      <td>
+        <input class="inv-cod-furn" value="${escHtml(p.cod_aftermarket)}"
+          placeholder="Cod de pe factură"
+          style="width:120px;background:var(--s3);border:1px solid var(--accent);border-radius:5px;color:var(--text);padding:4px 8px;font-size:12px;outline:none"/>
+      </td>
+      <td>
+        <input type="number" class="inv-pret" value="${p.pret_achizitie||0}"
+          style="width:80px;background:var(--s3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:4px 7px;font-size:12px;outline:none"/>
+      </td>
+      <td>
+        <input type="number" class="inv-cant" value="${p.cantitate||1}" min="1"
+          style="width:50px;background:var(--s3);border:1px solid var(--border2);border-radius:5px;color:var(--text);padding:4px 7px;font-size:12px;outline:none"/>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  updateInvSelectedCount();
+}
+
+function updateInvSelectedCount() {
+  const total    = document.querySelectorAll('.inv-check').length;
+  const selected = document.querySelectorAll('.inv-check:checked').length;
+  document.getElementById('inv-selected-count').textContent = `${selected} din ${total} selectate`;
+  document.getElementById('inv-confirm-btn').disabled = selected === 0;
+  document.getElementById('inv-check-all').checked = selected === total && total > 0;
+  document.getElementById('inv-check-all').indeterminate = selected > 0 && selected < total;
+}
+
+function invToggleAll(checked) {
+  document.querySelectorAll('.inv-check').forEach(c => c.checked = checked);
+  updateInvSelectedCount();
+}
+function invSelectAll()   { invToggleAll(true); }
+function invDeselectAll() { invToggleAll(false); }
+
+function invoiceBack() {
+  document.getElementById('invoice-step1').style.display = 'block';
+  document.getElementById('invoice-step2').style.display = 'none';
+  document.getElementById('invoice-foot').style.display  = 'flex';
+  document.getElementById('invoice-foot2').style.display = 'none';
+  document.getElementById('invoice-subtitle').textContent = 'Pas 1 din 2 — Identificare factură';
+}
+
+async function invoiceConfirm() {
+  const nrFactura = document.getElementById('inv-nr').value.trim();
+  const rows      = document.querySelectorAll('#invoice-products-body tr[data-idx]');
+  const toProcess = [];
+
+  rows.forEach(row => {
+    const checked = row.querySelector('.inv-check')?.checked;
+    if(!checked) return;
+    const idx  = +row.dataset.idx;
+    const prod = invoiceProducts[idx];
+    toProcess.push({
+      id:                  prod.id,
+      cod_factura_furnizor: nrFactura,
+      cod_aftermarket:     row.querySelector('.inv-cod-furn')?.value || prod.cod_aftermarket,
+      pret_achizitie:      parseFloat(row.querySelector('.inv-pret')?.value)||0,
+      cantitate:           parseInt(row.querySelector('.inv-cant')?.value)||1,
+      status_produs:       'ajuns',
+      data_sosire:         new Date().toISOString(),
+    });
+  });
+
+  if(!toProcess.length) { toast('Niciun produs selectat!','warn'); return; }
+
+  const btn = document.getElementById('inv-confirm-btn');
+  btn.disabled = true; btn.textContent = '⏳ Se salvează...';
+
+  try {
+    // Patch fiecare produs individual (Supabase nu suportă bulk patch cu valori diferite)
+    await Promise.all(toProcess.map(p => {
+      const { id, ...patch } = p;
+      return api(`produse_comandate?id=eq.${id}`, { method:'PATCH', body:JSON.stringify(patch) });
+    }));
+
+    toast(`✅ ${toProcess.length} produs(e) marcate ca Ajunse cu factura ${nrFactura}!`, 'success');
+    closeModal('modal-invoice');
+    await loadOrders();
+    loadAllProducts();
+  } catch(e) {
+    toast('Eroare: '+e.message, 'error');
+    btn.disabled = false; btn.textContent = '✅ Marchează ca Ajunse';
   }
 }
 
-document.getElementById('ph-cod')?.addEventListener('keydown', e=>{
-  if(e.key==='Enter') loadPriceHistory();
-});
+// ════════════════════════════════════════════════════════════
+// ADAUGĂ PRODUS INDIVIDUAL
+// ════════════════════════════════════════════════════════════
+async function openAddProduct() {
+  // Populează comenzi
+  const sel = document.getElementById('ap-comanda');
+  sel.innerHTML = '<option value="">— selectează comanda —</option>';
+  allOrders
+    .filter(o=>o.status_general==='in_lucru')
+    .forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.id;
+      opt.dataset.nr = o.nr_comanda;
+      opt.dataset.furnizor = o.furnizor||'';
+      opt.textContent = `${fmtNr(o.nr_comanda)} — ${o.client_nume}`;
+      sel.appendChild(opt);
+    });
+
+  // Reset fields
+  ['ap-cod','ap-desc','ap-sku'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('ap-pret').value  = '0';
+  document.getElementById('ap-adaos').value = '0';
+  document.getElementById('ap-vanz').value  = '0';
+  document.getElementById('ap-cant').value  = '1';
+  document.getElementById('ap-status').value = 'comandat';
+
+  sel.addEventListener('change', previewApSku);
+  document.getElementById('ap-cod').addEventListener('input', previewApSku);
+
+  openModal('modal-add-product');
+}
+
+function previewApSku() {
+  const selEl   = document.getElementById('ap-comanda');
+  const selOpt  = selEl.options[selEl.selectedIndex];
+  const furnizor = selOpt?.dataset?.furnizor || '';
+  const nr       = selOpt?.dataset?.nr || '0';
+  const prefix   = furnizor.substring(0,3).toUpperCase() || 'GEN';
+  const nrPad    = String(nr).padStart(4,'0');
+  // Count existing products for this order
+  const orderId  = selEl.value;
+  const existing = allOrders.find(o=>o.id===orderId);
+  const nextIdx  = (existing?.nr_produse||0)+1;
+  if(orderId) {
+    document.getElementById('ap-sku').value = `${prefix}-${nrPad}-${nextIdx}`;
+  }
+}
+
+function apRecalc() {
+  const pret  = parseFloat(document.getElementById('ap-pret').value)||0;
+  const adaos = parseFloat(document.getElementById('ap-adaos').value)||0;
+  document.getElementById('ap-vanz').value = (pret*(1+adaos/100)).toFixed(2);
+}
+
+async function saveAddProduct() {
+  const comandaId = document.getElementById('ap-comanda').value;
+  const cod       = document.getElementById('ap-cod').value.trim();
+  if(!comandaId) { toast('Selectează o comandă!','warn'); return; }
+  if(!cod)       { toast('Codul aftermarket este obligatoriu!','warn'); return; }
+
+  const body = {
+    comanda_id:      comandaId,
+    cod_aftermarket: cod,
+    descriere:       document.getElementById('ap-desc').value,
+    pret_achizitie:  parseFloat(document.getElementById('ap-pret').value)||0,
+    pret_vanzare:    parseFloat(document.getElementById('ap-vanz').value)||0,
+    cantitate:       parseInt(document.getElementById('ap-cant').value)||1,
+    status_produs:   document.getElementById('ap-status').value,
+    // SKU se generează automat prin trigger SQL
+  };
+
+  try {
+    await api('produse_comandate', { method:'POST', body:JSON.stringify(body) });
+    toast('✅ Produs adăugat! SKU generat automat.','success');
+    closeModal('modal-add-product');
+    await loadOrders();
+    loadAllProducts();
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
 
 // ════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════
-// Încarcă profilul și rolul utilizatorului
-async function initUserProfile() {
-  try {
-    // Obține ID-ul din sesiune și filtrează explicit
-    const _sess = getSession();
-    const _uid  = _sess?.user?.id;
-    const profileQuery = _uid
-      ? `user_profiles?select=*&id=eq.${_uid}&limit=1`
-      : 'user_profiles?select=*&limit=1';
-    const profiles = await api(profileQuery);
-    if (profiles && profiles.length) {
-      currentUserProfile = profiles[0];
-      currentUserRole    = profiles[0].role || 'user';
-      // Actualizează name din profil (mai sigur decât localStorage)
-      if (_user) _user.name = profiles[0].name || _user.name;
-    }
-  } catch(e) { console.warn('Profile load failed:', e.message); }
-
-  // Set sidebar user info
-  if (_user) {
-    const nameEl   = document.getElementById('user-name');
-    const emailEl  = document.getElementById('user-email');
-    const avatarEl = document.getElementById('user-avatar');
-    const roleEl   = document.getElementById('user-role-badge');
-    const name = currentUserProfile?.name || _user.name || _user.email || '—';
-    if(nameEl)  nameEl.textContent  = name;
-    if(emailEl) emailEl.textContent = _user.email || '—';
-    if(avatarEl) avatarEl.textContent = name[0].toUpperCase();
-    if(roleEl) {
-      roleEl.textContent  = currentUserRole === 'administrator' ? '⭐ Admin' : '👤 User';
-      roleEl.style.color  = currentUserRole === 'administrator' ? 'var(--yellow)' : 'var(--muted)';
-    }
-  }
-  // Arată/ascunde meniu admin
-  const adminNav = document.getElementById('nav-admin');
-  if(adminNav) adminNav.style.display = currentUserRole==='administrator' ? 'flex' : 'none';
-  const adminPage = document.getElementById('nav-audit');
-  if(adminPage) adminPage.style.display = currentUserRole==='administrator' ? 'flex' : 'none';
-
-  // Log login
-  await auditLog('LOGIN', 'auth', _user?.id, _user?.email);
-}
-
-initUserProfile().then(()=>{
-  loadOrders();
-  setInterval(loadOrders, 90_000);
-  setTimeout(()=>{ if(document.getElementById('page-produse').classList.contains('active')) loadAllProducts(); }, 3000);
-});
-
+loadOrders();
+setInterval(loadOrders, 90_000);
+// Pre-load products page in background after 3s
+setTimeout(()=>{ if(document.getElementById('page-produse').classList.contains('active')) loadAllProducts(); }, 3000);
 </script>
 </body>
 </html>
