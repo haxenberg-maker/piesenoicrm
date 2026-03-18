@@ -384,6 +384,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn btn-secondary btn-sm" id="btn-edit-order">✏️ Editează</button>
         <button class="btn btn-primary btn-sm"   id="btn-add-prod-to-order">＋ Produs</button>
+        <button class="btn btn-secondary btn-sm" id="btn-copy-order" title="Copiază pentru WhatsApp">📋 WhatsApp</button>
         <button class="btn btn-danger btn-sm"    id="btn-delete-order">🗑 Șterge</button>
         <button class="icon-btn" onclick="closeDetail()">✕</button>
       </div>
@@ -1262,6 +1263,7 @@ async function loadDetail(id, o) {
   document.getElementById('btn-edit-order').onclick      = ()=>openEditOrder(id);
   document.getElementById('btn-delete-order').onclick    = ()=>confirmDeleteOrder(id, o.client_nume);
   document.getElementById('btn-add-prod-to-order').onclick = ()=>openAddProductToOrder(id, o.cod_comanda_unic||fmtNr(o.nr_comanda));
+  document.getElementById('btn-copy-order').onclick       = ()=>copyOrderWhatsApp(id, o);
 
   // Reset tabs
   document.querySelectorAll('#detail-panel .tab').forEach((t,i)=>{
@@ -2804,6 +2806,50 @@ async function saveAddToOrder() {
 // ════════════════════════════════════════════════════════════
 // COD COMANDĂ UNIC — afișat în modal extensie (content.js îl primește)
 // ════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════
+// EXPORT WHATSAPP
+// ════════════════════════════════════════════════════════════
+async function copyOrderWhatsApp(comandaId, order) {
+  try {
+    const prods = await api(`produse_comandate?comanda_id=eq.${comandaId}&select=*&order=data_comanda.asc`);
+
+    const client   = order.client_nume || '—';
+    const codUnic  = order.cod_comanda_unic || fmtNr(order.nr_comanda);
+    const data     = new Date(order.data_creare).toLocaleDateString('ro-RO');
+    const total    = prods.reduce((s,p)=>(+p.pret_vanzare||0)*(+p.cantitate||1)+s, 0);
+    const rest     = calcRest(order);
+
+    let lines = [];
+    lines.push(`*${client}*`);
+    lines.push(`📦 Comandă: *${codUnic}* · ${data}`);
+    lines.push('');
+
+    prods.forEach((p, i) => {
+      const sku   = p.sku ? `[${p.sku}] ` : '';
+      const cant  = p.cantitate > 1 ? `x${p.cantitate} ` : '';
+      const pret  = (+p.pret_vanzare||0) * (+p.cantitate||1);
+      const status = p.status_produs === 'predat' ? '✅' : p.status_produs === 'ajuns' ? '🏠' : '📦';
+      lines.push(`${i+1}. ${status} ${sku}${p.cod_aftermarket} — ${cant}*${pret.toFixed(2)} RON*`);
+    });
+
+    lines.push('');
+    lines.push(`💰 *Total: ${total.toFixed(2)} RON*`);
+
+    if(rest > 0) {
+      lines.push(`⏳ Avans achitat: ${fmtRON(order.avans_achitat)} RON`);
+      lines.push(`🔴 *Rest de plată: ${fmtRON(rest)} RON*`);
+    } else {
+      lines.push(`✅ *Achitat integral*`);
+    }
+
+    const text = lines.join('\n');
+    await navigator.clipboard.writeText(text);
+    toast('✅ Copiat pentru WhatsApp!', 'success');
+  } catch(e) {
+    toast('Eroare copiere: ' + e.message, 'error');
+  }
+}
 
 // ════ INIT — verifică sesiune salvată ════
 (async () => {
