@@ -336,6 +336,9 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <button class="nav-item" onclick="navigate('produse')"   id="nav-produse">
       <span class="icon">📦</span> Produse
     </button>
+    <button class="nav-item" onclick="navigate('facturi')" id="nav-facturi">
+      <span class="icon">🧾</span> Facturi
+    </button>
     <button class="nav-item" onclick="navigate('loguri')"   id="nav-loguri" style="display:none">
       <span class="icon">📜</span> Loguri
     </button>
@@ -556,6 +559,39 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
       <tbody id="search-body">
         <tr><td colspan="13" class="empty-state">Apasă "Toate produsele" sau caută după un criteriu.</td></tr>
       </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: FACTURI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-facturi">
+  <div class="page-header">
+    <div class="page-title">Facturi furnizori <small id="facturi-count"></small></div>
+    <button class="btn btn-primary" onclick="openInvoiceWizard()">＋ Procesează factură nouă</button>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="f-factura-nr" placeholder="🔍 Caută număr factură..."/>
+    <select id="f-factura-furnizor"><option value="">Toți furnizorii</option></select>
+    <button class="btn btn-secondary btn-sm" onclick="loadFacturi()">↻</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <div id="facturi-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="facturi-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Nr. Factură</th>
+          <th>Furnizor</th>
+          <th>Produse</th>
+          <th>Total achiziție</th>
+          <th>Data primire</th>
+          <th>Comenzi</th>
+        </tr>
+      </thead>
+      <tbody id="facturi-body"></tbody>
     </table>
   </div>
 </div>
@@ -1135,8 +1171,9 @@ function navigate(page) {
   if (page==='comenzi' && allOrders.length===0) loadOrders();
   if (page==='clienti') loadClients();
   if (page==='produse') loadAllProducts();
-  if (page==='loguri')  loadLogs();
+  if (page==='loguri')   loadLogs();
   if (page==='utilizatori') loadUsers();
+  if (page==='facturi')  loadFacturi();
 }
 
 // Sidebar clock
@@ -2436,28 +2473,31 @@ async function checkExistingInvoice() {
 }
 
 async function invoiceNext() {
-  const nr      = document.getElementById('inv-nr').value.trim();
+  const nr       = document.getElementById('inv-nr').value.trim();
   const furnizor = document.getElementById('inv-furnizor').value;
+  const codUnic  = document.getElementById('inv-cod-unic')?.value?.trim();
   if(!nr) { toast('Introduceți numărul facturii!','warn'); return; }
 
   const btn = document.getElementById('inv-next-btn');
   btn.disabled = true; btn.textContent = '⏳ Se încarcă...';
 
   try {
-    // Găsește toate comenzile de la furnizorul selectat cu produse comandate
+    // Dacă avem cod unic, filtrăm direct după el
     let ordersQuery = 'comenzi?select=id,nr_comanda,cod_comanda_unic,furnizor,clienti(nume)';
-    if(furnizor) ordersQuery += `&furnizor=eq.${encodeURIComponent(furnizor)}`;
+    if(codUnic)  ordersQuery += `&cod_comanda_unic=eq.${encodeURIComponent(codUnic)}`;
+    else if(furnizor) ordersQuery += `&furnizor=eq.${encodeURIComponent(furnizor)}`;
+    ordersQuery += '&status_general=in.(in_lucru,finalizata)';
 
-    const orders = await api(ordersQuery + '&status_general=in.(in_lucru,finalizata)');
+    const orders   = await api(ordersQuery);
     const orderIds = orders.map(o=>o.id);
 
     let prods = [];
     if(orderIds.length > 0) {
-      // Fetch produse comandate din aceste comenzi
       const chunks = [];
       for(let i=0; i<orderIds.length; i+=20) chunks.push(orderIds.slice(i,i+20));
       for(const chunk of chunks) {
-        const p = await api(`produse_comandate?comanda_id=in.(${chunk.join(',')})&status_produs=eq.comandat&select=*`);
+        // Arată TOATE produsele (nu doar comandat) - inclusiv cele deja ajunse/preluate
+        const p = await api(`produse_comandate?comanda_id=in.(${chunk.join(',')})&select=*`);
         prods.push(...p);
       }
     }
@@ -2565,14 +2605,15 @@ async function invoiceConfirm() {
     if(!checked) return;
     const idx  = +row.dataset.idx;
     const prod = invoiceProducts[idx];
+    const cantPrimita = parseInt(row.querySelector('.inv-cant-primita')?.value)||0;
+    const cantCmd     = prod.cantitate || 1;
     toProcess.push({
-      id:                  prod.id,
+      id:                   prod.id,
       cod_factura_furnizor: nrFactura,
-      cod_aftermarket:     row.querySelector('.inv-cod-furn')?.value || prod.cod_aftermarket,
-      pret_achizitie:      parseFloat(row.querySelector('.inv-pret')?.value)||0,
-      cantitate:           parseInt(row.querySelector('.inv-cant')?.value)||1,
-      status_produs:       'ajuns',
-      data_sosire:         new Date().toISOString(),
+      pret_achizitie:       parseFloat(row.querySelector('.inv-pret')?.value)||0,
+      cantitate:            cantPrimita, // actualizează cantitatea cu ce s-a primit
+      status_produs:        cantPrimita >= cantCmd ? 'ajuns' : 'comandat', // parțial = rămâne comandat
+      data_sosire:          cantPrimita > 0 ? new Date().toISOString() : null,
     });
   });
 
@@ -3502,6 +3543,110 @@ async function doChangePassword() {
     errEl.style.display = 'block';
   }
 }
+
+// ════════════════════════════════════════════════════════════
+// PAGE: FACTURI
+// ════════════════════════════════════════════════════════════
+async function loadFacturi() {
+  document.getElementById('facturi-loading').style.display = 'block';
+  document.getElementById('facturi-table').style.display   = 'none';
+  try {
+    // Grupează produsele după cod_factura_furnizor
+    const prods = await api(
+      'produse_comenzi_facturi?select=cod_factura_furnizor,pret_achizitie,cantitate,data_sosire,comanda_id,comenzi(furnizor,nr_comanda,cod_comanda_unic)' +
+      '&cod_factura_furnizor=not.is.null&order=data_sosire.desc&limit=500'
+    );
+    // Fallback - direct query
+    const prodsReal = await api(
+      'produse_comandate?select=cod_factura_furnizor,pret_achizitie,cantitate,data_sosire,comanda_id,comenzi(furnizor,nr_comanda,cod_comanda_unic)' +
+      '&cod_factura_furnizor=not.is.null&order=data_sosire.desc&limit=500'
+    );
+    renderFacturi(prodsReal);
+  } catch(e) {
+    document.getElementById('facturi-loading').innerHTML = `<span class="text-red">❌ ${e.message}</span>`;
+  }
+}
+
+function renderFacturi(prods) {
+  document.getElementById('facturi-loading').style.display = 'none';
+  document.getElementById('facturi-table').style.display   = 'table';
+
+  // Grupează după cod_factura_furnizor
+  const grouped = {};
+  prods.forEach(p => {
+    const nr = p.cod_factura_furnizor;
+    if(!grouped[nr]) grouped[nr] = {
+      nr, furnizor: p.comenzi?.furnizor||'—', produse: [], total: 0,
+      dataPrimire: p.data_sosire, comenzi: new Set()
+    };
+    grouped[nr].produse.push(p);
+    grouped[nr].total += (+p.pret_achizitie||0) * (+p.cantitate||1);
+    if(p.comanda_id) grouped[nr].comenzi.add(p.comenzi?.cod_comanda_unic || p.comanda_id);
+    // Cea mai recentă dată
+    if(p.data_sosire && p.data_sosire > (grouped[nr].dataPrimire||'')) {
+      grouped[nr].dataPrimire = p.data_sosire;
+    }
+  });
+
+  const facturi = Object.values(grouped).sort((a,b) =>
+    (b.dataPrimire||'') > (a.dataPrimire||'') ? 1 : -1
+  );
+
+  document.getElementById('facturi-count').textContent = `(${facturi.length})`;
+
+  // Populează filter furnizori
+  const sel = document.getElementById('f-factura-furnizor');
+  const existingFurnizori = [...sel.options].map(o=>o.value);
+  [...new Set(facturi.map(f=>f.furnizor).filter(Boolean))].forEach(f => {
+    if(!existingFurnizori.includes(f)) {
+      const o = document.createElement('option'); o.value=o.textContent=f; sel.appendChild(o);
+    }
+  });
+
+  const tbody = document.getElementById('facturi-body');
+  tbody.innerHTML = '';
+
+  if(!facturi.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nicio factură procesată încă.</td></tr>';
+    return;
+  }
+
+  facturi.forEach(f => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="fw-bold font-mono" style="color:var(--blue)">${escHtml(f.nr)}</td>
+      <td style="font-size:12px;color:var(--muted)">${escHtml(f.furnizor)}</td>
+      <td style="text-align:center;font-weight:600">${f.produse.length}</td>
+      <td class="fw-bold text-green">${fmtRON(f.total)} RON</td>
+      <td style="font-size:12px;color:var(--muted)">${f.dataPrimire ? fmtDate(f.dataPrimire) : '—'}</td>
+      <td style="font-size:12px">
+        ${[...f.comenzi].map(c=>`<span class="nr-cmd" style="font-size:10px;margin-right:4px">${escHtml(c)}</span>`).join('')}
+      </td>
+    `;
+    // Filter search
+    tr.dataset.nr       = f.nr.toLowerCase();
+    tr.dataset.furnizor = f.furnizor.toLowerCase();
+    tbody.appendChild(tr);
+  });
+
+  // Apply filters
+  applyFacturiFilters();
+}
+
+function applyFacturiFilters() {
+  const q = document.getElementById('f-factura-nr')?.value?.toLowerCase()||'';
+  const f = document.getElementById('f-factura-furnizor')?.value?.toLowerCase()||'';
+  document.querySelectorAll('#facturi-body tr[data-nr]').forEach(tr => {
+    const show = (!q || tr.dataset.nr.includes(q)) && (!f || tr.dataset.furnizor === f);
+    tr.style.display = show ? '' : 'none';
+  });
+}
+
+document.getElementById('f-factura-nr')?.addEventListener('input', applyFacturiFilters);
+document.getElementById('f-factura-furnizor')?.addEventListener('change', applyFacturiFilters);
+
+// Reîncarcă facturi după ce procesăm o factură nouă
+const _origInvoiceConfirm = invoiceConfirm;
 
 // ════ INIT — verifică sesiune salvată ════
 (async () => {
