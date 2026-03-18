@@ -568,6 +568,10 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .text-blue   { color:var(--blue) }
 .text-red    { color:var(--red) }
 .text-muted  { color:var(--muted) }
+.dsb-item { padding:10px 20px; border-right:1px solid var(--border); min-width:100px; flex-shrink:0 }
+.dsb-item:last-child { border-right:none }
+.dsb-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; font-weight:600; margin-bottom:3px }
+.dsb-val { font-size:14px; font-weight:700; color:var(--text) }
 .fw-bold { font-weight:700 }
 .font-mono { font-family:'JetBrains Mono',monospace }
 
@@ -577,6 +581,7 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
 
 /* ════ ANIMATIONS ═════════════════════════════════════════════ */
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
 .saving { opacity:.5 }
 .saved-flash { animation:savedFlash .7s ease }
 @keyframes savedFlash { 0%{background:rgba(13,148,136,.15)} 100%{background:transparent} }
@@ -711,87 +716,8 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
     </table>
   </div>
 
-  <!-- DETAIL PANEL -->
-  <div id="detail-panel">
-    <div class="detail-head">
-      <h3 id="detail-title">—</h3>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn btn-secondary btn-sm" id="btn-edit-order">✏️ Editează</button>
-        <button class="btn btn-primary btn-sm"   id="btn-add-prod-to-order">＋ Produs</button>
-        <button class="btn btn-secondary btn-sm" id="btn-copy-order" title="Copiază pentru WhatsApp">📋 WhatsApp</button>
-        <button class="btn btn-danger btn-sm"    id="btn-delete-order">🗑 Șterge</button>
-        <button class="icon-btn" onclick="closeDetail()">✕</button>
-      </div>
-    </div>
-    <div class="tabs">
-      <button class="tab active" onclick="switchTab(this,'tab-produse')">📦 Produse</button>
-      <button class="tab"        onclick="switchTab(this,'tab-plati')">💳 Plăți</button>
-      <button class="tab"        onclick="switchTab(this,'tab-factura')">🧾 Factură</button>
-    </div>
-    <div class="tab-body active" id="tab-produse">
-      <div style="display:flex;align-items:center;gap:10px;padding:12px 0 10px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--muted)">Adaos global:</span>
-        <div style="display:flex;align-items:center;gap:5px">
-          <input type="number" id="detail-adaos" value="0" min="0" step="0.5"
-            style="background:var(--s3);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:13px;width:70px;outline:none;text-align:center"/>
-          <span style="color:var(--muted);font-size:13px">%</span>
-        </div>
-        <button class="btn btn-secondary btn-sm" onclick="applyDetailAdaos()">Aplică &amp; recalculează</button>
-        <span style="font-size:12px;color:var(--muted);margin-left:auto">
-          Total vânzare: <strong class="text-blue" id="detail-total-vanz">—</strong> RON
-          &nbsp;|&nbsp; Profit: <strong class="text-green" id="detail-profit">—</strong> RON
-        </span>
-      </div>
-      <div class="tbl-wrap">
-        <table class="prod-tbl">
-          <thead>
-            <tr>
-              <th>Cod aftermarket</th><th>Descriere</th>
-              <th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th><th>Cant.</th>
-              <th>SKU</th><th>Cod fact. furnizor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="detail-products-body"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="tab-body" id="tab-plati">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <strong style="font-size:13px">Istoric plăți</strong>
-        <button class="btn btn-primary btn-sm" id="btn-add-plata-detail">💳 Adaugă plată</button>
-      </div>
-      <div class="tbl-wrap">
-        <table class="prod-tbl">
-          <thead><tr><th>Data</th><th>Sumă</th><th>Metodă</th><th>Notă</th><th>User</th><th>🗑</th></tr></thead>
-          <tbody id="plati-body"></tbody>
-        </table>
-      </div>
-      <div id="plati-summary" style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap"></div>
-    </div>
-    <div class="tab-body" id="tab-factura">
-      <div id="pdf-no-file">
-        <div class="pdf-drop" id="pdf-drop-zone">
-          <input type="file" id="pdf-file-input" accept=".pdf" onchange="handlePdfUpload(event)"/>
-          <div style="font-size:36px;margin-bottom:8px">🧾</div>
-          <p style="font-weight:600">Click sau trage PDF-ul facturii</p>
-          <p style="color:var(--muted);font-size:12px;margin-top:4px">Din folderul Facturi</p>
-        </div>
-      </div>
-      <div id="pdf-has-file" style="display:none">
-        <div class="pdf-current">
-          <span>🧾 <span id="pdf-filename">—</span></span>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-secondary btn-sm" onclick="togglePdfPreview()">👁 Preview</button>
-            <button class="btn btn-danger btn-sm"    onclick="removePdf()">🗑</button>
-          </div>
-        </div>
-        <div id="pdf-preview-wrap" class="pdf-preview-wrap" style="display:none">
-          <iframe id="pdf-iframe" src=""></iframe>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- DETAIL MODAL FULLSCREEN -->
+  <!-- Triggerred via loadDetail() -->
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -1069,6 +995,140 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
     </div>
   </div>
 </div>
+
+<!-- ════ MODAL FULLSCREEN: DETALII COMANDĂ ════ -->
+<div id="detail-modal-overlay" style="
+  display:none; position:fixed; inset:0; z-index:400;
+  background:rgba(15,25,35,.5); backdrop-filter:blur(6px);
+  align-items:flex-end; justify-content:center;
+" onclick="if(event.target===this) closeDetail()">
+  <div id="detail-modal" style="
+    background:var(--bg); width:100%; max-width:1400px; height:92vh;
+    border-radius:var(--r-xl) var(--r-xl) 0 0;
+    display:flex; flex-direction:column;
+    box-shadow:0 -8px 40px rgba(0,0,0,.2);
+    animation:slideUp .3s cubic-bezier(.34,1.2,.64,1) both;
+    overflow:hidden;
+  ">
+    <!-- Header -->
+    <div style="
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 28px; border-bottom:1px solid var(--border);
+      background:var(--s1); flex-shrink:0; gap:12px; flex-wrap:wrap;
+    ">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0">
+        <div style="min-width:0">
+          <h2 id="detail-title" style="font-size:16px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</h2>
+          <div id="detail-subtitle" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <button class="btn btn-secondary btn-sm" id="btn-edit-order">✏️ Editează</button>
+        <button class="btn btn-primary btn-sm"   id="btn-add-prod-to-order">＋ Produs</button>
+        <button class="btn btn-secondary btn-sm" id="btn-copy-order">📋 WA</button>
+        <button class="btn btn-danger btn-sm"    id="btn-delete-order">🗑</button>
+        <button class="icon-btn" onclick="closeDetail()" style="font-size:18px">✕</button>
+      </div>
+    </div>
+
+    <!-- Summary bar -->
+    <div id="detail-summary-bar" style="
+      display:flex; gap:0; border-bottom:1px solid var(--border);
+      background:var(--s2); flex-shrink:0; overflow-x:auto;
+    ">
+      <div class="dsb-item"><div class="dsb-label">Total</div><div class="dsb-val" id="dsb-total">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Achitat</div><div class="dsb-val text-green" id="dsb-achitat">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Rest</div><div class="dsb-val" id="dsb-rest">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Produse</div><div class="dsb-val" id="dsb-produse">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Furnizor</div><div class="dsb-val" id="dsb-furnizor">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Agent</div><div class="dsb-val" id="dsb-agent">—</div></div>
+      <div class="dsb-item" style="margin-left:auto">
+        <button class="btn btn-primary btn-sm" id="dsb-add-plata">💳 Adaugă plată</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" style="background:var(--s1);flex-shrink:0" id="detail-tabs">
+      <button class="tab active" onclick="switchTab(this,'tab-produse')">📦 Produse</button>
+      <button class="tab"        onclick="switchTab(this,'tab-plati')">💳 Plăți</button>
+      <button class="tab"        onclick="switchTab(this,'tab-factura')">🧾 Factură</button>
+    </div>
+
+    <!-- Content (scrollable) -->
+    <div style="flex:1;overflow-y:auto;background:var(--bg)">
+
+      <!-- Tab: Produse -->
+      <div class="tab-body active" id="tab-produse" style="padding:20px 28px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--muted)">Adaos global:</span>
+          <div style="display:flex;align-items:center;gap:5px">
+            <input type="number" id="detail-adaos" value="0" min="0" step="0.5"
+              style="background:var(--s1);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:13px;width:70px;outline:none;text-align:center"/>
+            <span style="color:var(--muted);font-size:13px">%</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="applyDetailAdaos()">Aplică</button>
+          <span style="font-size:12px;color:var(--muted);margin-left:auto">
+            Total vânzare: <strong class="text-green" id="detail-total-vanz">—</strong> RON
+            &nbsp;|&nbsp; Profit: <strong style="color:var(--accent)" id="detail-profit">—</strong> RON
+          </span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="prod-tbl">
+            <thead>
+              <tr>
+                <th>Cod aftermarket</th><th>Descriere</th>
+                <th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th><th>Cant.</th>
+                <th>SKU</th><th>Cod fact. furnizor</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="detail-products-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab: Plăți -->
+      <div class="tab-body" id="tab-plati" style="padding:20px 28px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <strong style="font-size:13px">Istoric plăți</strong>
+          <button class="btn btn-primary btn-sm" id="btn-add-plata-detail">💳 Adaugă plată</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="prod-tbl">
+            <thead><tr><th>Data</th><th>Sumă</th><th>Metodă</th><th>Notă</th><th>User</th><th>🗑</th></tr></thead>
+            <tbody id="plati-body"></tbody>
+          </table>
+        </div>
+        <div id="plati-summary" style="margin-top:12px"></div>
+      </div>
+
+      <!-- Tab: Factură -->
+      <div class="tab-body" id="tab-factura" style="padding:20px 28px">
+        <div id="pdf-no-file">
+          <div class="pdf-drop" id="pdf-drop-zone">
+            <input type="file" id="pdf-file-input" accept=".pdf" onchange="handlePdfUpload(event)"/>
+            <div style="font-size:36px;margin-bottom:8px">🧾</div>
+            <p style="font-weight:600">Click sau trage PDF-ul facturii</p>
+            <p style="color:var(--muted);font-size:12px;margin-top:4px">Din folderul Facturi</p>
+          </div>
+        </div>
+        <div id="pdf-has-file" style="display:none">
+          <div class="pdf-current">
+            <span>🧾 <span id="pdf-filename">—</span></span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" onclick="togglePdfPreview()">👁 Preview</button>
+              <button class="btn btn-danger btn-sm"    onclick="removePdf()">🗑</button>
+            </div>
+          </div>
+          <div id="pdf-preview-wrap" class="pdf-preview-wrap" style="display:none">
+            <iframe id="pdf-iframe" src=""></iframe>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /scrollable content -->
+  </div><!-- /detail-modal -->
+</div><!-- /detail-modal-overlay -->
 
 <!-- ════ MODAL: ADAUGĂ PLATĂ ════ -->
 <div class="modal-overlay" id="modal-plata">
@@ -1678,6 +1738,7 @@ document.querySelectorAll('.modal-overlay').forEach(o =>
 
 function switchTab(btn, tabId) {
   if(tabId === 'tab-plati' && currentOrderId) loadPlati(currentOrderId);
+  // Support both detail-modal and client-detail containers
   const parent = btn.closest('.detail-head')?.nextElementSibling
               || btn.closest('.tabs');
   // deactivate all tabs in same group
@@ -1866,19 +1927,35 @@ async function confirmDeleteOrder(id, clientNume) {
 // ════════════════════════════════════════════════════════════
 async function loadDetail(id, o) {
   currentOrderId = id;
-  const panel = document.getElementById('detail-panel');
-  panel.style.display='block';
 
-  const nr = fmtNr(o.nr_comanda);
+  // Show fullscreen modal
+  const overlay = document.getElementById('detail-modal-overlay');
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  const nr      = fmtNr(o.nr_comanda);
   const codUnic = o.cod_comanda_unic || nr;
-  document.getElementById('detail-title').textContent =
-    `${nr} (${codUnic}) — ${o.client_nume} · ${fmtDate(o.data_creare)}`;
+  document.getElementById('detail-title').textContent = `${nr} — ${o.client_nume}`;
+  document.getElementById('detail-subtitle').textContent =
+    `${codUnic} · ${fmtDate(o.data_creare)} · ${o.furnizor||''}`;
 
-  document.getElementById('btn-edit-order').onclick      = ()=>openEditOrder(id);
-  document.getElementById('btn-delete-order').onclick    = ()=>confirmDeleteOrder(id, o.client_nume);
-  document.getElementById('btn-add-prod-to-order').onclick = ()=>openAddProductToOrder(id, o.cod_comanda_unic||fmtNr(o.nr_comanda));
-  document.getElementById('btn-copy-order').onclick       = ()=>copyOrderWhatsApp(id, o);
-  document.getElementById('btn-add-plata-detail').onclick = ()=>openAddPlata(id);
+  // Summary bar
+  const rest = calcRest(o);
+  document.getElementById('dsb-total').textContent    = fmtRON(o.total_plata) + ' RON';
+  document.getElementById('dsb-achitat').textContent  = fmtRON(o.avans_achitat) + ' RON';
+  document.getElementById('dsb-rest').textContent     = fmtRON(rest) + ' RON';
+  document.getElementById('dsb-rest').style.color     = rest > 0 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('dsb-produse').textContent  = `${+o.produse_ajunse+o.produse_predate}/${o.nr_produse} ajunse`;
+  document.getElementById('dsb-furnizor').textContent = o.furnizor||'—';
+  document.getElementById('dsb-agent').textContent    = o.agent_vanzari||'—';
+
+  // Buttons
+  document.getElementById('btn-edit-order').onclick         = ()=>openEditOrder(id);
+  document.getElementById('btn-delete-order').onclick       = ()=>confirmDeleteOrder(id, o.client_nume);
+  document.getElementById('btn-add-prod-to-order').onclick  = ()=>openAddProductToOrder(id, o.cod_comanda_unic||nr);
+  document.getElementById('btn-copy-order').onclick         = ()=>copyOrderWhatsApp(id, o);
+  document.getElementById('btn-add-plata-detail').onclick   = ()=>openAddPlata(id);
+  document.getElementById('dsb-add-plata').onclick          = ()=>openAddPlata(id);
 
   // Reset tabs
   document.querySelectorAll('#detail-panel .tab').forEach((t,i)=>{
@@ -1889,7 +1966,7 @@ async function loadDetail(id, o) {
 
   await loadDetailProducts(id);
   refreshPdfSection(o);
-  panel.scrollIntoView({behavior:'smooth',block:'start'});
+  // Modal fullscreen - no scroll needed
 }
 
 function openDetailTab(id, o, tabId) {
@@ -2040,8 +2117,9 @@ async function saveProduct(prodId, row) {
 }
 
 function closeDetail() {
-  document.getElementById('detail-panel').style.display='none';
+  document.getElementById('detail-modal-overlay').style.display='none';
   document.getElementById('pdf-preview-wrap').style.display='none';
+  document.body.style.overflow='';
   currentOrderId=null;
 }
 
