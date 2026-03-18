@@ -2350,6 +2350,15 @@ async function saveOrder() {
   const avans = parseFloat(document.getElementById('no-avans').value)||0;
 
   try {
+    // Agent = prenumele userului curent din dashboard
+    const agentName = (() => {
+      const n = document.getElementById('sidebar-user')?.textContent||'';
+      // Try from allUsers profile
+      const profile = allUsers?.find(u=>u.id===currentUserId);
+      const fullName = profile?.name || n;
+      return fullName.split(' ')[0] || fullName || null;
+    })();
+
     const [comanda] = await api('comenzi', { method:'POST', body:JSON.stringify({
       client_id:     clientId,
       tip_plata:     document.getElementById('no-tip-plata').value,
@@ -2358,6 +2367,7 @@ async function saveOrder() {
       adaos_procent: adaosGlobal,
       furnizor:      document.getElementById('no-furnizor').value||null,
       note_comanda:  document.getElementById('no-note').value||null,
+      agent_vanzari: agentName,
     })});
 
     const produse = newOrderProducts.filter(p=>p.cod_aftermarket).map(p=>{

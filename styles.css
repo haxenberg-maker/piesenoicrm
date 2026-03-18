@@ -90,6 +90,13 @@
 #crm-btn-open { background: #1e3a5f !important; color: #93c5fd !important; }
 #crm-btn-open:not([disabled]):hover { background: #2563eb !important; color: #fff !important; }
 #crm-btn-clear { background: transparent !important; border: 1px solid #374151 !important; }
+#crm-btn-login {
+  background: transparent !important;
+  border: 1px solid rgba(13,148,136,.4) !important;
+  color: #5eead4 !important;
+  font-size: 11px !important;
+}
+#crm-btn-login:hover { background: rgba(13,148,136,.15) !important; border-color: #14b8a6 !important; }
 
 /* ─── MODAL OVERLAY ────────────────────────────────────────── */
 #crm-modal-overlay {
