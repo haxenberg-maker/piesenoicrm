@@ -436,6 +436,7 @@ tbody tr:nth-child(even):hover { background: var(--s2) }
 .b-comandat   { background: rgba(245,158,11,.1);     color: var(--accent);border: 1px solid rgba(245,158,11,.2) }
 .b-ajuns      { background: var(--blue-bg);          color: var(--blue);  border: 1px solid rgba(129,140,248,.25) }
 .b-predat     { background: var(--green-bg);         color: var(--green); border: 1px solid rgba(16,185,129,.25) }
+.b-returnat   { background: rgba(244,63,94,.1);      color: var(--red);   border: 1px solid rgba(244,63,94,.25) }
 
 .nr-cmd {
   font-family: 'JetBrains Mono', monospace;
@@ -892,6 +893,14 @@ tbody tr.row-debt td { border-bottom-color: rgba(244,63,94,.15) !important }
     <button class="nav-item" onclick="navigate('facturi')" id="nav-facturi">
       <span class="icon">🧾</span> Facturi
     </button>
+    <button class="nav-item" onclick="navigate('predare')" id="nav-predare">
+      <span class="icon">🚗</span> Predare
+      <span class="nav-badge" id="badge-predare" style="display:none">0</span>
+    </button>
+    <button class="nav-item" onclick="navigate('retururi')" id="nav-retururi">
+      <span class="icon">↩️</span> Retururi
+      <span class="nav-badge" id="badge-retururi" style="display:none">0</span>
+    </button>
     <button class="nav-item" onclick="navigate('loguri')"   id="nav-loguri" style="display:none">
       <span class="icon">📜</span> Loguri
     </button>
@@ -1172,6 +1181,61 @@ tbody tr.row-debt td { border-bottom-color: rgba(244,63,94,.15) !important }
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
+     PAGE: PREDARE CLIENT
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-predare">
+  <div class="page-header">
+    <div class="page-title">Predare client <small id="predare-count"></small></div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="f-predare-client" placeholder="🔍 Caută client..."/>
+    <button class="btn btn-secondary btn-sm" onclick="loadPredare()">↻</button>
+  </div>
+
+  <!-- Grupat pe clienti -->
+  <div id="predare-list">
+    <div id="predare-loading"><span class="spinner"></span>Se încarcă...</div>
+    <div id="predare-empty" style="display:none" class="empty-state">
+      Nu există produse ajunse de predat momentan.
+    </div>
+    <div id="predare-groups"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: RETURURI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-retururi">
+  <div class="page-header">
+    <div class="page-title">Retururi <small id="retururi-count"></small></div>
+  </div>
+
+  <div class="filters">
+    <select id="f-retur-motiv">
+      <option value="">Toate motivele</option>
+      <option value="nu_se_potriveste">Nu se potrivește</option>
+      <option value="client_renunta">Client renunță</option>
+    </select>
+    <input type="text" id="f-retur-search" placeholder="🔍 Cod / client..."/>
+    <button class="btn btn-secondary btn-sm" onclick="loadRetururi()">↻</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <div id="retururi-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="retururi-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Cod comandă</th><th>Cod aftermarket</th><th>Descriere</th>
+          <th>SKU</th><th>Client</th><th>Motiv</th><th>Data retur</th><th>Preț</th>
+        </tr>
+      </thead>
+      <tbody id="retururi-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
      PAGE: LOGURI
 ═══════════════════════════════════════════════════════════ -->
 <div class="page" id="page-loguri">
@@ -1320,6 +1384,37 @@ tbody tr.row-debt td { border-bottom-color: rgba(244,63,94,.15) !important }
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-plata')">Anulează</button>
       <button class="btn btn-primary" onclick="saveNewPlata()">💾 Salvează plata</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: MARCHEAZĂ RETUR ════ -->
+<div class="modal-overlay" id="modal-retur">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head">
+      <h3>↩️ Marchează retur</h3>
+      <button class="icon-btn" onclick="closeModal('modal-retur')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="padding:12px 14px;background:var(--s2);border-radius:var(--r-md);margin-bottom:4px">
+        <div style="font-size:12px;color:var(--muted)">Produs</div>
+        <div style="font-weight:700;color:var(--accent)" id="retur-produs-info">—</div>
+      </div>
+      <div class="field">
+        <label>Motiv retur *</label>
+        <select id="retur-motiv">
+          <option value="nu_se_potriveste">🔧 Nu se potrivește pe mașină</option>
+          <option value="client_renunta">❌ Clientul nu mai vrea piesa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Notă suplimentară</label>
+        <textarea id="retur-nota" placeholder="Detalii opționale..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-retur')">Anulează</button>
+      <button class="btn btn-danger" onclick="saveRetur()">↩️ Confirmă retur</button>
     </div>
   </div>
 </div>
@@ -1805,6 +1900,8 @@ function navigate(page) {
   if (page==='loguri')   loadLogs();
   if (page==='utilizatori') loadUsers();
   if (page==='facturi')  loadFacturi();
+  if (page==='predare')  loadPredare();
+  if (page==='retururi') loadRetururi();
 }
 
 // Sidebar clock
@@ -1910,6 +2007,9 @@ function renderStats(orders) {
   const totalVanz = orders.reduce((s,o)=>s+(+o.total_plata||0),0);
   document.getElementById('s-vanzari').textContent = fmtRON(totalVanz);
   computeProfit(orders);
+  // Badges sidebar
+  const ajunseTotal = orders.reduce((s,o)=>s+(+o.produse_ajunse||0),0);
+  updateBadgePredare(ajunseTotal);
   // Update topbar
   const active = orders.filter(o=>o.status_general==='in_lucru').length;
   const tb_active  = document.getElementById('tb-active');
@@ -2096,9 +2196,10 @@ async function loadDetailProducts(id) {
         <td><input value="${escHtml(p.cod_factura_furnizor||'')}" data-f="cod_factura_furnizor" style="width:95px" placeholder="INV-001"/></td>
         <td>
           <select data-f="status_produs" onchange="updateProductStatus(this,'${p.id}')">
-            <option value="comandat" ${p.status_produs==='comandat'?'selected':''}>📦 Comandat</option>
-            <option value="ajuns"    ${p.status_produs==='ajuns'   ?'selected':''}>🏠 Ajuns</option>
-            <option value="predat"   ${p.status_produs==='predat'  ?'selected':''}>✅ Predat</option>
+            <option value="comandat"  ${p.status_produs==='comandat' ?'selected':''}>📦 Comandat</option>
+            <option value="ajuns"     ${p.status_produs==='ajuns'   ?'selected':''}>🏠 Ajuns</option>
+            <option value="predat"    ${p.status_produs==='predat'  ?'selected':''}>✅ Predat</option>
+            <option value="returnat"  ${p.status_produs==='returnat'?'selected':''}>↩️ Returnat</option>
           </select>
         </td>
 
@@ -4434,6 +4535,289 @@ function calcFacturaAchitatPct(factura) {
   const totalVanz  = comenziMatch.reduce((s,o)=>s+(+o.total_plata||0),0);
   const totalAchitat = comenziMatch.reduce((s,o)=>s+(+o.avans_achitat||0),0);
   return totalVanz > 0 ? Math.min(100, (totalAchitat/totalVanz)*100) : 0;
+}
+
+// ════════════════════════════════════════════════════════════
+// PAGE: PREDARE CLIENT
+// ════════════════════════════════════════════════════════════
+async function loadPredare() {
+  document.getElementById('predare-loading').style.display = 'block';
+  document.getElementById('predare-groups').innerHTML = '';
+  document.getElementById('predare-empty').style.display = 'none';
+
+  try {
+    // Toate produsele cu status ajuns
+    const prods = await api(
+      'produse_comandate?status_produs=eq.ajuns&select=*,comenzi(id,nr_comanda,cod_comanda_unic,total_plata,avans_achitat,rest_de_plata,tip_plata,clienti(id,nume,telefon))'
+    );
+
+    document.getElementById('predare-loading').style.display = 'none';
+
+    if(!prods.length) {
+      document.getElementById('predare-empty').style.display = 'block';
+      document.getElementById('predare-count').textContent = '';
+      updateBadgePredare(0);
+      return;
+    }
+
+    document.getElementById('predare-count').textContent = `(${prods.length} produse)`;
+    updateBadgePredare(prods.length);
+
+    // Grupează după client
+    const byClient = {};
+    prods.forEach(p => {
+      const c = p.comenzi?.clienti;
+      if(!c) return;
+      const key = c.id;
+      if(!byClient[key]) byClient[key] = { client: c, comenzi: {} };
+      const cmdId = p.comenzi?.id;
+      if(!byClient[key].comenzi[cmdId]) {
+        byClient[key].comenzi[cmdId] = {
+          comanda: p.comenzi,
+          produse: []
+        };
+      }
+      byClient[key].comenzi[cmdId].produse.push(p);
+    });
+
+    const groups = document.getElementById('predare-groups');
+    groups.innerHTML = '';
+
+    Object.values(byClient).forEach(({ client, comenzi }) => {
+      const totalProduse = Object.values(comenzi).reduce((s,c)=>s+c.produse.length,0);
+      const div = document.createElement('div');
+      div.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:var(--r-xl);margin-bottom:16px;overflow:hidden';
+
+      // Header client
+      const restTotal = Object.values(comenzi).reduce((s,c) => {
+        const o = c.comanda;
+        return s + (o.tip_plata==='achitat_integral' ? 0 : Math.max(0,(+o.total_plata||0)-(+o.avans_achitat||0)));
+      }, 0);
+
+      div.innerHTML = `
+        <div style="padding:14px 20px;background:linear-gradient(135deg,var(--s2),var(--s1));display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:38px;height:38px;background:var(--accent-bg);border:1px solid rgba(245,158,11,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px">👤</div>
+            <div>
+              <div style="font-weight:700;font-size:15px">${escHtml(client.nume)}</div>
+              <div style="font-size:12px;color:var(--muted)">${escHtml(client.telefon||'—')} · ${totalProduse} produs(e) de predat</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            ${restTotal > 0 ? `<span style="color:var(--red);font-weight:700;font-size:13px">⚠️ Rest: ${fmtRON(restTotal)} RON</span>` : '<span style="color:var(--green);font-weight:700;font-size:13px">✅ Achitat</span>'}
+            <button class="btn btn-primary btn-sm" onclick="predareTotiClientul('${client.id}',this)">
+              🚗 Predă tot
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="copyPredareWhatsApp('${client.id}')">
+              📋 WhatsApp
+            </button>
+          </div>
+        </div>
+        <div style="padding:12px 20px">
+          ${Object.values(comenzi).map(({ comanda: cmd, produse }) => `
+            <div style="margin-bottom:10px">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-family:monospace">
+                ${fmtNr(cmd.nr_comanda)} · ${escHtml(cmd.cod_comanda_unic||'')}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                ${produse.map(p => `
+                  <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s2);border-radius:var(--r-md);transition:background var(--t-fast)" class="predare-row" data-prod-id="${p.id}">
+                    <input type="checkbox" class="predare-check" data-prod-id="${p.id}" checked style="width:16px;height:16px;cursor:pointer"/>
+                    <div style="flex:1;min-width:0">
+                      <span style="color:var(--accent);font-family:monospace;font-weight:700;font-size:12px">${escHtml(p.cod_aftermarket)}</span>
+                      ${p.sku ? `<span class="chip" style="margin-left:6px;font-size:10px">${escHtml(p.sku)}</span>` : ''}
+                      <span style="font-size:12px;color:var(--muted);margin-left:8px">${escHtml(p.descriere||'')}</span>
+                    </div>
+                    <div style="text-align:right;white-space:nowrap">
+                      <div style="font-weight:700;color:var(--text)">${fmtRON(p.pret_vanzare||p.pret_achizitie)} RON</div>
+                      <div style="font-size:10px;color:var(--muted)">cant. ${p.cantitate||1}</div>
+                    </div>
+                    <button class="btn btn-danger btn-xs" onclick="openRetur('${p.id}','${escHtml(p.cod_aftermarket)}','${escHtml(p.descriere||'')}')">
+                      ↩️
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      groups.appendChild(div);
+    });
+
+    // Filter search
+    document.getElementById('f-predare-client').addEventListener('input', e => {
+      const q = e.target.value.toLowerCase();
+      groups.querySelectorAll('[data-client-group]').forEach(g => {
+        g.style.display = g.dataset.clientName?.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+
+  } catch(e) {
+    document.getElementById('predare-loading').innerHTML = `<span class="text-red">❌ ${e.message}</span>`;
+  }
+}
+
+function updateBadgePredare(count) {
+  const badge = document.getElementById('badge-predare');
+  if(!badge) return;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+async function predareTotiClientul(clientId, btn) {
+  // Găsește toate checkbox-urile bifate din grupul clientului
+  const groups = document.getElementById('predare-groups');
+  const checks = [...groups.querySelectorAll('.predare-check:checked')];
+
+  if(!checks.length) { toast('Niciun produs selectat!','warn'); return; }
+
+  btn.disabled = true; btn.textContent = '⏳...';
+  try {
+    await Promise.all(checks.map(cb =>
+      api(`produse_comandate?id=eq.${cb.dataset.prodId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status_produs: 'predat', data_predare: new Date().toISOString() })
+      })
+    ));
+    toast(`✅ ${checks.length} produs(e) marcate ca predate!`,'success');
+    await loadPredare();
+    await loadOrders();
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
+  btn.disabled = false; btn.textContent = '🚗 Predă tot';
+}
+
+async function copyPredareWhatsApp(clientId) {
+  const groups = document.getElementById('predare-groups');
+  const checks = [...groups.querySelectorAll('.predare-check:checked')];
+  if(!checks.length) { toast('Niciun produs selectat!','warn'); return; }
+
+  const client = allClients.find(c=>c.id===clientId);
+  const lines = [];
+  lines.push(`*${escHtml(client?.nume||'Client')}* — ridicare piese`);
+  lines.push('');
+
+  checks.forEach((cb, i) => {
+    const row = cb.closest('.predare-row');
+    const cod  = row.querySelector('[style*="monospace"]')?.textContent?.trim() || '—';
+    const desc = row.querySelectorAll('span')[2]?.textContent?.trim() || '';
+    const pret = row.querySelector('[style*="font-weight:700"]')?.textContent?.trim() || '';
+    lines.push(`${i+1}. ${cod} — ${desc} — *${pret}*`);
+  });
+
+  lines.push('');
+  lines.push(`_Data predare: ${new Date().toLocaleDateString('ro-RO')}_`);
+
+  await navigator.clipboard.writeText(lines.join(String.fromCharCode(10)));
+  toast('✅ Copiat pentru WhatsApp!','success');
+}
+
+// ════════════════════════════════════════════════════════════
+// RETUR
+// ════════════════════════════════════════════════════════════
+let _returProdId = null;
+
+function openRetur(prodId, cod, descriere) {
+  _returProdId = prodId;
+  document.getElementById('retur-produs-info').textContent = `${cod} — ${descriere}`;
+  document.getElementById('retur-nota').value = '';
+  document.getElementById('retur-motiv').value = 'nu_se_potriveste';
+  openModal('modal-retur');
+}
+
+async function saveRetur() {
+  if(!_returProdId) return;
+  const motiv = document.getElementById('retur-motiv').value;
+  const nota  = document.getElementById('retur-nota').value;
+
+  try {
+    await api(`produse_comandate?id=eq.${_returProdId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status_produs: 'returnat',
+        motiv_retur:   motiv,
+        note_produs:   nota || null,
+      })
+    });
+    await logAction('UPDATE','produs',_returProdId,{ status:'returnat', motiv });
+    toast('↩️ Produs marcat ca returnat.','info');
+    closeModal('modal-retur');
+    await loadPredare();
+    await loadOrders();
+    updateBadgeRetururi();
+  } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// PAGE: RETURURI
+// ════════════════════════════════════════════════════════════
+async function loadRetururi() {
+  document.getElementById('retururi-loading').style.display = 'block';
+  document.getElementById('retururi-table').style.display   = 'none';
+  try {
+    const prods = await api(
+      'produse_comandate?status_produs=eq.returnat&select=*,comenzi(nr_comanda,cod_comanda_unic,clienti(nume))&order=data_comanda.desc'
+    );
+    document.getElementById('retururi-loading').style.display = 'none';
+    document.getElementById('retururi-table').style.display   = 'table';
+    document.getElementById('retururi-count').textContent     = `(${prods.length})`;
+    updateBadgeRetururi(prods.length);
+
+    const motivLabel = { nu_se_potriveste: '🔧 Nu se potrivește', client_renunta: '❌ Client renunță' };
+    const tbody = document.getElementById('retururi-body');
+    tbody.innerHTML = '';
+
+    if(!prods.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">Niciun retur înregistrat.</td></tr>';
+      return;
+    }
+
+    prods.forEach(p => {
+      const cmd = p.comenzi||{};
+      const tr  = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="nr-cmd">${fmtNr(cmd.nr_comanda)}</span>
+          <div style="font-size:10px;color:var(--muted);font-family:monospace">${escHtml(cmd.cod_comanda_unic||'')}</div>
+        </td>
+        <td class="fw-bold" style="color:var(--accent);font-family:monospace">${escHtml(p.cod_aftermarket)}</td>
+        <td style="font-size:12px">${escHtml(p.descriere||'—')}</td>
+        <td style="font-size:11px;color:var(--blue);font-family:monospace">${escHtml(p.sku||'—')}</td>
+        <td style="font-size:12px">${escHtml(cmd.clienti?.nume||'—')}</td>
+        <td><span class="badge b-returnat">${motivLabel[p.motiv_retur]||p.motiv_retur||'—'}</span></td>
+        <td style="font-size:12px;color:var(--muted)">${p.data_predare?fmtDate(p.data_predare):'—'}</td>
+        <td class="text-red fw-bold">${fmtRON(p.pret_vanzare||p.pret_achizitie)} RON</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    applyRetururiFilters();
+  } catch(e) {
+    document.getElementById('retururi-loading').innerHTML = `<span class="text-red">❌ ${e.message}</span>`;
+  }
+}
+
+function applyRetururiFilters() {
+  const motiv = document.getElementById('f-retur-motiv')?.value || '';
+  const q     = document.getElementById('f-retur-search')?.value?.toLowerCase() || '';
+  document.querySelectorAll('#retururi-body tr').forEach(tr => {
+    const text = tr.textContent.toLowerCase();
+    const show = (!motiv || text.includes(motivLabel?.[motiv]?.toLowerCase()||motiv))
+              && (!q || text.includes(q));
+    tr.style.display = show ? '' : 'none';
+  });
+}
+document.getElementById('f-retur-motiv')?.addEventListener('change', applyRetururiFilters);
+document.getElementById('f-retur-search')?.addEventListener('input', applyRetururiFilters);
+
+function updateBadgeRetururi(count) {
+  if(count === undefined) {
+    api('produse_comandate?status_produs=eq.returnat&select=id').then(r => updateBadgeRetururi(r.length)).catch(()=>{});
+    return;
+  }
+  const badge = document.getElementById('badge-retururi');
+  if(!badge) return;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
 }
 
 // ════ INIT — verifică sesiune salvată ════
