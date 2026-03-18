@@ -1360,23 +1360,46 @@ function updateDetailTotals() {
   if(tp) tp.textContent = (totalVanz-totalAcq).toFixed(2);
 }
 
-function applyDetailAdaos() {
+async function applyDetailAdaos() {
   const adaos = parseFloat(document.getElementById('detail-adaos').value)||0;
-  document.querySelectorAll('#detail-products-body tr').forEach(row=>{
+  const rows  = document.querySelectorAll('#detail-products-body tr[data-id]');
+
+  // 1. Actualizează UI
+  rows.forEach(row => {
     const adaosInput = row.querySelector('.adaos-calc');
     const acqInput   = row.querySelector('[data-f="pret_achizitie"]');
     const vanzInput  = row.querySelector('[data-f="pret_vanzare"]');
     if(!adaosInput||!acqInput||!vanzInput) return;
     adaosInput.value = adaos;
-    const vanz = (parseFloat(acqInput.value)||0)*(1+adaos/100);
-    vanzInput.value = vanz.toFixed(2);
+    vanzInput.value  = ((parseFloat(acqInput.value)||0)*(1+adaos/100)).toFixed(2);
   });
   updateDetailTotals();
-  // Autosave all rows
-  document.querySelectorAll('#detail-products-body tr').forEach(row=>{
+
+  // 2. Salvează toate produsele în paralel (fără refreshOrderTotal intermediar)
+  const btn = document.getElementById('detail-adaos')?.nextElementSibling;
+  const saves = [...rows].map(row => {
     const id = row.dataset.id;
-    if(id) saveProductSilent(id, row);
+    if(!id) return Promise.resolve();
+    const patch = {};
+    row.querySelectorAll('[data-f]').forEach(el => {
+      const f = el.dataset.f;
+      if(f==='status_produs') return;
+      patch[f] = el.type==='number' ? parseFloat(el.value)||0 : el.value;
+    });
+    const adaosEl = row.querySelector('.adaos-calc');
+    if(adaosEl) patch.adaos_procent = parseFloat(adaosEl.value)||0;
+    return api(`produse_comandate?id=eq.${id}`, {method:'PATCH', body:JSON.stringify(patch)});
   });
+
+  try {
+    await Promise.all(saves);
+    // 3. Un singur refresh la final
+    if(currentOrderId) await refreshOrderTotal(currentOrderId);
+    showAutosaveStatus('Adaos aplicat și salvat ✓');
+    toast('Adaos aplicat la toate produsele.','success');
+  } catch(e) {
+    toast('Eroare salvare adaos: '+e.message,'error');
+  }
 }
 
 async function updateProductStatus(sel, prodId) {
@@ -2089,8 +2112,6 @@ async function saveProductSilent(prodId, row) {
     row.classList.add('saved-flash');
     setTimeout(()=>row.classList.remove('saved-flash'),600);
     showAutosaveStatus('Salvat automat ✓');
-    // Actualizează totalul în tabel fără reload
-    if(currentOrderId) await refreshOrderTotal(currentOrderId);
   } catch(e){ toast('Autosave eroare: '+e.message,'error'); }
 }
 
@@ -2105,8 +2126,6 @@ async function saveSearchProductSilent(prodId, row) {
     row.classList.add('saved-flash');
     setTimeout(()=>row.classList.remove('saved-flash'),600);
     showAutosaveStatus('Salvat automat ✓');
-    // Actualizează totalul în tabel fără reload
-    if(currentOrderId) await refreshOrderTotal(currentOrderId);
   } catch(e){ toast('Autosave eroare: '+e.message,'error'); }
 }
 
