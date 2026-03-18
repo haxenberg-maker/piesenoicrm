@@ -704,7 +704,7 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
         <tr>
           <th>Nr.</th><th>Cod Unic</th><th>Data</th><th>Client</th><th>Furnizor</th>
           <th>Produse</th><th>Total</th><th>Avans</th><th>Rest</th>
-          <th>Plată</th><th>Status</th><th>Factură</th><th></th>
+          <th>Plată</th><th>Status</th><th>Agent</th><th></th>
         </tr>
       </thead>
       <tbody id="orders-body"></tbody>
@@ -811,7 +811,7 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
     <div id="clients-loading"><span class="spinner"></span>Se încarcă...</div>
     <table id="clients-table" style="display:none">
       <thead>
-        <tr><th>Nume</th><th>Telefon</th><th>Email</th><th>VIN</th><th>Comenzi</th><th>Valoare totală</th><th></th></tr>
+        <tr><th>Nume</th><th>Telefon</th><th>Email</th><th>VIN</th><th>Adaos %</th><th>Comenzi</th><th>Valoare totală</th><th></th></tr>
       </thead>
       <tbody id="clients-body"></tbody>
     </table>
@@ -1820,11 +1820,7 @@ function renderOrdersTable(orders) {
           <option value="anulata"    ${o.status_general==='anulata'   ?'selected':''}>❌ Anulată</option>
         </select>
       </td>
-      <td onclick="event.stopPropagation()">
-        ${o.factura_url
-          ? `<span class="text-green" style="cursor:pointer;font-size:13px" onclick="openDetailTab('${o.id}',o,'tab-factura')">🧾</span>`
-          : `<span class="text-muted" style="font-size:11px">—</span>`}
-      </td>
+      <td style="font-size:11px;color:var(--muted)">${escHtml(o.agent_vanzari||'—')}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="icon-btn" onclick="openAddPlata('${o.id}',event)" title="Adaugă plată" style="color:var(--green)">💳</button>
         <button class="icon-btn" onclick="openEditOrder('${o.id}')" title="Editează">✏️</button>
@@ -2405,6 +2401,7 @@ function renderClientsTable(clients) {
       <td>${escHtml(c.telefon||'—')}</td>
       <td class="text-muted" style="font-size:12px">${escHtml(c.email||'—')}</td>
       <td><span class="font-mono text-muted" style="font-size:11px">${escHtml(c.vin||'—')}</span></td>
+      <td style="text-align:center;font-weight:600;color:var(--accent)">${c.adaos_implicit!=null?c.adaos_implicit+'%':'—'}</td>
       <td style="text-align:center;font-weight:600;color:var(--blue)">${orders.length}</td>
       <td class="fw-bold text-green">${fmtRON(total)} RON</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
@@ -2513,7 +2510,10 @@ function buildClientForm(c) {
       <div class="field"><label>Email</label><input id="cf-email" type="email" value="${escHtml(c.email||'')}"/></div>
       <div class="field"><label>VIN</label><input id="cf-vin" placeholder="Ex: WBA3A5C5XDF354198" value="${escHtml(c.vin||'')}" style="font-family:monospace;letter-spacing:.5px"/></div>
     </div>
-    <div class="field"><label>Adresă</label><input id="cf-adresa" value="${escHtml(c.adresa||'')}"/></div>
+    <div class="grid2">
+      <div class="field"><label>Adaos implicit (%)</label><input type="number" id="cf-adaos" value="${c.adaos_implicit||''}" placeholder="Ex: 20 — se aplică automat la comenzi noi" min="0" step="0.5"/></div>
+      <div class="field"><label>Adresă</label><input id="cf-adresa" value="${escHtml(c.adresa||'')}"/></div>
+    </div>
     <div class="field"><label>Note</label><textarea id="cf-note">${escHtml(c.note||'')}</textarea></div>
   `;
 }
@@ -2521,12 +2521,14 @@ function buildClientForm(c) {
 async function saveClient() {
   const nume=document.getElementById('cf-nume')?.value?.trim();
   if(!nume){ toast('Numele este obligatoriu!','warn'); return; }
+  const adaosVal = document.getElementById('cf-adaos')?.value;
   const body={
     nume, telefon:document.getElementById('cf-telefon').value,
     email:document.getElementById('cf-email').value,
     vin:document.getElementById('cf-vin').value.trim().toUpperCase()||null,
-    adresa:document.getElementById('cf-adresa').value,
+    adresa:document.getElementById('cf-adresa')?.value||null,
     note:document.getElementById('cf-note').value,
+    adaos_implicit: adaosVal ? parseFloat(adaosVal) : null,
   };
   try {
     if(editClientId){
@@ -4095,7 +4097,12 @@ function renderFacturi(prods) {
   facturi.forEach(f => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="fw-bold font-mono" style="color:var(--blue)">${escHtml(f.nr)}</td>
+      <td>
+        <span class="fw-bold font-mono" style="color:var(--blue);cursor:pointer;text-decoration:underline;text-decoration-style:dotted"
+          onclick="event.stopPropagation();openFacturaDetail('${escHtml(f.nr)}')">
+          ${escHtml(f.nr)}
+        </span>
+      </td>
       <td style="font-size:12px;color:var(--muted)">${escHtml(f.furnizor)}</td>
       <td style="text-align:center;font-weight:600">${f.produse.length}</td>
       <td class="fw-bold text-green">${fmtRON(f.total)} RON</td>
@@ -4184,6 +4191,8 @@ async function saveNewPlata() {
     // Refresh order row
     await refreshOrderTotal(_plataComandaId);
     if(currentOrderId === _plataComandaId) await loadPlati(_plataComandaId);
+    // Auto-update tip_plata if fully paid
+    await checkAndMarkAchitat(_plataComandaId);
   } catch(e){ toast('Eroare: '+e.message,'error'); }
 }
 
@@ -4358,7 +4367,7 @@ async function loadPredare() {
               <div style="display:flex;flex-direction:column;gap:4px">
                 ${produse.map(p => `
                   <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s2);border-radius:var(--r-md);transition:background var(--t-fast)" class="predare-row" data-prod-id="${p.id}">
-                    <input type="checkbox" class="predare-check" data-prod-id="${p.id}" checked style="width:16px;height:16px;cursor:pointer"/>
+                    <input type="checkbox" class="predare-check" data-prod-id="${p.id}" style="width:16px;height:16px;cursor:pointer"/>
                     <div style="flex:1;min-width:0">
                       <span style="color:var(--accent);font-family:monospace;font-weight:700;font-size:12px">${escHtml(p.cod_aftermarket)}</span>
                       ${p.sku ? `<span class="chip" style="margin-left:6px;font-size:10px">${escHtml(p.sku)}</span>` : ''}
@@ -4554,6 +4563,165 @@ function updateBadgeRetururi(count) {
   if(!badge) return;
   badge.textContent = count;
   badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
+// ════════════════════════════════════════════════════════════
+// PLATĂ BADGE + AUTO-ACHITAT
+// ════════════════════════════════════════════════════════════
+function plataBadge(o) {
+  if(isAchitat(o)) return '<span style="color:var(--green);font-weight:600;font-size:12px">✅ Achitat</span>';
+  const rest = calcRest(o);
+  const toatePredate = (+o.produse_predate||0) === (+o.nr_produse||0) && (+o.nr_produse||0) > 0;
+  if(toatePredate && rest > 0)
+    return `<span style="color:var(--red);font-weight:700;font-size:12px">⚠️ Restant ${fmtRON(rest)} RON</span>`;
+  return `<span style="color:var(--yellow);font-size:12px">⏳ Avans ${fmtRON(o.avans_achitat)} RON</span>`;
+}
+
+async function checkAndMarkAchitat(orderId) {
+  const freshRows = await api(`comenzi?id=eq.${orderId}&select=total_plata,avans_achitat,tip_plata`);
+  if(!freshRows?.length) return;
+  const o = freshRows[0];
+  const rest = Math.max(0, (+o.total_plata||0) - (+o.avans_achitat||0));
+  if(rest <= 0 && o.tip_plata !== 'achitat_integral') {
+    await api(`comenzi?id=eq.${orderId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tip_plata: 'achitat_integral' })
+    });
+    // Update local
+    const local = allOrders.find(x=>x.id===orderId);
+    if(local) local.tip_plata = 'achitat_integral';
+    toast('✅ Comandă marcată automat ca achitată integral!','success');
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL FACTURĂ DETAIL
+// ════════════════════════════════════════════════════════════
+async function openFacturaDetail(nrFactura) {
+  // Creăm un modal dinamic
+  let overlay = document.getElementById('modal-factura-detail');
+  if(!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'modal-factura-detail';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal modal-lg">
+        <div class="modal-head">
+          <div>
+            <h3>🧾 Factură <span id="fd-nr" style="color:var(--accent)"></span></h3>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px" id="fd-subtitle"></div>
+          </div>
+          <button class="icon-btn" onclick="document.getElementById('modal-factura-detail').classList.remove('open')">✕</button>
+        </div>
+        <div class="modal-body" style="padding:0">
+          <div class="tbl-wrap" style="border:none;border-radius:0">
+            <table class="prod-tbl">
+              <thead>
+                <tr>
+                  <th>Cod Unic Cmd.</th><th>Cod aftermarket</th><th>Descriere</th>
+                  <th>SKU</th><th>Cant.</th><th>Preț acq.</th><th>Preț vânz.</th>
+                  <th>Status</th><th>Client</th><th>Nr. Cmd.</th>
+                </tr>
+              </thead>
+              <tbody id="fd-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <div style="flex:1;font-size:13px;color:var(--muted)" id="fd-totals"></div>
+          <button class="btn btn-ghost" onclick="document.getElementById('modal-factura-detail').classList.remove('open')">Închide</button>
+        </div>
+      </div>
+    `;
+    overlay.addEventListener('click', e => { if(e.target===overlay) overlay.classList.remove('open'); });
+    document.body.appendChild(overlay);
+  }
+
+  document.getElementById('fd-nr').textContent = nrFactura;
+  document.getElementById('fd-body').innerHTML = '<tr><td colspan="10" class="empty-state"><span class="spinner"></span></td></tr>';
+  overlay.classList.add('open');
+
+  try {
+    const prods = await api(
+      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&select=*,comenzi(id,nr_comanda,cod_comanda_unic,clienti(nume))`
+    );
+    const tbody = document.getElementById('fd-body');
+    tbody.innerHTML = '';
+
+    if(!prods.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Niciun produs găsit.</td></tr>';
+      return;
+    }
+
+    let totalAcq = 0, totalVanz = 0;
+    prods.forEach(p => {
+      const cmd = p.comenzi||{};
+      totalAcq  += (+p.pret_achizitie||0)*(+p.cantitate||1);
+      totalVanz += (+p.pret_vanzare||0)*(+p.cantitate||1);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="font-mono" style="color:var(--accent);font-size:11px">${escHtml(cmd.cod_comanda_unic||'—')}</span></td>
+        <td class="fw-bold font-mono" style="color:var(--accent)">${escHtml(p.cod_aftermarket)}</td>
+        <td style="font-size:12px">${escHtml(p.descriere||'—')}</td>
+        <td style="font-size:11px;color:var(--blue);font-family:monospace">${escHtml(p.sku||'—')}</td>
+        <td style="text-align:center">${p.cantitate||1}</td>
+        <td>${fmtRON(p.pret_achizitie)} RON</td>
+        <td class="fw-bold" style="color:var(--green)">${fmtRON(p.pret_vanzare)} RON</td>
+        <td><span class="badge b-${p.status_produs}">${p.status_produs}</span></td>
+        <td style="font-size:12px">${escHtml(cmd.clienti?.nume||'—')}</td>
+        <td>
+          <span class="nr-cmd" style="cursor:pointer" onclick="closeAndJump('modal-factura-detail','${cmd.id||''}')">
+            ${fmtNr(cmd.nr_comanda)}
+          </span>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('fd-subtitle').textContent = `${prods.length} produse`;
+    document.getElementById('fd-totals').innerHTML =
+      `Total acq: <strong>${fmtRON(totalAcq)} RON</strong> &nbsp;|&nbsp; Total vânz: <strong style="color:var(--green)">${fmtRON(totalVanz)} RON</strong>`;
+  } catch(e) {
+    document.getElementById('fd-body').innerHTML = `<tr><td colspan="10" style="color:var(--red);padding:12px">Eroare: ${e.message}</td></tr>`;
+  }
+}
+
+function closeAndJump(modalId, orderId) {
+  document.getElementById(modalId)?.classList.remove('open');
+  if(!orderId) return;
+  navigate('comenzi');
+  const o = allOrders.find(x=>x.id===orderId);
+  if(o) setTimeout(()=>loadDetail(orderId,o), 150);
+}
+
+// ════════════════════════════════════════════════════════════
+// AGENT VÂNZĂRI
+// ════════════════════════════════════════════════════════════
+// agent_vanzari vine din user_profiles.name al userului curent
+// Se salvează la plasarea comenzii
+// În dashboard_comenzi avem nevoie de join cu user_profiles
+// Deocamdată citim din comenzi.agent_vanzari direct
+
+// ════════════════════════════════════════════════════════════
+// CLIENȚI — ȘTERGERE + ADAOS IMPLICIT
+// ════════════════════════════════════════════════════════════
+async function deleteClient(clientId, clientNume, event) {
+  if(event) event.stopPropagation();
+  // Verifică dacă are comenzi
+  const orders = allOrders.filter(o=>o.client_id===clientId);
+  if(orders.length > 0) {
+    toast(`❌ Nu poți șterge clientul ${clientNume} — are ${orders.length} comenzi active.`,'warn');
+    return;
+  }
+  if(!confirm(`Ștergi clientul "${clientNume}"?
+Această acțiune este ireversibilă.`)) return;
+  try {
+    await api(`clienti?id=eq.${clientId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    await logAction('DELETE','client',clientId,{nume:clientNume});
+    allClients = allClients.filter(c=>c.id!==clientId);
+    renderClientsTable(allClients);
+    toast('Client șters.','info');
+  } catch(e){ toast('Eroare: '+e.message,'error'); }
 }
 
 // ════ INIT — verifică sesiune salvată ════
