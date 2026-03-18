@@ -501,13 +501,13 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <table id="search-table">
       <thead>
         <tr>
-          <th>Cod aftermarket</th><th>Descriere</th><th>SKU</th>
+          <th>Cod Unic Comandă</th><th>Cod aftermarket</th><th>Descriere</th><th>SKU</th>
           <th>Cod fact. furnizor</th><th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th>
-          <th>Cant.</th><th>Status</th><th>Comandă</th><th>Client</th><th>💾</th>
+          <th>Cant.</th><th>Status</th><th>Nr. Comandă</th><th>Client</th><th>💾</th>
         </tr>
       </thead>
       <tbody id="search-body">
-        <tr><td colspan="12" class="empty-state">Apasă "Toate produsele" sau caută după un criteriu.</td></tr>
+        <tr><td colspan="13" class="empty-state">Apasă "Toate produsele" sau caută după un criteriu.</td></tr>
       </tbody>
     </table>
   </div>
@@ -1903,7 +1903,7 @@ async function fetchAndRenderProducts(extraQuery='') {
     tbody.innerHTML='';
 
     if(!prods.length){
-      tbody.innerHTML='<tr><td colspan="12" class="empty-state">Niciun produs găsit.</td></tr>';
+      tbody.innerHTML='<tr><td colspan="13" class="empty-state">Niciun produs găsit.</td></tr>';
       return;
     }
 
@@ -1921,9 +1921,11 @@ async function fetchAndRenderProducts(extraQuery='') {
     prods.forEach(p=>{
       const ord = ordersMap[p.comanda_id]||{};
       const adaos = (p.adaos_procent!=null)?p.adaos_procent:(ord.adaos_procent||0);
+      const codUnicCmd = ord.cod_comanda_unic || fmtNr(ord.nr_comanda) || '—';
       const tr=document.createElement('tr');
       tr.dataset.prodId=p.id;
       tr.innerHTML=`
+        <td><span class="font-mono fw-bold" style="font-size:11px;color:var(--yellow);white-space:nowrap">${escHtml(codUnicCmd)}</span></td>
         <td class="text-yellow fw-bold font-mono" style="white-space:nowrap">${escHtml(p.cod_aftermarket)}</td>
         <td><input value="${escHtml(p.descriere||'')}" data-sf="descriere" style="min-width:120px"/></td>
         <td><input value="${escHtml(p.sku||'')}" data-sf="sku" style="width:80px" placeholder="SKU"/></td>
