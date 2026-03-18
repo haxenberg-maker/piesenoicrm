@@ -3551,17 +3551,11 @@ async function loadFacturi() {
   document.getElementById('facturi-loading').style.display = 'block';
   document.getElementById('facturi-table').style.display   = 'none';
   try {
-    // Grupează produsele după cod_factura_furnizor
     const prods = await api(
-      'produse_comenzi_facturi?select=cod_factura_furnizor,pret_achizitie,cantitate,data_sosire,comanda_id,comenzi(furnizor,nr_comanda,cod_comanda_unic)' +
-      '&cod_factura_furnizor=not.is.null&order=data_sosire.desc&limit=500'
-    );
-    // Fallback - direct query
-    const prodsReal = await api(
       'produse_comandate?select=cod_factura_furnizor,pret_achizitie,cantitate,data_sosire,comanda_id,comenzi(furnizor,nr_comanda,cod_comanda_unic)' +
       '&cod_factura_furnizor=not.is.null&order=data_sosire.desc&limit=500'
     );
-    renderFacturi(prodsReal);
+    renderFacturi(prods);
   } catch(e) {
     document.getElementById('facturi-loading').innerHTML = `<span class="text-red">❌ ${e.message}</span>`;
   }
