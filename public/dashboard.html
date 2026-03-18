@@ -243,6 +243,16 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 @keyframes savedFlash { 0%{background:rgba(16,185,129,.25)} 100%{background:transparent} }
 .autosave-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--green); margin-left:4px; opacity:0; transition:opacity .3s }
 .autosave-dot.visible { opacity:1 }
+/* ════ ROLES & LOG ══════════════════════════════════════════ */
+.role-administratoristrator    { background:#3b1c6e;color:#c4b5fd;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600 }
+.role-gestionar{ background:#1c3a5f;color:#93c5fd;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600 }
+.role-user     { background:#1c3a2a;color:#6ee7b7;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600 }
+.log-CREATE { color:var(--green) }
+.log-UPDATE { color:var(--blue) }
+.log-DELETE { color:var(--red) }
+.log-LOGIN  { color:var(--yellow) }
+.log-details{ font-size:11px;color:var(--muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer }
+.log-details:hover{ white-space:normal;color:var(--text) }
 </style>
 </head>
 <body>
@@ -279,6 +289,12 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     </button>
     <button class="nav-item" onclick="navigate('produse')"   id="nav-produse">
       <span class="icon">🔍</span> Caută Produse
+    </button>
+    <button class="nav-item" onclick="navigate('loguri')"   id="nav-loguri" style="display:none">
+      <span class="icon">📜</span> Loguri
+    </button>
+    <button class="nav-item" onclick="navigate('utilizatori')" id="nav-utilizatori" style="display:none">
+      <span class="icon">👤</span> Utilizatori
     </button>
   </nav>
   <div class="sidebar-footer">
@@ -496,6 +512,64 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: LOGURI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-loguri">
+  <div class="page-header">
+    <div class="page-title">Loguri activitate <small id="logs-count"></small></div>
+    <button class="btn btn-secondary btn-sm" onclick="loadLogs()">↻ Reîncarcă</button>
+  </div>
+  <div class="filters">
+    <select id="log-filter-actiune">
+      <option value="">Toate acțiunile</option>
+      <option value="CREATE">➕ Creare</option>
+      <option value="UPDATE">✏️ Modificare</option>
+      <option value="DELETE">🗑 Ștergere</option>
+      <option value="LOGIN">🔑 Login</option>
+    </select>
+    <select id="log-filter-entitate">
+      <option value="">Toate entitățile</option>
+      <option value="comanda">Comenzi</option>
+      <option value="produs">Produse</option>
+      <option value="client">Clienți</option>
+      <option value="user">Utilizatori</option>
+    </select>
+    <input type="text" id="log-filter-user" placeholder="Filtrează după utilizator..."/>
+  </div>
+  <div class="tbl-wrap">
+    <div id="logs-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="logs-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Data & Ora</th><th>Utilizator</th><th>Rol</th>
+          <th>Acțiune</th><th>Entitate</th><th>Detalii</th>
+        </tr>
+      </thead>
+      <tbody id="logs-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: UTILIZATORI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-utilizatori">
+  <div class="page-header">
+    <div class="page-title">Utilizatori</div>
+    <button class="btn btn-primary" onclick="openAddUser()">＋ Utilizator nou</button>
+  </div>
+  <div class="tbl-wrap">
+    <div id="users-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="users-table" style="display:none">
+      <thead>
+        <tr><th>Nume</th><th>Email</th><th>Rol</th><th>Status</th><th>Creat la</th><th></th></tr>
+      </thead>
+      <tbody id="users-body"></tbody>
+    </table>
+  </div>
+</div>
+
 </main><!-- /main -->
 </div><!-- /app -->
 
@@ -533,6 +607,21 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-client')">Anulează</button>
       <button class="btn btn-primary" onclick="saveClient()">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: UTILIZATOR ════ -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-user-title">Utilizator nou</h3>
+      <button class="icon-btn" onclick="closeModal('modal-user')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-user-body"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-user')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveUser()">💾 Salvează</button>
     </div>
   </div>
 </div>
@@ -724,11 +813,13 @@ async function doLogin() {
       throw new Error(data.error_description || data.msg || 'Autentificare eșuată');
     }
     accessToken = data.access_token;
+    currentUserId = data.user?.id;
     // Salvează sesiunea local
     localStorage.setItem('crm_token', data.access_token);
     localStorage.setItem('crm_refresh', data.refresh_token);
     localStorage.setItem('crm_email', data.user?.email || email);
-    showApp(data.user?.email || email);
+    localStorage.setItem('crm_user_id', data.user?.id || '');
+    showApp(data.user?.email || email, data.user?.id);
   } catch(e) {
     errEl.textContent = e.message;
     errEl.style.display = 'block';
@@ -765,11 +856,24 @@ function doLogout() {
   document.getElementById('login-password').value = '';
 }
 
-function showApp(email) {
+async function showApp(email, userId) {
   document.getElementById('login-page').classList.remove('visible');
   document.getElementById('app').style.display = 'flex';
   document.getElementById('sidebar-user').textContent = '👤 ' + email;
+  currentUserEmail = email;
+  if(userId) currentUserId = userId;
+
+  // Adaugă badge rol în sidebar dacă nu există
+  if(!document.getElementById('sidebar-role')) {
+    const roleDiv = document.createElement('div');
+    roleDiv.id = 'sidebar-role';
+    roleDiv.style.cssText = 'margin-top:4px;display:inline-block';
+    document.getElementById('sidebar-user').after(roleDiv);
+  }
+
+  await loadUserProfile();
   loadOrders();
+  await logAction('LOGIN', 'user', currentUserId, { email });
 }
 
 // Enter key pe login
@@ -830,11 +934,13 @@ let newOrderProducts = [];
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById(`page-${page}`).classList.add('active');
-  document.getElementById(`nav-${page}`).classList.add('active');
+  document.getElementById(`page-${page}`)?.classList.add('active');
+  document.getElementById(`nav-${page}`)?.classList.add('active');
   if (page==='comenzi' && allOrders.length===0) loadOrders();
   if (page==='clienti') loadClients();
   if (page==='produse') loadAllProducts();
+  if (page==='loguri')  loadLogs();
+  if (page==='utilizatori') loadUsers();
 }
 
 // Sidebar clock
@@ -1002,7 +1108,7 @@ function renderOrdersTable(orders) {
       </td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="icon-btn" onclick="openEditOrder('${o.id}')" title="Editează">✏️</button>
-        <button class="icon-btn" onclick="confirmDeleteOrder('${o.id}','${escHtml(o.client_nume)}')" title="Șterge" style="color:var(--red)">🗑</button>
+        <button class="icon-btn btn-delete-order-row" onclick="confirmDeleteOrder('${o.id}','${escHtml(o.client_nume)}')" title="Șterge" style="color:var(--red)">🗑</button>
       </td>
     `;
     tr.addEventListener('click', ()=>loadDetail(o.id, o));
@@ -1030,6 +1136,7 @@ async function confirmDeleteOrder(id, clientNume) {
   try {
     // produse se șterg automat prin CASCADE
     await api(`comenzi?id=eq.${id}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    await logAction('DELETE', 'comanda', id, { client: clientNume });
     allOrders = allOrders.filter(o=>o.id!==id);
     renderStats(allOrders);
     renderOrdersTable(applyOrderFilters(allOrders));
@@ -1269,6 +1376,7 @@ async function editOrder() {
   try {
     await api(`comenzi?id=eq.${editOrderId}`,{method:'PATCH',body:JSON.stringify(patch)});
     toast('Comanda salvată!','success');
+    await logAction('UPDATE', 'comanda', editOrderId, patch);
     closeModal('modal-order');
     await loadOrders();
     if(currentOrderId===editOrderId) {
@@ -1849,6 +1957,7 @@ async function saveProductSilent(prodId, row) {
   });
   try {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
+    logAction('UPDATE', 'produs', prodId, patch);
     row.classList.add('saved-flash');
     setTimeout(()=>row.classList.remove('saved-flash'),600);
     showAutosaveStatus('Salvat automat ✓');
@@ -1862,6 +1971,7 @@ async function saveSearchProductSilent(prodId, row) {
   });
   try {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
+    logAction('UPDATE', 'produs', prodId, patch);
     row.classList.add('saved-flash');
     setTimeout(()=>row.classList.remove('saved-flash'),600);
     showAutosaveStatus('Salvat automat ✓');
@@ -2165,6 +2275,289 @@ async function saveAddProduct() {
 // ════════════════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// ROL & PERMISIUNI
+// ════════════════════════════════════════════════════════════
+let currentUserRole  = null;
+let currentUserEmail = null;
+let currentUserId    = null;
+
+async function loadUserProfile() {
+  try {
+    const profiles = await api('user_profiles?id=eq.' + currentUserId + '&select=id,email,name,role');
+    if(profiles && profiles.length > 0) {
+      const p = profiles[0];
+      currentUserRole = p.role;
+      // Afișează/ascunde nav items pe baza rolului
+      applyRoleUI();
+      return p;
+    }
+  } catch(e) { console.warn('Profile load error:', e.message); }
+  return null;
+}
+
+function applyRoleUI() {
+  const isAdmin     = currentUserRole === 'administrator';
+  const isGestionar = currentUserRole === 'gestionar' || isAdmin;
+
+  // Nav items
+  const navLoguri = document.getElementById('nav-loguri');
+  const navUsers  = document.getElementById('nav-utilizatori');
+  if(navLoguri) navLoguri.style.display = isGestionar ? 'flex' : 'none';
+  if(navUsers)  navUsers.style.display  = isAdmin     ? 'flex' : 'none';
+
+  // Rol badge în sidebar
+  const roleEl = document.getElementById('sidebar-role');
+  if(roleEl) {
+    roleEl.className = `role-${currentUserRole}`;
+    roleEl.textContent = currentUserRole?.toUpperCase() || '';
+  }
+
+  // Butoane ștergere comenzi — vizibile doar admin/gestionar
+  document.querySelectorAll('.btn-delete-order-row').forEach(btn => {
+    btn.style.display = isGestionar ? 'inline-flex' : 'none';
+  });
+
+  // Buton procesează factură — doar gestionar/admin
+  const btnInvoice = document.querySelector('[onclick="openInvoiceWizard()"]');
+  if(btnInvoice) btnInvoice.style.display = isGestionar ? 'inline-flex' : 'none';
+}
+
+// ════════════════════════════════════════════════════════════
+// AUDIT LOG — înregistrează acțiuni din dashboard
+// ════════════════════════════════════════════════════════════
+async function logAction(actiune, entitate, entitateId, detalii={}) {
+  try {
+    await api('audit_log', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        user_id:    currentUserId,
+        user_email: currentUserEmail,
+        user_rol:   currentUserRole,
+        actiune,
+        entitate,
+        entitate_id: entitateId,
+        detalii,
+      })
+    });
+  } catch(e) { console.warn('Log error:', e.message); }
+}
+
+// ════════════════════════════════════════════════════════════
+// PAGE: LOGURI
+// ════════════════════════════════════════════════════════════
+let allLogs = [];
+
+async function loadLogs() {
+  document.getElementById('logs-loading').style.display = 'block';
+  document.getElementById('logs-table').style.display   = 'none';
+  try {
+    const data = await api('audit_log?select=*&order=creat_la.desc&limit=500');
+    allLogs = data;
+    renderLogs(applyLogFilters(data));
+    document.getElementById('logs-count').textContent = `(${data.length})`;
+  } catch(e) {
+    document.getElementById('logs-loading').innerHTML = `<span class="text-red">❌ ${e.message}</span>`;
+  }
+}
+
+function applyLogFilters(logs) {
+  const actiune  = document.getElementById('log-filter-actiune').value;
+  const entitate = document.getElementById('log-filter-entitate').value;
+  const user     = document.getElementById('log-filter-user').value.toLowerCase();
+  return logs.filter(l =>
+    (!actiune  || l.actiune  === actiune) &&
+    (!entitate || l.entitate === entitate) &&
+    (!user     || (l.user_email||'').toLowerCase().includes(user))
+  );
+}
+
+['log-filter-actiune','log-filter-entitate'].forEach(id =>
+  document.getElementById(id)?.addEventListener('change', () => renderLogs(applyLogFilters(allLogs)))
+);
+document.getElementById('log-filter-user')?.addEventListener('input', () => renderLogs(applyLogFilters(allLogs)));
+
+function renderLogs(logs) {
+  document.getElementById('logs-loading').style.display = 'none';
+  document.getElementById('logs-table').style.display   = 'table';
+  const tbody = document.getElementById('logs-body');
+  tbody.innerHTML = '';
+
+  if(!logs.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Niciun log găsit.</td></tr>';
+    return;
+  }
+
+  const actiuneIcon = { CREATE:'➕', UPDATE:'✏️', DELETE:'🗑', LOGIN:'🔑' };
+
+  logs.forEach(l => {
+    const det    = l.detalii || {};
+    const detStr = JSON.stringify(det, null, 0).replace(/[{}"]/g,'').substring(0,120);
+    const dt     = new Date(l.creat_la);
+    const dtStr  = dt.toLocaleDateString('ro-RO') + ' ' + dt.toLocaleTimeString('ro-RO');
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="white-space:nowrap;font-size:12px">${dtStr}</td>
+      <td style="font-size:12px">${escHtml(l.user_email||'sistem')}</td>
+      <td><span class="role-${l.user_rol||'user'}">${(l.user_rol||'').toUpperCase()}</span></td>
+      <td class="log-${l.actiune}"><strong>${actiuneIcon[l.actiune]||'•'} ${l.actiune}</strong></td>
+      <td style="font-size:12px;color:var(--muted)">${l.entitate}</td>
+      <td class="log-details" title="${escHtml(JSON.stringify(det))}">${escHtml(detStr)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// PAGE: UTILIZATORI
+// ════════════════════════════════════════════════════════════
+let allUsers   = [];
+let editUserId = null;
+
+async function loadUsers() {
+  document.getElementById('users-loading').style.display = 'block';
+  document.getElementById('users-table').style.display   = 'none';
+  try {
+    const data = await api('user_profiles?select=id,email,name,role,created_at&order=created_at.asc');
+    allUsers = data;
+    renderUsers(data);
+  } catch(e) {
+    document.getElementById('users-loading').innerHTML = `<span class="text-red">❌ ${e.message}</span>`;
+  }
+}
+
+function renderUsers(users) {
+  document.getElementById('users-loading').style.display = 'none';
+  document.getElementById('users-table').style.display   = 'table';
+  const tbody = document.getElementById('users-body');
+  tbody.innerHTML = '';
+
+  users.forEach(u => {
+    const isSelf = u.id === currentUserId;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="fw-bold">${escHtml(u.name||'—')}</td>
+      <td style="font-size:12px">${escHtml(u.email)}</td>
+      <td><span class="role-${u.role}">${(u.role||'').toUpperCase()}</span></td>
+      <td>
+        <span class="badge" style="${u.activ?'background:#064e3b;color:#6ee7b7':'background:#3b1515;color:#fca5a5'}">
+          ✅ Activ
+        </span>
+      </td>
+      <td style="font-size:12px;color:var(--muted)">${fmtDate(u.created_at)}</td>
+      <td style="white-space:nowrap">
+        <button class="icon-btn" onclick="openEditUser('${u.id}')" title="Editează">✏️</button>
+        ${!isSelf ? `<button class="icon-btn" style="color:var(--red)" onclick="toggleUserActive('${u.id}',${!u.activ})" title="${u.activ?'Dezactivează':'Activează'}">${u.activ?'🔒':'🔓'}</button>` : ''}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function openAddUser() {
+  editUserId = null;
+  document.getElementById('modal-user-title').textContent = 'Utilizator nou';
+  document.getElementById('modal-user-body').innerHTML = buildUserForm({});
+  openModal('modal-user');
+}
+
+function openEditUser(id) {
+  const u = allUsers.find(x=>x.id===id);
+  if(!u) return;
+  editUserId = id;
+  document.getElementById('modal-user-title').textContent = `Editează — ${u.email}`;
+  document.getElementById('modal-user-body').innerHTML = buildUserForm(u);
+  openModal('modal-user');
+}
+
+function buildUserForm(u) {
+  return `
+    <div class="grid2">
+      <div class="field">
+        <label>Email *</label>
+        <input type="email" id="uf-email" value="${escHtml(u.email||'')}" ${u.id?'readonly style="opacity:.6"':''}/>
+      </div>
+      <div class="field">
+        <label>Nume afișat</label>
+        <input id="uf-nume" value="${escHtml(u.name||'')}"/>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Rol</label>
+        <select id="uf-rol">
+          <option value="user"      ${u.role==='user'      ?'selected':''}>👤 User</option>
+          <option value="gestionar" ${u.role==='gestionar' ?'selected':''}>🔧 Gestionar</option>
+          <option value="admin"     ${u.role==='administrator'     ?'selected':''}>👑 Admin</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="uf-activ" style="display:none">
+          <option value="true"  ${'selected'}>✅ Activ</option>
+          <option value="false" ${''}>❌ Inactiv</option>
+        </select>
+      </div>
+    </div>
+    ${!u.id ? `
+    <div class="field">
+      <label>Parolă temporară *</label>
+      <input type="password" id="uf-password" placeholder="Minim 8 caractere"/>
+      <small style="color:var(--muted);font-size:11px">Utilizatorul o va putea schimba ulterior</small>
+    </div>` : ''}
+  `;
+}
+
+async function saveUser() {
+  const email = document.getElementById('uf-email')?.value?.trim();
+  const nume  = document.getElementById('uf-nume')?.value?.trim();
+  const rol   = document.getElementById('uf-rol')?.value;
+  const activ = document.getElementById('uf-activ')?.value === 'true';
+
+  if(!editUserId) {
+    // Utilizator nou — creat prin Supabase Admin API (nu disponibil din browser cu anon key)
+    // Alternativă: crează manual în Supabase dashboard și actualizăm profilul
+    const pass = document.getElementById('uf-password')?.value;
+    if(!email||!pass) { toast('Email și parola sunt obligatorii!','warn'); return; }
+    if(pass.length < 8) { toast('Parola trebuie să aibă minim 8 caractere!','warn'); return; }
+
+    toast('⚠️ Pentru a adăuga utilizatori noi, creează-i mai întâi în Supabase Dashboard → Authentication → Users, apoi editează-i de aici pentru a seta rolul.','warn');
+    closeModal('modal-user');
+    return;
+  }
+
+  // Editare utilizator existent
+  try {
+    await api(`user_profiles?id=eq.${editUserId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: nume, role: rol })
+    });
+    await logAction('UPDATE', 'user', editUserId, { role: rol, name: nume });
+    toast('Utilizator actualizat!','success');
+    closeModal('modal-user');
+    await loadUsers();
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
+
+async function toggleUserActive(id, newState) {
+  try {
+    await api(`user_profiles?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role: u?.role||'user' })
+    });
+    await logAction('UPDATE', 'user', id, { activ: newState });
+    toast(newState ? 'Utilizator activat.' : 'Utilizator dezactivat.', 'info');
+    await loadUsers();
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// NAVIGATE override — încarcă date pagini noi
+// ════════════════════════════════════════════════════════════
+const _origNavigate = navigate;
+
 // ════ INIT — verifică sesiune salvată ════
 (async () => {
   const savedToken = localStorage.getItem('crm_token');
@@ -2179,12 +2572,14 @@ async function saveAddProduct() {
       });
       if(res.ok) {
         // Token valid — arată aplicația direct
-        showApp(savedEmail || '');
+        currentUserId = localStorage.getItem('crm_user_id') || null;
+        showApp(savedEmail || '', currentUserId);
       } else if(res.status === 401) {
         // Token expirat — încearcă refresh
         const ok = await refreshSession();
         if(ok) {
-          showApp(savedEmail || '');
+          currentUserId = localStorage.getItem('crm_user_id') || null;
+          showApp(savedEmail || '', currentUserId);
         } else {
           document.getElementById('login-page').classList.add('visible');
           document.getElementById('app').style.display = 'none';
