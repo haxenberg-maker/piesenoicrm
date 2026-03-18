@@ -2927,16 +2927,17 @@ async function refreshOrderTotal(orderId) {
     }
 
     // Actualizează celulele din rândul tabelului
+    // Nr=0, CodUnic=1, Data=2, Client=3, Furnizor=4, Produse=5, Total=6, Avans=7, Rest=8
     const row = document.querySelector(`select.status-sel[data-id="${orderId}"]`)?.closest('tr');
     if(row && o) {
       const cells = row.querySelectorAll('td');
-      // Total (index 5), Avans (6), Rest (7)
-      if(cells[5]) cells[5].textContent = fmtRON(o.total_plata);
-      if(cells[6]) cells[6].textContent = fmtRON(o.avans_achitat);
-      if(cells[7]) {
+      if(cells[6]) cells[6].textContent = fmtRON(o.total_plata);
+      if(cells[7]) cells[7].textContent = fmtRON(o.avans_achitat);
+      if(cells[8]) {
         const rest = calcRest(o);
-        cells[7].textContent  = fmtRON(rest);
-        cells[7].style.color  = rest > 0 ? 'var(--yellow)' : 'var(--green)';
+        cells[8].textContent = fmtRON(rest);
+        cells[8].style.color = rest > 0 ? 'var(--yellow)' : 'var(--green)';
+        cells[8].style.fontWeight = '700';
       }
       // Actualizează indicatorul
       const indicatorCell = row.querySelector('.order-indicator-cell');
