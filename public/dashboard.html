@@ -2406,6 +2406,7 @@ function renderClientsTable(clients) {
       <td class="fw-bold text-green">${fmtRON(total)} RON</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="icon-btn" onclick="openEditClient('${c.id}')">✏️</button>
+        <button class="icon-btn" style="color:var(--red)" onclick="event.stopPropagation();deleteClient('${c.id}','${escHtml(c.nume)}',event)">🗑</button>
       </td>
     `;
     tr.addEventListener('click',()=>loadClientDetail(c.id));
