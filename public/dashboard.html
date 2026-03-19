@@ -933,7 +933,7 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
 
   <!-- Grupat pe clienti -->
   <div id="predare-list">
-    <div id="predare-loading"><span class="spinner"></span>Se încarcă...</div>
+    <div id="predare-loading" style="display:none"><span class="spinner"></span>Se încarcă...</div>
     <div id="predare-empty" style="display:none" class="empty-state">
       Nu există produse ajunse de predat momentan.
     </div>
@@ -4758,6 +4758,7 @@ async function loadPredare() {
     groups.innerHTML = '';
 
     Object.values(byClient).forEach(({ client, comenzi }) => {
+      try {
       const totalProduse = Object.values(comenzi).reduce((s,c)=>s+c.produse.length,0);
       const div = document.createElement('div');
       div.style.cssText = 'background:var(--s1);border:1px solid var(--border);border-radius:var(--r-xl);margin-bottom:16px;overflow:hidden';
@@ -4817,6 +4818,9 @@ async function loadPredare() {
         </div>
       `;
       groups.appendChild(div);
+      } catch(renderErr) {
+        console.error('Render client error:', renderErr);
+      }
     });
 
     // Filter search
