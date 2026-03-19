@@ -1616,16 +1616,15 @@ async function showApp(email, userId, mustChangePass=false) {
   document.getElementById('topbar').style.display='flex';
   currentUserEmail = email;
   if(userId) currentUserId = userId;
-  // Fetch name from profile
+  // Sidebar arată emailul
+  document.getElementById('sidebar-user').textContent = email;
+  // Fetch prenumele pentru agent_vanzari
   try {
     const prof = await api(`user_profiles?id=eq.${userId || currentUserId}&select=name,role`);
     const fullName = prof?.[0]?.name || '';
     const firstName = fullName.trim().split(' ')[0] || fullName;
-    document.getElementById('sidebar-user').textContent = firstName || email;
-    // Store first name for agent_vanzari
     window._currentAgentFirstName = firstName || email.split('@')[0];
   } catch(e) {
-    document.getElementById('sidebar-user').textContent = email;
     window._currentAgentFirstName = email.split('@')[0];
   }
 
