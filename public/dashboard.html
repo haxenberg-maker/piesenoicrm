@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>CRM Piese Auto</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://apis.google.com/js/api.js" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -5865,70 +5866,107 @@ async function saveAddFactura() {
 // ANALIZĂ PDF CU CLAUDE API
 // ════════════════════════════════════════════════════════════
 async function analyzeFacturaPdf(nrFactura, file) {
-  // Citește fișierul ca base64
-  const base64 = await new Promise((res, rej) => {
-    const reader = new FileReader();
-    reader.onload  = () => res(reader.result.split(',')[1]);
-    reader.onerror = () => rej(new Error('Eroare citire fișier'));
-    reader.readAsDataURL(file);
-  });
-
-  // Arată modal de analiză
   showAnalyzeModal(nrFactura);
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: base64 }
-            },
-            {
-              type: 'text',
-              text: `Ești un asistent care extrage date din facturi auto.
-Analizează această factură și returnează DOAR un JSON valid (fără text suplimentar, fără markdown) cu structura:
-{
-  "nr_factura": "numărul facturii",
-  "furnizor": "numele furnizorului",
-  "data": "data facturii",
-  "produse": [
-    {
-      "cod_aftermarket": "codul produsului",
-      "descriere": "descrierea produsului",
-      "cantitate": 1,
-      "pret_achizitie": 0.00
+    // Setează workerul PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // Citește fișierul ca ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    // Extrage tot textul din toate paginile
+    let fullText = '';
+    for(let i = 1; i <= pdf.numPages; i++) {
+      const page  = await pdf.getPage(i);
+      const tc    = await page.getTextContent();
+      // Reconstruiește liniile după poziție Y
+      const items = tc.items.sort((a,b) => {
+        const dy = Math.round(b.transform[5]) - Math.round(a.transform[5]);
+        return dy !== 0 ? dy : a.transform[4] - b.transform[4];
+      });
+      let lastY = null;
+      for(const item of items) {
+        const y = Math.round(item.transform[5]);
+        if(lastY !== null && Math.abs(y - lastY) > 3) fullText += '\n';
+        fullText += item.str + ' ';
+        lastY = y;
+      }
+      fullText += '\n\n';
+
     }
-  ]
-}
-Dacă nu găsești un câmp, pune null. Prețurile să fie în RON fără TVA dacă e posibil.`
-            }
-          ]
-        }]
-      })
-    });
 
-    const data = await response.json();
-    const text = data.content?.[0]?.text || '';
+    console.log('PDF text extras:', fullText.substring(0, 500));
 
-    // Parse JSON din răspuns
-    const clean = text.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(clean);
-
+    // Parsează factura
+    const result = parseFacturaText(fullText, nrFactura);
     renderAnalyzeResults(nrFactura, result);
 
   } catch(e) {
     document.getElementById('analyze-status').innerHTML =
-      `<span style="color:var(--red)">❌ Eroare analiză: ${e.message}</span>
+      `<span style="color:var(--red)">❌ Eroare: ${e.message}</span>
        <br><small>Poți adăuga produsele manual din workspace.</small>`;
-    console.error('Claude analyze error:', e);
+    console.error('PDF analyze error:', e);
   }
+}
+
+function parseFacturaText(text, nrFactura) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const result = { nr_factura: nrFactura, furnizor: null, data: null, produse: [] };
+
+  // Detectează furnizorul
+  for(const line of lines) {
+    if(/intercars/i.test(line))  { result.furnizor = 'Intercars'; break; }
+    if(/elit/i.test(line))       { result.furnizor = 'Elit'; break; }
+    if(/autofore/i.test(line))   { result.furnizor = 'Autofore'; break; }
+    if(/aftermarket/i.test(line)){ result.furnizor = line.trim(); break; }
+  }
+
+  // Detectează data
+  const dateMatch = text.match(/(\d{2}[./-]\d{2}[./-]\d{4})/);
+  if(dateMatch) result.data = dateMatch[1];
+
+  // ── Strategie 1: rânduri cu cod + descriere + cantitate + preț ──────
+  // Format tipic Intercars: COD  Descriere  cant  pret_unitar  total
+  // Exemplu: "FP 2939  Filtru aer habitaclu  1  69.10  69.10"
+  const prodRegex = /^([A-Z0-9][A-Z0-9\s\-\.\/]{2,25}?)\s{2,}(.{5,60}?)\s{2,}(\d+)\s+([\d]+[.,]\d{2})\s+([\d]+[.,]\d{2})/gm;
+  let match;
+  while((match = prodRegex.exec(text)) !== null) {
+    const cod   = match[1].trim();
+    const desc  = match[2].trim();
+    const cant  = parseInt(match[3]);
+    const pret  = parseFloat(match[4].replace(',', '.'));
+    // Exclude rânduri care par header-e sau totaluri
+    if(/total|subtotal|tva|livrare|transport/i.test(cod)) continue;
+    if(cod.length < 2 || cant < 1 || pret <= 0) continue;
+    result.produse.push({ cod_aftermarket: cod, descriere: desc, cantitate: cant, pret_achizitie: pret });
+  }
+
+  // ── Strategie 2: dacă nu am găsit nimic, încearcă regex mai lax ────
+  if(!result.produse.length) {
+    // Caută linii cu cod de produs (litere + cifre) urmat de preț
+    const laxRegex = /([A-Z]{1,5}[\s\-]?\d{3,}[\w\s\-\.]*?)\s+([\d]+[.,]\d{2})/g;
+    while((match = laxRegex.exec(text)) !== null) {
+      const cod  = match[1].trim();
+      const pret = parseFloat(match[2].replace(',', '.'));
+      if(cod.length < 3 || pret <= 0 || pret > 50000) continue;
+      if(/total|tva|transport/i.test(cod)) continue;
+      result.produse.push({ cod_aftermarket: cod, descriere: '', cantitate: 1, pret_achizitie: pret });
+    }
+  }
+
+  // Deduplică
+  const seen = new Set();
+  result.produse = result.produse.filter(p => {
+    const key = p.cod_aftermarket + p.pret_achizitie;
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return result;
 }
 
 function showAnalyzeModal(nrFactura) {
