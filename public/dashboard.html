@@ -1618,15 +1618,16 @@ async function showApp(email, userId, mustChangePass=false) {
   if(userId) currentUserId = userId;
   // Sidebar arată emailul
   document.getElementById('sidebar-user').textContent = email;
-  // Fetch prenumele pentru agent_vanzari
+  // Setează fallback imediat
+  window._currentAgentFirstName = email.split('@')[0];
+  // Fetch prenumele complet din profil
   try {
     const prof = await api(`user_profiles?id=eq.${userId || currentUserId}&select=name,role`);
     const fullName = prof?.[0]?.name || '';
-    const firstName = fullName.trim().split(' ')[0] || fullName;
-    window._currentAgentFirstName = firstName || email.split('@')[0];
-  } catch(e) {
-    window._currentAgentFirstName = email.split('@')[0];
-  }
+    if(fullName.trim()) {
+      window._currentAgentFirstName = fullName.trim().split(' ')[0];
+    }
+  } catch(e) { /* keep fallback */ }
 
   // Adaugă badge rol în sidebar dacă nu există
   if(!document.getElementById('sidebar-role')) {
