@@ -5733,12 +5733,20 @@ async function loadWorkspaceProducts(nrFactura) {
   listEl.innerHTML = '';
 
   try {
-    const prods = await api(
+    // Produse din Supabase (alocate la comenzi)
+    const prodsDb = await api(
       `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&select=*,comenzi(nr_comanda,cod_comanda_unic,clienti(nume))`
     );
+
+    // Produse nealocate din localStorage
+    const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
+    const prodsLocal = (nealocate[nrFactura] || []).map((p, i) => ({ ...p, _local: true, _localIdx: i }));
+
     document.getElementById('fw-products-loading').style.display = 'none';
 
-    if(!prods.length) {
+    const total = prodsDb.length + prodsLocal.length;
+
+    if(!total) {
       listEl.innerHTML = `
         <div style="text-align:center;padding:32px;color:var(--muted)">
           <div style="font-size:32px;margin-bottom:8px">📦</div>
@@ -5751,39 +5759,60 @@ async function loadWorkspaceProducts(nrFactura) {
       return;
     }
 
-    prods.forEach(p => {
+    // ── Produse nealocate (din localStorage) ─────────────────────────
+    if(prodsLocal.length) {
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size:11px;font-weight:700;color:var(--yellow);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center';
+      header.innerHTML = `<span>⏳ Nealocate (${prodsLocal.length})</span>
+        <button class="btn btn-primary btn-xs" onclick="openAllocateModal('${escHtml(nrFactura)}')">🔗 Alocă la comandă</button>`;
+      listEl.appendChild(header);
+
+      prodsLocal.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:10px 12px;border-radius:var(--r-md);margin-bottom:6px;border:1px solid var(--yellow);background:rgba(245,158,11,.05)';
+        div.innerHTML = `
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <div>
+              <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(p.descriere||'')}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">Cant: ${p.cantitate} · Preț: ${fmtRON(p.pret_achizitie)} RON</div>
+            </div>
+            <span style="font-size:10px;color:var(--yellow);font-weight:600;flex-shrink:0">NEALOCATĂ</span>
+          </div>`;
+        listEl.appendChild(div);
+      });
+
+      if(prodsDb.length) {
+        const sep = document.createElement('div');
+        sep.style.cssText = 'font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 8px';
+        sep.textContent = `✅ Alocate (${prodsDb.length})`;
+        listEl.appendChild(sep);
+      }
+    }
+
+    // ── Produse din Supabase (alocate) ───────────────────────────────
+    prodsDb.forEach(p => {
       const cmd = p.comenzi||{};
       const hasSku = !!p.sku;
       const div = document.createElement('div');
-      div.style.cssText = `
-        padding:10px 12px;border-radius:var(--r-md);margin-bottom:8px;
+      div.style.cssText = `padding:10px 12px;border-radius:var(--r-md);margin-bottom:8px;
         border:1px solid ${hasSku ? 'var(--green)' : 'var(--border)'};
-        background:${hasSku ? 'rgba(16,185,129,.04)' : 'var(--s1)'};
-        transition:all .2s;
-      `;
+        background:${hasSku ? 'rgba(16,185,129,.04)' : 'var(--s1)'}`;
       div.innerHTML = `
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
           <div style="min-width:0">
             <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(p.descriere||'')}</div>
-            <div style="font-size:10px;color:var(--muted2);margin-top:3px">
-              ${escHtml(cmd.cod_comanda_unic||'')} · ${escHtml(cmd.clienti?.nume||'—')}
-            </div>
+            <div style="font-size:10px;color:var(--muted2);margin-top:3px">${escHtml(cmd.cod_comanda_unic||'')} · ${escHtml(cmd.clienti?.nume||'—')}</div>
           </div>
           <span class="badge b-${p.status_produs}" style="flex-shrink:0">${p.status_produs}</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
-          <input
-            id="sku-${p.id}"
-            value="${escHtml(p.sku||'')}"
-            placeholder="${hasSku ? '' : '⚠ SKU lipsă — introdu codul'}"
-            style="flex:1;background:var(--s2);border:1px solid ${hasSku?'var(--green)':'var(--accent)'};border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;font-family:monospace;outline:none"
-          />
-          <button class="btn btn-primary btn-xs" onclick="saveWorkspaceSku('${p.id}','${escHtml(p.cod_aftermarket)}')">
-            💾
-          </button>
-        </div>
-      `;
+          <input id="sku-${p.id}" value="${escHtml(p.sku||'')}"
+            placeholder="${hasSku ? '' : '⚠ SKU lipsă'}"
+            style="flex:1;background:var(--s2);border:1px solid ${hasSku?'var(--green)':'var(--accent)'};border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;font-family:monospace;outline:none"/>
+          <button class="btn btn-primary btn-xs" onclick="saveWorkspaceSku('${p.id}','${escHtml(p.cod_aftermarket)}')">💾</button>
+        </div>`;
       listEl.appendChild(div);
     });
 
@@ -5792,6 +5821,50 @@ async function loadWorkspaceProducts(nrFactura) {
     listEl.innerHTML = `<div style="color:var(--red);padding:12px">Eroare: ${e.message}</div>`;
   }
 }
+
+async function openAllocateModal(nrFactura) {
+  const codUnic = prompt('Cod unic comandă (ex: INT-0004-1803):');
+  if(!codUnic?.trim()) return;
+
+  try {
+    const comenzi = await api(`comenzi?cod_comanda_unic=eq.${encodeURIComponent(codUnic.trim())}&select=id,cod_comanda_unic`);
+    if(!comenzi?.length) { toast(`Comanda ${codUnic} nu există!`, 'error'); return; }
+    const comandaId = comenzi[0].id;
+
+    const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
+    const prods = nealocate[nrFactura] || [];
+    if(!prods.length) { toast('Nu sunt produse de alocat!', 'warn'); return; }
+
+    let saved = 0;
+    for(const p of prods) {
+      try {
+        await api('produse_comandate', {
+          method: 'POST',
+          body: JSON.stringify({
+            comanda_id:           comandaId,
+            cod_aftermarket:      p.cod_aftermarket,
+            descriere:            p.descriere,
+            cantitate:            p.cantitate,
+            pret_achizitie:       p.pret_achizitie,
+            cod_factura_furnizor: nrFactura,
+            status_produs:        'ajuns',
+          })
+        });
+        saved++;
+      } catch(e) { console.warn('Alloc error:', e.message); }
+    }
+
+    // Șterge din localStorage după alocare
+    delete nealocate[nrFactura];
+    localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
+
+    await upsertFactura(nrFactura, { status: 'in_procesare' });
+    toast(`✅ ${saved} produse alocate la ${codUnic}!`, 'success');
+    await loadWorkspaceProducts(nrFactura);
+    loadOrders();
+  } catch(e) { toast('Eroare: ' + e.message, 'error'); }
+}
+
 
 async function saveWorkspaceSku(prodId, cod) {
   const sku = document.getElementById(`sku-${prodId}`)?.value?.trim();
