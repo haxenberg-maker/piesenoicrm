@@ -3628,15 +3628,20 @@ let currentUserRole  = null;
 let currentUserEmail = null;
 let currentUserId    = null;
 
-async function loadUserProfile() {
+async function loadUserProfile(forceUserId) {
+  const uid = forceUserId || currentUserId;
+  if(!uid) { console.warn('loadUserProfile: no userId'); return null; }
   try {
-    const profiles = await api('user_profiles?id=eq.' + currentUserId + '&select=id,email,name,role');
+    const profiles = await api('user_profiles?id=eq.' + uid + '&select=id,email,name,role');
     if(profiles && profiles.length > 0) {
       const p = profiles[0];
       currentUserRole = p.role;
-      // Afișează/ascunde nav items pe baza rolului
+      currentUserId   = uid; // asigură că e setat
+      window._currentAgentFirstName = p.name || '';
       applyRoleUI();
       return p;
+    } else {
+      console.warn('loadUserProfile: no profile found for', uid);
     }
   } catch(e) { console.warn('Profile load error:', e.message); }
   return null;
