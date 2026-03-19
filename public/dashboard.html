@@ -836,6 +836,7 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
           <th>Achitat %</th>
           <th>Data primire</th>
           <th>Comenzi</th>
+          <th>PDF</th>
         </tr>
       </thead>
       <tbody id="facturi-body"></tbody>
@@ -1212,6 +1213,25 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-retur')">Anulează</button>
       <button class="btn btn-danger" onclick="saveRetur()">↩️ Confirmă retur</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: PREVIEW PDF FACTURĂ ════ -->
+<div class="modal-overlay" id="modal-pdf-factura">
+  <div class="modal modal-lg" style="max-width:900px;height:90vh">
+    <div class="modal-head">
+      <div>
+        <h3>🧾 Factură <span id="pdf-fact-nr" style="color:var(--accent)"></span></h3>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Preview Google Drive</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="promptFacturaPdfUrl(document.getElementById('pdf-fact-nr').textContent)">✏️ Schimbă link</button>
+        <button class="icon-btn" onclick="closeModal('modal-pdf-factura')">✕</button>
+      </div>
+    </div>
+    <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+      <iframe id="pdf-fact-iframe" src="" style="flex:1;border:none;width:100%;min-height:500px"></iframe>
     </div>
   </div>
 </div>
@@ -1625,7 +1645,7 @@ async function showApp(email, userId, mustChangePass=false) {
     const prof = await api(`user_profiles?id=eq.${userId || currentUserId}&select=name,role`);
     const fullName = prof?.[0]?.name || '';
     if(fullName.trim()) {
-      window._currentAgentFirstName = fullName.trim().split(' ')[0];
+      window._currentAgentFirstName = fullName.trim(); // Numele complet
     }
   } catch(e) { /* keep fallback */ }
 
@@ -1940,11 +1960,7 @@ function renderOrdersTable(orders) {
           <option value="anulata"    ${o.status_general==='anulata'   ?'selected':''}>❌ Anulată</option>
         </select>
       </td>
-      <td style="font-size:11px;color:var(--muted)">${escHtml(
-        o.agent_vanzari
-          ? (o.agent_vanzari.includes('@') ? o.agent_vanzari.split('@')[0] : o.agent_vanzari)
-          : '—'
-      )}</td>
+      <td style="font-size:11px;color:var(--muted)">${escHtml(o.agent_vanzari||'—')}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="icon-btn" onclick="openAddPlata('${o.id}',event)" title="Adaugă plată" style="color:var(--green)">💳</button>
         <button class="icon-btn" onclick="openEditOrder('${o.id}')" title="Editează">✏️</button>
@@ -4380,6 +4396,13 @@ function renderFacturi(prods) {
       <td style="font-size:12px">
         ${[...f.comenzi].map(c=>`<span class="nr-cmd" style="font-size:10px;margin-right:4px">${escHtml(c)}</span>`).join('')}
       </td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        ${getFacturaPdfUrl(f.nr)
+          ? `<button class="btn btn-secondary btn-xs" onclick="previewFacturaPdf('${escHtml(f.nr)}')">👁 Preview</button>
+             <button class="icon-btn" style="color:var(--red);font-size:12px" onclick="removeFacturaPdf('${escHtml(f.nr)}')">✕</button>`
+          : `<button class="btn btn-secondary btn-xs" onclick="promptFacturaPdfUrl('${escHtml(f.nr)}')">📎 Adaugă PDF</button>`
+        }
+      </td>
     `;
     // Filter search
     tr.dataset.nr       = f.nr.toLowerCase();
@@ -4992,8 +5015,14 @@ async function openFacturaDetail(nrFactura) {
     });
 
     document.getElementById('fd-subtitle').textContent = `${prods.length} produse`;
+    const pdfUrl = getFacturaPdfUrl(nrFactura);
     document.getElementById('fd-totals').innerHTML =
-      `Total acq: <strong>${fmtRON(totalAcq)} RON</strong> &nbsp;|&nbsp; Total vânz: <strong style="color:var(--green)">${fmtRON(totalVanz)} RON</strong>`;
+      `Total acq: <strong>${fmtRON(totalAcq)} RON</strong> &nbsp;|&nbsp; Total vânz: <strong style="color:var(--green)">${fmtRON(totalVanz)} RON</strong>
+       &nbsp;|&nbsp;
+       ${pdfUrl
+         ? `<button class="btn btn-secondary btn-xs" onclick="previewFacturaPdf('${escHtml(nrFactura)}')">🧾 Vezi PDF</button>`
+         : `<button class="btn btn-secondary btn-xs" onclick="promptFacturaPdfUrl('${escHtml(nrFactura)}')">📎 Adaugă PDF</button>`
+       }`;
   } catch(e) {
     document.getElementById('fd-body').innerHTML = `<tr><td colspan="10" style="color:var(--red);padding:12px">Eroare: ${e.message}</td></tr>`;
   }
@@ -5061,6 +5090,79 @@ async function openQuickAddClient() {
     }
     toast(`✅ Client "${client.nume}" adăugat și selectat!`,'success');
   } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// FACTURI PDF — Google Drive (stocat în localStorage)
+// ════════════════════════════════════════════════════════════
+const PDF_STORAGE_KEY = 'crm_facturi_pdf';
+
+function getFacturiPdfStore() {
+  try { return JSON.parse(localStorage.getItem(PDF_STORAGE_KEY) || '{}'); }
+  catch(e) { return {}; }
+}
+
+function getFacturaPdfUrl(nrFactura) {
+  return getFacturiPdfStore()[nrFactura] || null;
+}
+
+function setFacturaPdfUrl(nrFactura, url) {
+  const store = getFacturiPdfStore();
+  store[nrFactura] = url;
+  localStorage.setItem(PDF_STORAGE_KEY, JSON.stringify(store));
+}
+
+function removeFacturaPdf(nrFactura) {
+  const store = getFacturiPdfStore();
+  delete store[nrFactura];
+  localStorage.setItem(PDF_STORAGE_KEY, JSON.stringify(store));
+  toast('PDF eliminat.', 'info');
+  loadFacturi();
+}
+
+function convertDriveUrl(url) {
+  // Convertește orice format de link Drive în URL de preview iframe
+  // https://drive.google.com/file/d/FILE_ID/view?... → .../preview
+  // https://drive.google.com/open?id=FILE_ID → .../preview
+  const matchFile = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if(matchFile) return `https://drive.google.com/file/d/${matchFile[1]}/preview`;
+  const matchOpen = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if(matchOpen) return `https://drive.google.com/file/d/${matchOpen[1]}/preview`;
+  // Dacă e deja un URL de preview, returnează ca atare
+  if(url.includes('drive.google.com')) return url.replace('/view', '/preview').split('?')[0];
+  return url;
+}
+
+function promptFacturaPdfUrl(nrFactura) {
+  const existing = getFacturaPdfUrl(nrFactura) || '';
+  const raw = prompt(
+    `Factură: ${nrFactura}
+
+Lipește link-ul de share din Google Drive:
+(Click dreapta pe fișier → Share → Anyone with link → Copy link)`,
+    existing
+  );
+  if(raw === null) return; // Anulat
+  if(!raw.trim()) { toast('Link invalid!', 'warn'); return; }
+
+  const previewUrl = convertDriveUrl(raw.trim());
+  setFacturaPdfUrl(nrFactura, previewUrl);
+  toast(`✅ PDF asociat facturii ${nrFactura}!`, 'success');
+  // Dacă preview-ul e deschis, actualizează
+  if(document.getElementById('modal-pdf-factura').classList.contains('open')) {
+    previewFacturaPdf(nrFactura);
+  } else {
+    loadFacturi();
+    previewFacturaPdf(nrFactura);
+  }
+}
+
+function previewFacturaPdf(nrFactura) {
+  const url = getFacturaPdfUrl(nrFactura);
+  if(!url) { toast('Niciun PDF asociat acestei facturi.', 'warn'); return; }
+  document.getElementById('pdf-fact-nr').textContent = nrFactura;
+  document.getElementById('pdf-fact-iframe').src = url;
+  openModal('modal-pdf-factura');
 }
 
 // ════ INIT — verifică sesiune salvată ════
