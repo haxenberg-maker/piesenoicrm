@@ -3208,32 +3208,61 @@ async function invoiceNext() {
   btn.disabled = true; btn.textContent = '⏳ Se încarcă...';
 
   try {
-    // Dacă avem cod unic, filtrăm direct după el
-    let ordersQuery = 'comenzi?select=id,nr_comanda,cod_comanda_unic,furnizor,clienti(nume)';
-    if(codUnic)  ordersQuery += `&cod_comanda_unic=eq.${encodeURIComponent(codUnic)}`;
-    else if(furnizor) ordersQuery += `&furnizor=eq.${encodeURIComponent(furnizor)}`;
-    ordersQuery += '&status_general=in.(in_lucru,finalizata)';
+    const allProds = [];
+    const orderMap = {};
+    const seenIds  = new Set();
 
-    const orders   = await api(ordersQuery);
-    const orderIds = orders.map(o=>o.id);
+    // ── Sursa 1: produse care au deja acest număr de factură ──────
+    const prodsExistente = await api(
+      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nr)}&select=*,comenzi(id,nr_comanda,cod_comanda_unic,furnizor,clienti(nume))`
+    );
+    prodsExistente.forEach(p => {
+      if(!seenIds.has(p.id)) {
+        seenIds.add(p.id);
+        if(p.comenzi) orderMap[p.comenzi.id] = p.comenzi;
+        allProds.push({ ...p, _sursa: 'factura' });
+      }
+    });
 
-    let prods = [];
-    if(orderIds.length > 0) {
-      const chunks = [];
-      for(let i=0; i<orderIds.length; i+=20) chunks.push(orderIds.slice(i,i+20));
-      for(const chunk of chunks) {
-        // Arată TOATE produsele (nu doar comandat) - inclusiv cele deja ajunse/preluate
-        const p = await api(`produse_comandate?comanda_id=in.(${chunk.join(',')})&select=*`);
-        prods.push(...p);
+    // ── Sursa 2: produse din comanda cu cod unic selectat ─────────
+    if(codUnic) {
+      const comenziMatch = await api(
+        `comenzi?cod_comanda_unic=eq.${encodeURIComponent(codUnic)}&select=id,nr_comanda,cod_comanda_unic,furnizor,clienti(nume)`
+      );
+      comenziMatch.forEach(o => { orderMap[o.id] = o; });
+      const cmdIds = comenziMatch.map(o=>o.id);
+      if(cmdIds.length > 0) {
+        const p2 = await api(
+          `produse_comandate?comanda_id=in.(${cmdIds.join(',')})&select=*`
+        );
+        p2.forEach(p => {
+          if(!seenIds.has(p.id)) {
+            seenIds.add(p.id);
+            allProds.push({ ...p, _sursa: 'comanda' });
+          }
+        });
       }
     }
 
-    // Mapare orderId → order info
-    const orderMap = {};
-    orders.forEach(o => orderMap[o.id] = o);
+    // ── Dacă nu avem nicio sursă și există furnizor → fallback comenzi furnizor
+    if(allProds.length === 0 && furnizor) {
+      const comenziFurn = await api(
+        `comenzi?furnizor=eq.${encodeURIComponent(furnizor)}&status_general=in.(in_lucru,finalizata)&select=id,nr_comanda,cod_comanda_unic,furnizor,clienti(nume)`
+      );
+      comenziFurn.forEach(o => { orderMap[o.id] = o; });
+      const ids = comenziFurn.map(o=>o.id);
+      if(ids.length > 0) {
+        const chunks = [];
+        for(let i=0;i<ids.length;i+=20) chunks.push(ids.slice(i,i+20));
+        for(const chunk of chunks) {
+          const p = await api(`produse_comandate?comanda_id=in.(${chunk.join(',')})&status_produs=eq.comandat&select=*`);
+          p.forEach(x => { if(!seenIds.has(x.id)){ seenIds.add(x.id); allProds.push(x); } });
+        }
+      }
+    }
 
     // Render tabel pas 2
-    renderInvoiceProducts(prods, orderMap, nr, furnizor);
+    renderInvoiceProducts(allProds, orderMap, nr, furnizor);
 
     document.getElementById('invoice-step1').style.display = 'none';
     document.getElementById('invoice-step2').style.display = 'block';
@@ -3265,7 +3294,8 @@ function renderInvoiceProducts(prods, orderMap, nrFactura, furnizor) {
   }
 
   prods.forEach((p, i) => {
-    const ord = orderMap[p.comanda_id] || {};
+    // Support both direct comanda_id lookup and embedded comenzi from join
+    const ord = orderMap[p.comanda_id] || p.comenzi || {};
     const tr  = document.createElement('tr');
     tr.dataset.idx = i;
     tr.innerHTML = `
