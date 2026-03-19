@@ -864,19 +864,17 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
 
   <!-- Tab 2: PDF-uri urcate -->
   <div id="ftab-content-pdf-list" style="display:none">
-    <!-- Upload call to action -->
-    <div style="background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(20,184,166,.04));border:2px dashed rgba(13,148,136,.3);border-radius:var(--r-lg);padding:24px;text-align:center;margin-bottom:20px">
-      <div style="font-size:36px;margin-bottom:8px">🧾</div>
-      <div style="font-weight:700;font-size:15px;margin-bottom:4px">Încarcă factură furnizor</div>
-      <div style="color:var(--muted);font-size:13px;margin-bottom:16px">Autentificare Google → alege PDF → se salvează în Drive și în sistem</div>
-      <button class="btn btn-primary" onclick="startUploadNewPdf()" style="font-size:14px;padding:10px 24px">
-        📤 Încarcă factură PDF
-      </button>
-    </div>
-
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="font-size:13px;font-weight:600" id="pdf-list-count">0 facturi</div>
-      <button class="btn btn-secondary btn-sm" onclick="renderPdfList()">↻ Reîncarcă</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="renderPdfList()">↻</button>
+        <button class="btn btn-secondary" onclick="openAddFacturaModal()">
+          📎 Adaugă link Drive
+        </button>
+        <button class="btn btn-primary" onclick="startUploadNewPdf()">
+          📤 Upload PDF
+        </button>
+      </div>
     </div>
 
     <div class="tbl-wrap">
@@ -1268,6 +1266,43 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-retur')">Anulează</button>
       <button class="btn btn-danger" onclick="saveRetur()">↩️ Confirmă retur</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: ADAUGĂ FACTURĂ ════ -->
+<div class="modal-overlay" id="modal-add-factura">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head">
+      <h3>🧾 Adaugă factură</h3>
+      <button class="icon-btn" onclick="closeModal('modal-add-factura')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="field">
+          <label>Număr factură *</label>
+          <input id="af-nr" placeholder="Ex: RO8726005676"/>
+        </div>
+        <div class="field">
+          <label>Furnizor</label>
+          <input id="af-furnizor" placeholder="Ex: Intercars"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Link Google Drive (opțional)</label>
+        <input id="af-link" placeholder="Lipește link-ul de share din Drive..."/>
+        <small style="color:var(--muted);font-size:11px">
+          Drive → Click dreapta pe PDF → Share → Anyone with link → Copy link
+        </small>
+      </div>
+      <div style="background:var(--s2);border-radius:var(--r-md);padding:12px;font-size:12px;color:var(--muted)">
+        💡 Sau lasă link-ul gol și adaugă-l mai târziu din workspace-ul facturii.
+        Poți urca și direct cu butonul <strong>📤 Upload PDF</strong>.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-factura')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveAddFactura()">💾 Salvează</button>
     </div>
   </div>
 </div>
@@ -5388,7 +5423,14 @@ async function showFacturiTab(tab) {
 }
 
 async function renderPdfList() {
-  await loadFacturiDb();
+  document.getElementById('pdf-list-count').textContent = '⏳ Se încarcă...';
+  // Always fetch fresh from Supabase
+  try {
+    _facturiDb = await api('facturi?select=*&order=creat_la.desc');
+  } catch(e) {
+    document.getElementById('pdf-list-count').textContent = '❌ Eroare: ' + e.message;
+    return;
+  }
   const facturi = _facturiDb;
   document.getElementById('pdf-list-count').textContent = `${facturi.length} factur${facturi.length !== 1 ? 'i' : 'ă'}`;
 
@@ -5630,6 +5672,44 @@ async function updateFacturaStatus() {
     await upsertFactura(nr, { status });
     toast('Status actualizat.','success');
     renderPdfList();
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// ADAUGĂ FACTURĂ MANUAL (link Drive sau fără PDF)
+// ════════════════════════════════════════════════════════════
+function openAddFacturaModal() {
+  document.getElementById('af-nr').value = '';
+  document.getElementById('af-furnizor').value = '';
+  document.getElementById('af-link').value = '';
+  setTimeout(()=>document.getElementById('af-nr')?.focus(), 100);
+  openModal('modal-add-factura');
+  // Pre-fill furnizor din filtrul activ dacă există
+  const filt = document.getElementById('f-factura-furnizor')?.value;
+  if(filt) document.getElementById('af-furnizor').value = filt;
+}
+
+async function saveAddFactura() {
+  const nr      = document.getElementById('af-nr').value.trim();
+  const furnizor= document.getElementById('af-furnizor').value.trim();
+  const link    = document.getElementById('af-link').value.trim();
+
+  if(!nr) { toast('Numărul facturii este obligatoriu!','warn'); return; }
+
+  const pdfUrl = link ? convertDriveUrl(link) : null;
+
+  try {
+    await upsertFactura(nr, {
+      furnizor:     furnizor || null,
+      pdf_url:      pdfUrl,
+      pdf_filename: pdfUrl ? 'Link Drive' : null,
+      status:       'nou',
+    });
+    toast(`✅ Factura ${nr} adăugată!`, 'success');
+    closeModal('modal-add-factura');
+    await renderPdfList();
+    // Deschide workspace dacă are PDF
+    if(pdfUrl) openFacturaWorkspace(nr);
   } catch(e) { toast('Eroare: '+e.message,'error'); }
 }
 
