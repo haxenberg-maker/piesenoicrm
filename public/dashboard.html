@@ -1928,7 +1928,11 @@ function renderOrdersTable(orders) {
           <option value="anulata"    ${o.status_general==='anulata'   ?'selected':''}>❌ Anulată</option>
         </select>
       </td>
-      <td style="font-size:11px;color:var(--muted)">${escHtml(o.agent_vanzari||'—')}</td>
+      <td style="font-size:11px;color:var(--muted)">${escHtml(
+        o.agent_vanzari
+          ? (o.agent_vanzari.includes('@') ? o.agent_vanzari.split('@')[0] : o.agent_vanzari)
+          : '—'
+      )}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="icon-btn" onclick="openAddPlata('${o.id}',event)" title="Adaugă plată" style="color:var(--green)">💳</button>
         <button class="icon-btn" onclick="openEditOrder('${o.id}')" title="Editează">✏️</button>
@@ -2992,6 +2996,18 @@ async function loadInvQuickProducts(orderId, codUnic) {
 
     const nrFactura = document.getElementById('inv-nr').value.trim();
 
+    // Adaugă și produsele care au deja acest număr de factură (din alte comenzi)
+    let allFacturaProds = [...prods];
+    if(nrFactura) {
+      try {
+        const existente = await api(
+          `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&comanda_id=neq.${orderId}&select=*`
+        );
+        existente.forEach(p => { p._din_alta_comanda = true; });
+        allFacturaProds = [...allFacturaProds, ...existente];
+      } catch(e) { /* silent */ }
+    }
+
     prods.forEach(p => {
       const eInFactura = p.cod_factura_furnizor === nrFactura && nrFactura;
       const tr = document.createElement('tr');
@@ -3051,8 +3067,13 @@ async function preiaUnulInFactura(prodId, btn) {
   // Salvează și SKU-ul dacă e completat
   const row    = btn.closest('tr');
   const skuVal = row.querySelector('.inv-sku-input')?.value?.trim();
-  const patch  = { cod_factura_furnizor: nrFactura, status_produs: 'ajuns', data_sosire: new Date().toISOString() };
+  const patch  = {
+    cod_factura_furnizor: nrFactura,
+    status_produs: 'ajuns',
+    data_sosire: new Date().toISOString()
+  };
   if(skuVal) patch.sku = skuVal;
+  // status_produs=ajuns se setează indiferent dacă are sau nu SKU
 
   try {
     await api(`produse_comandate?id=eq.${prodId}`, { method:'PATCH', body:JSON.stringify(patch) });
@@ -4707,13 +4728,59 @@ function updateBadgeRetururi(count) {
 // ════════════════════════════════════════════════════════════
 // PLATĂ BADGE + AUTO-ACHITAT
 // ════════════════════════════════════════════════════════════
-function plataBadge(o) {
-  if(isAchitat(o)) return '<span style="color:var(--green);font-weight:600;font-size:12px">✅ Achitat</span>';
-  const rest = calcRest(o);
-  const toatePredate = (+o.produse_predate||0) === (+o.nr_produse||0) && (+o.nr_produse||0) > 0;
+// ─── STATUS AUTO COMANDĂ ─────────────────────────────────────
+// Logică:
+// Neachitat  = predate dar rest > 0
+// Achitat    = isAchitat (integral sau rest=0)
+// Finalizata = toate predate + achitat
+// Predate    = toate predate, poate neachitat
+// Ajunse     = toate ajunse (nici una comandat)
+// Ajunse partial = unele ajunse, altele comandate
+// Comandat   = nicio piesă ajunsă încă
+
+function computeOrderStatus(o) {
+  const total    = +o.nr_produse    || 0;
+  const cmd      = +o.produse_in_asteptare || 0;
+  const ajunse   = +o.produse_ajunse  || 0;
+  const predate  = +o.produse_predate  || 0;
+  const returnate= +o.produse_returnate|| 0;
+  const active   = total - returnate; // excludem returnatele
+  const achitat  = isAchitat(o);
+  const rest     = calcRest(o);
+
+  if(active === 0) return { label:'—', color:'var(--muted)', icon:'' };
+
+  const toateAjunse  = (ajunse + predate) >= active && active > 0;
+  const toatePredate = predate >= active && active > 0;
+
+  if(toatePredate && achitat)
+    return { label:'Finalizată', color:'var(--green)',  icon:'✅' };
   if(toatePredate && rest > 0)
-    return `<span style="color:var(--red);font-weight:700;font-size:12px">⚠️ Restant ${fmtRON(rest)} RON</span>`;
-  return `<span style="color:var(--yellow);font-size:12px">⏳ Avans ${fmtRON(o.avans_achitat)} RON</span>`;
+    return { label:'Neachitată', color:'var(--red)',    icon:'⚠️' };
+  if(toateAjunse)
+    return { label:'Ajunse',     color:'var(--accent)', icon:'🏠' };
+  if(ajunse > 0 && cmd > 0)
+    return { label:`Ajunse ${ajunse}/${active}`, color:'var(--yellow)', icon:'🏠' };
+  if(ajunse === 0 && predate === 0)
+    return { label:'Comandat',   color:'var(--muted)',  icon:'📦' };
+  return { label:'În lucru',    color:'var(--blue)',   icon:'🔄' };
+}
+
+function statusBadge(o) {
+  const s = computeOrderStatus(o);
+  return `<span style="color:${s.color};font-weight:600;font-size:12px;white-space:nowrap">${s.icon} ${s.label}</span>`;
+}
+
+function plataBadge(o) {
+  const achitat = isAchitat(o);
+  const rest    = calcRest(o);
+  const avans   = +o.avans_achitat || 0;
+
+  if(achitat)
+    return '<span style="color:var(--green);font-weight:600;font-size:12px">✅ Achitat</span>';
+  if(avans === 0)
+    return '<span style="color:var(--red);font-weight:600;font-size:12px">⛔ Neachitat</span>';
+  return `<span style="color:var(--yellow);font-size:12px">⏳ Avans ${fmtRON(avans)} RON</span>`;
 }
 
 async function checkAndMarkAchitat(orderId) {
