@@ -864,11 +864,19 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
 
   <!-- Tab 2: PDF-uri urcate -->
   <div id="ftab-content-pdf-list" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:13px;color:var(--muted)" id="pdf-list-count">0 fișiere</div>
-      <button class="btn btn-primary" onclick="startUploadNewPdf()">
-        📤 Upload factură PDF nouă
+    <!-- Upload call to action -->
+    <div style="background:linear-gradient(135deg,rgba(13,148,136,.08),rgba(20,184,166,.04));border:2px dashed rgba(13,148,136,.3);border-radius:var(--r-lg);padding:24px;text-align:center;margin-bottom:20px">
+      <div style="font-size:36px;margin-bottom:8px">🧾</div>
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px">Încarcă factură furnizor</div>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:16px">Autentificare Google → alege PDF → se salvează în Drive și în sistem</div>
+      <button class="btn btn-primary" onclick="startUploadNewPdf()" style="font-size:14px;padding:10px 24px">
+        📤 Încarcă factură PDF
       </button>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:600" id="pdf-list-count">0 facturi</div>
+      <button class="btn btn-secondary btn-sm" onclick="renderPdfList()">↻ Reîncarcă</button>
     </div>
 
     <div class="tbl-wrap">
@@ -1777,7 +1785,7 @@ function navigate(page) {
   if (page==='produse') loadAllProducts();
   if (page==='loguri')   loadLogs();
   if (page==='utilizatori') loadUsers();
-  if (page==='facturi')  loadFacturi();
+  if (page==='facturi') { loadFacturi(); showFacturiTab('produse'); }
   if (page==='predare')  loadPredare();
   if (page==='retururi') loadRetururi();
 }
@@ -5340,12 +5348,22 @@ async function uploadFacturaPdf(nrFactura, inputEl) {
   try {
     toast('⏳ Se urcă PDF-ul în Google Drive...', 'info');
     const previewUrl = await gdriveUpload(nrFactura, file);
-    await setFacturaPdfUrl(nrFactura, previewUrl, file.name);
-    // Marchează ca "nou" în sistem
-    await upsertFactura(nrFactura, { status: 'nou' });
+    await upsertFactura(nrFactura, {
+      pdf_url:      previewUrl,
+      pdf_filename: file.name,
+      status:       getFacturaByNr(nrFactura)?.status || 'nou'
+    });
     toast(`✅ PDF urcat! Factura ${nrFactura} e în sistem.`, 'success');
-    showFacturiTab('pdf-list');
-    renderPdfList();
+
+    // Dacă workspace-ul e deschis, actualizează iframe
+    const ws = document.getElementById('modal-factura-workspace');
+    if(ws?.classList.contains('open')) {
+      document.getElementById('fw-no-pdf').style.display = 'none';
+      document.getElementById('fw-iframe').style.display = 'block';
+      document.getElementById('fw-iframe').src = previewUrl;
+    }
+
+    await showFacturiTab('pdf-list');
     loadFacturi();
   } catch(e) {
     toast('Eroare upload: ' + e.message, 'error');
@@ -5355,17 +5373,18 @@ async function uploadFacturaPdf(nrFactura, inputEl) {
 // ════════════════════════════════════════════════════════════
 // FACTURI — TAB-URI + PDF LIST
 // ════════════════════════════════════════════════════════════
-function showFacturiTab(tab) {
+async function showFacturiTab(tab) {
   // Tab buttons
   document.querySelectorAll('.ftab').forEach(b => {
     const isActive = b.id === `ftab-${tab}`;
     b.style.borderBottomColor = isActive ? 'var(--accent)' : 'transparent';
     b.style.color = isActive ? 'var(--accent)' : 'var(--muted)';
+    b.classList.toggle('active', isActive);
   });
   // Content
   document.getElementById('ftab-content-produse').style.display   = tab === 'produse'  ? 'block' : 'none';
   document.getElementById('ftab-content-pdf-list').style.display  = tab === 'pdf-list' ? 'block' : 'none';
-  if(tab === 'pdf-list') renderPdfList();
+  if(tab === 'pdf-list') await renderPdfList();
 }
 
 async function renderPdfList() {
