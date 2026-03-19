@@ -886,10 +886,11 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
       </thead>
       <tbody id="facturi-body"></tbody>
     </table>
+  </div><!-- /tbl-wrap -->
   </div><!-- /ftab-content-produse -->
 
   <!-- Tab 2: PDF-uri urcate -->
-  <div id="ftab-content-pdf-list" style="display:none">
+  <div id="ftab-content-pdf-list" style="display:none;min-height:200px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="font-size:13px;font-weight:600" id="pdf-list-count">0 facturi</div>
       <div style="display:flex;gap:8px">
@@ -903,9 +904,9 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
       </div>
     </div>
 
-    <div class="tbl-wrap">
+    <div class="tbl-wrap" style="min-height:100px">
       <div id="pdf-list-loading" style="display:none"><span class="spinner"></span>Se încarcă...</div>
-      <table id="pdf-list-table">
+      <table id="pdf-list-table" style="width:100%;min-height:50px">
         <thead>
           <tr>
             <th>Nr. Factură</th>
@@ -5522,8 +5523,11 @@ async function showFacturiTab(tab) {
     b.classList.toggle('active', isActive);
   });
   // Content
-  document.getElementById('ftab-content-produse').style.display   = tab === 'produse'  ? 'block' : 'none';
-  document.getElementById('ftab-content-pdf-list').style.display  = tab === 'pdf-list' ? 'block' : 'none';
+  const prodEl   = document.getElementById('ftab-content-produse');
+  const pdfEl    = document.getElementById('ftab-content-pdf-list');
+  if(prodEl) prodEl.style.display   = tab === 'produse'  ? 'block' : 'none';
+  if(pdfEl)  pdfEl.style.display    = tab === 'pdf-list' ? 'block' : 'none';
+  console.log('Tab switched to:', tab, 'pdf-list display:', pdfEl?.style.display);
   if(tab === 'pdf-list') await renderPdfList();
 }
 
