@@ -5823,46 +5823,211 @@ async function loadWorkspaceProducts(nrFactura) {
 }
 
 async function openAllocateModal(nrFactura) {
-  const codUnic = prompt('Cod unic comandă (ex: INT-0004-1803):');
-  if(!codUnic?.trim()) return;
+  // Creează modal dinamic
+  let modal = document.getElementById('modal-allocate-prods');
+  if(!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-allocate-prods';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '800';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:580px">
+        <div class="modal-head">
+          <h3>🔗 Alocă produse la comandă</h3>
+          <button class="icon-btn" onclick="closeModal('modal-allocate-prods')">✕</button>
+        </div>
+        <div class="modal-body" style="gap:16px">
+          <div id="alloc-prods-info" style="background:var(--s2);border-radius:var(--r-md);padding:10px 14px;font-size:13px"></div>
 
-  try {
-    const comenzi = await api(`comenzi?cod_comanda_unic=eq.${encodeURIComponent(codUnic.trim())}&select=id,cod_comanda_unic`);
-    if(!comenzi?.length) { toast(`Comanda ${codUnic} nu există!`, 'error'); return; }
-    const comandaId = comenzi[0].id;
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" style="flex:1" onclick="allocAction('existing')">
+              📋 Adaugă la comandă existentă
+            </button>
+            <button class="btn btn-secondary" style="flex:1" onclick="allocAction('new')">
+              ＋ Creează comandă nouă
+            </button>
+          </div>
 
-    const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
-    const prods = nealocate[nrFactura] || [];
-    if(!prods.length) { toast('Nu sunt produse de alocat!', 'warn'); return; }
+          <!-- Selectare comandă existentă -->
+          <div id="alloc-existing-section" style="display:none">
+            <label style="font-size:12px;color:var(--muted);font-weight:600">CAUTĂ COMANDĂ</label>
+            <input id="alloc-search" placeholder="Client sau cod unic..." 
+              style="width:100%;margin-top:6px"
+              oninput="filterAllocOrders(this.value)"/>
+            <div id="alloc-orders-list" style="max-height:260px;overflow-y:auto;margin-top:8px;display:flex;flex-direction:column;gap:4px"></div>
+          </div>
 
-    let saved = 0;
-    for(const p of prods) {
-      try {
-        await api('produse_comandate', {
-          method: 'POST',
-          body: JSON.stringify({
-            comanda_id:           comandaId,
-            cod_aftermarket:      p.cod_aftermarket,
-            descriere:            p.descriere,
-            cantitate:            p.cantitate,
-            pret_achizitie:       p.pret_achizitie,
-            cod_factura_furnizor: nrFactura,
-            status_produs:        'ajuns',
-          })
-        });
-        saved++;
-      } catch(e) { console.warn('Alloc error:', e.message); }
-    }
+          <!-- Comandă nouă -->
+          <div id="alloc-new-section" style="display:none">
+            <div class="grid2">
+              <div class="field">
+                <label>Client *</label>
+                <select id="alloc-client"></select>
+              </div>
+              <div class="field">
+                <label>Tip plată</label>
+                <select id="alloc-plata">
+                  <option value="avans">Avans</option>
+                  <option value="achitat_integral">Achitat integral</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>Avans (RON)</label>
+              <input type="number" id="alloc-avans" value="0" min="0"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot" id="alloc-foot" style="display:none">
+          <button class="btn btn-ghost" onclick="closeModal('modal-allocate-prods')">Anulează</button>
+          <button class="btn btn-primary" id="alloc-confirm-btn" onclick="confirmAllocate()">✅ Confirmă alocarea</button>
+        </div>
+      </div>
+    `;
+    modal.addEventListener('click', e => { if(e.target===modal) closeModal('modal-allocate-prods'); });
+    document.body.appendChild(modal);
+  }
 
-    // Șterge din localStorage după alocare
-    delete nealocate[nrFactura];
-    localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
+  window._allocNrFactura = nrFactura;
+  window._allocSelectedOrderId = null;
+  window._allocMode = null;
 
-    await upsertFactura(nrFactura, { status: 'in_procesare' });
-    toast(`✅ ${saved} produse alocate la ${codUnic}!`, 'success');
-    await loadWorkspaceProducts(nrFactura);
-    loadOrders();
-  } catch(e) { toast('Eroare: ' + e.message, 'error'); }
+  const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
+  const prods = nealocate[nrFactura] || [];
+  document.getElementById('alloc-prods-info').innerHTML =
+    `<strong>${prods.length}</strong> produse din factura <strong>${escHtml(nrFactura)}</strong> de alocat`;
+
+  document.getElementById('alloc-existing-section').style.display = 'none';
+  document.getElementById('alloc-new-section').style.display = 'none';
+  document.getElementById('alloc-foot').style.display = 'none';
+
+  openModal('modal-allocate-prods');
+}
+
+async function allocAction(mode) {
+  window._allocMode = mode;
+  document.getElementById('alloc-existing-section').style.display = mode === 'existing' ? 'block' : 'none';
+  document.getElementById('alloc-new-section').style.display      = mode === 'new'      ? 'block' : 'none';
+  document.getElementById('alloc-foot').style.display = 'flex';
+
+  if(mode === 'existing') {
+    await renderAllocOrders(allOrders || []);
+  } else {
+    // Populează select clienți
+    const sel = document.getElementById('alloc-client');
+    sel.innerHTML = '<option value="">— selectează —</option>' +
+      (allClients||[]).map(c => `<option value="${c.id}">${escHtml(c.nume)}</option>`).join('');
+  }
+}
+
+function renderAllocOrders(orders) {
+  const listEl = document.getElementById('alloc-orders-list');
+  const q = document.getElementById('alloc-search')?.value?.toLowerCase() || '';
+  const filtered = orders.filter(o =>
+    o.status_general === 'in_lucru' &&
+    (!q || o.client_nume?.toLowerCase().includes(q) || o.cod_comanda_unic?.toLowerCase().includes(q))
+  ).slice(0, 30);
+
+  listEl.innerHTML = '';
+  if(!filtered.length) {
+    listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px">Nicio comandă activă găsită.</div>';
+    return;
+  }
+
+  filtered.forEach(o => {
+    const div = document.createElement('div');
+    div.style.cssText = `padding:10px 14px;border-radius:var(--r-md);cursor:pointer;border:2px solid var(--border);
+      background:var(--s1);transition:all .15s`;
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span style="font-weight:700;color:var(--accent);font-size:13px">${escHtml(o.cod_comanda_unic||fmtNr(o.nr_comanda))}</span>
+          <span style="color:var(--muted);font-size:12px;margin-left:8px">${escHtml(o.client_nume||'')}</span>
+        </div>
+        <span style="font-size:11px;color:var(--muted)">${fmtDate(o.data_creare)}</span>
+      </div>`;
+    div.addEventListener('click', () => {
+      document.querySelectorAll('#alloc-orders-list > div').forEach(d =>
+        d.style.borderColor = 'var(--border)');
+      div.style.borderColor = 'var(--accent)';
+      window._allocSelectedOrderId = o.id;
+      window._allocSelectedOrderCod = o.cod_comanda_unic;
+    });
+    listEl.appendChild(div);
+  });
+}
+
+function filterAllocOrders(q) {
+  renderAllocOrders(allOrders || []);
+}
+
+async function confirmAllocate() {
+  const nrFactura = window._allocNrFactura;
+  const mode      = window._allocMode;
+  const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
+  const prods     = nealocate[nrFactura] || [];
+
+  if(!prods.length) { toast('Nu sunt produse de alocat!', 'warn'); return; }
+
+  let comandaId = null;
+
+  if(mode === 'existing') {
+    comandaId = window._allocSelectedOrderId;
+    if(!comandaId) { toast('Selectează o comandă din listă!', 'warn'); return; }
+  } else {
+    // Creează comandă nouă
+    const clientId = document.getElementById('alloc-client').value;
+    if(!clientId) { toast('Selectează un client!', 'warn'); return; }
+    const tipPlata = document.getElementById('alloc-plata').value;
+    const avans    = parseFloat(document.getElementById('alloc-avans').value) || 0;
+    const total    = prods.reduce((s, p) => s + (p.pret_achizitie||0) * (p.cantitate||1), 0);
+
+    try {
+      const agentName = window._currentAgentFirstName || null;
+      const [cmd] = await api('comenzi', {
+        method: 'POST',
+        body: JSON.stringify({
+          client_id:     clientId,
+          tip_plata:     tipPlata,
+          total_plata:   parseFloat(total.toFixed(2)),
+          avans_achitat: avans,
+          furnizor:      getFacturaByNr(nrFactura)?.furnizor || null,
+          agent_vanzari: agentName,
+        })
+      });
+      comandaId = cmd.id;
+    } catch(e) { toast('Eroare creare comandă: ' + e.message, 'error'); return; }
+  }
+
+  // Alocă produsele
+  let saved = 0;
+  for(const p of prods) {
+    try {
+      await api('produse_comandate', {
+        method: 'POST',
+        body: JSON.stringify({
+          comanda_id:           comandaId,
+          cod_aftermarket:      p.cod_aftermarket,
+          descriere:            p.descriere,
+          cantitate:            p.cantitate,
+          pret_achizitie:       p.pret_achizitie,
+          cod_factura_furnizor: nrFactura,
+          status_produs:        'ajuns',
+        })
+      });
+      saved++;
+    } catch(e) { console.warn('Alloc error:', e.message); }
+  }
+
+  // Șterge din localStorage
+  delete nealocate[nrFactura];
+  localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
+
+  await upsertFactura(nrFactura, { status: 'in_procesare' });
+  toast(`✅ ${saved} produse alocate!`, 'success');
+  closeModal('modal-allocate-prods');
+  await loadWorkspaceProducts(nrFactura);
+  loadOrders();
 }
 
 
@@ -6244,9 +6409,9 @@ async function saveAnalyzeResults() {
     saved++;
   }
 
-  // Salvează în localStorage ca produse_neaocate (pending)
+  // Salvează în localStorage — ÎNLOCUIEȘTE (nu concat) ca să evităm duplicate
   const existing = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
-  existing[nrFactura] = (existing[nrFactura] || []).concat(produse);
+  existing[nrFactura] = produse; // înlocuiește complet
   localStorage.setItem('crm_produse_nealocate', JSON.stringify(existing));
 
   await upsertFactura(nrFactura, { status: 'in_procesare' });
