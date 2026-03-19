@@ -5840,11 +5840,11 @@ async function openAllocateModal(nrFactura) {
           <div id="alloc-prods-info" style="background:var(--s2);border-radius:var(--r-md);padding:10px 14px;font-size:13px"></div>
 
           <div style="display:flex;gap:10px">
-            <button class="btn btn-primary" style="flex:1" onclick="allocAction('existing')">
-              📋 Adaugă la comandă existentă
+            <button class="btn btn-primary" style="flex:1" id="alloc-btn-existing" onclick="allocAction('existing')">
+              📋 Comandă existentă
             </button>
-            <button class="btn btn-secondary" style="flex:1" onclick="allocAction('new')">
-              ＋ Creează comandă nouă
+            <button class="btn btn-secondary" style="flex:1" id="alloc-btn-new" onclick="allocAction('new')">
+              ＋ Comandă nouă
             </button>
           </div>
 
@@ -5862,7 +5862,10 @@ async function openAllocateModal(nrFactura) {
             <div class="grid2">
               <div class="field">
                 <label>Client *</label>
-                <select id="alloc-client"></select>
+                <div style="display:flex;gap:6px">
+                  <select id="alloc-client" style="flex:1"></select>
+                  <button class="btn btn-secondary btn-sm" onclick="openQuickAddClientAlloc()" type="button" title="Client nou">＋</button>
+                </div>
               </div>
               <div class="field">
                 <label>Tip plată</label>
@@ -5906,17 +5909,38 @@ async function openAllocateModal(nrFactura) {
 
 async function allocAction(mode) {
   window._allocMode = mode;
-  document.getElementById('alloc-existing-section').style.display = mode === 'existing' ? 'block' : 'none';
-  document.getElementById('alloc-new-section').style.display      = mode === 'new'      ? 'block' : 'none';
-  document.getElementById('alloc-foot').style.display = 'flex';
+
+  // Deactivate both sections first
+  document.getElementById('alloc-existing-section').style.display = 'none';
+  document.getElementById('alloc-new-section').style.display      = 'none';
+  document.getElementById('alloc-foot').style.display             = 'flex';
+
+  // Highlight active button
+  document.querySelectorAll('#modal-allocate-prods .btn').forEach(b => b.style.opacity = '0.6');
+  const activeBtn = document.querySelector(`#modal-allocate-prods .btn[onclick="allocAction('${mode}')"]`);
+  if(activeBtn) activeBtn.style.opacity = '1';
 
   if(mode === 'existing') {
+    document.getElementById('alloc-existing-section').style.display = 'block';
+    // Fetch fresh orders if needed
+    if(!allOrders?.length) await loadOrders();
     await renderAllocOrders(allOrders || []);
+
   } else {
-    // Populează select clienți
+    document.getElementById('alloc-new-section').style.display = 'block';
+
+    // Fetch clienți dacă nu sunt în memorie
+    let clients = allClients || [];
+    if(!clients.length) {
+      try {
+        clients = await api('clienti?select=id,nume&order=nume');
+        allClients = clients;
+      } catch(e) { console.warn('clients fetch:', e.message); }
+    }
+
     const sel = document.getElementById('alloc-client');
-    sel.innerHTML = '<option value="">— selectează —</option>' +
-      (allClients||[]).map(c => `<option value="${c.id}">${escHtml(c.nume)}</option>`).join('');
+    sel.innerHTML = '<option value="">— selectează client —</option>' +
+      clients.map(c => `<option value="${c.id}">${escHtml(c.nume)}</option>`).join('');
   }
 }
 
@@ -5959,6 +5983,29 @@ function renderAllocOrders(orders) {
 
 function filterAllocOrders(q) {
   renderAllocOrders(allOrders || []);
+}
+
+async function openQuickAddClientAlloc() {
+  const nume = prompt('Nume client nou:');
+  if(!nume?.trim()) return;
+  const telefon = prompt('Telefon (opțional):') || '';
+  try {
+    const [client] = await api('clienti', {
+      method: 'POST',
+      body: JSON.stringify({ nume: nume.trim(), telefon: telefon.trim()||null })
+    });
+    if(!allClients) allClients = [];
+    allClients.push(client);
+    const sel = document.getElementById('alloc-client');
+    if(sel) {
+      const opt = document.createElement('option');
+      opt.value = client.id;
+      opt.textContent = escHtml(client.nume);
+      opt.selected = true;
+      sel.appendChild(opt);
+    }
+    toast(`✅ Client "${client.nume}" adăugat!`, 'success');
+  } catch(e) { toast('Eroare: '+e.message, 'error'); }
 }
 
 async function confirmAllocate() {
