@@ -4,6 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>CRM Piese Auto</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -1539,6 +1541,9 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
 // CONFIG
 // ════════════════════════════════════════════════════════════
 const SB       = 'https://ddieqobpxejocfnbmfck.supabase.co';
+const GDRIVE_CLIENT_ID = '1015751927121-5dsu2gl9s8pojdaki9sub28dcehibg9j.apps.googleusercontent.com';
+const GDRIVE_FOLDER_ID = '19WKvi4sa2BpbHA5QrEylVWptouGVQwrJ';
+const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
 
 // ════ AUTH STATE ════
@@ -4398,9 +4403,15 @@ function renderFacturi(prods) {
       </td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         ${getFacturaPdfUrl(f.nr)
-          ? `<button class="btn btn-secondary btn-xs" onclick="previewFacturaPdf('${escHtml(f.nr)}')">👁 Preview</button>
+          ? `<button class="btn btn-primary btn-xs" onclick="previewFacturaPdf('${escHtml(f.nr)}')">👁 Preview</button>
+             <label class="btn btn-secondary btn-xs" style="cursor:pointer" title="Înlocuiește PDF">
+               🔄<input type="file" accept=".pdf" style="display:none" onchange="uploadFacturaPdf('${escHtml(f.nr)}',this)"/>
+             </label>
              <button class="icon-btn" style="color:var(--red);font-size:12px" onclick="removeFacturaPdf('${escHtml(f.nr)}')">✕</button>`
-          : `<button class="btn btn-secondary btn-xs" onclick="promptFacturaPdfUrl('${escHtml(f.nr)}')">📎 Adaugă PDF</button>`
+          : `<label class="btn btn-secondary btn-xs" style="cursor:pointer" data-upload-nr="${escHtml(f.nr)}">
+               📤 Upload PDF
+               <input type="file" accept=".pdf" style="display:none" onchange="uploadFacturaPdf('${escHtml(f.nr)}',this)"/>
+             </label>`
         }
       </td>
     `;
@@ -5095,27 +5106,45 @@ async function openQuickAddClient() {
 // ════════════════════════════════════════════════════════════
 // FACTURI PDF — Google Drive (stocat în localStorage)
 // ════════════════════════════════════════════════════════════
-const PDF_STORAGE_KEY = 'crm_facturi_pdf';
+// PDF URLs stocate în Supabase pentru sincronizare între utilizatori
+let _facturiPdfCache = {};
 
-function getFacturiPdfStore() {
-  try { return JSON.parse(localStorage.getItem(PDF_STORAGE_KEY) || '{}'); }
-  catch(e) { return {}; }
+async function loadFacturiPdfUrls() {
+  try {
+    const rows = await api('facturi_pdf?select=nr_factura,pdf_url');
+    _facturiPdfCache = {};
+    rows.forEach(r => { _facturiPdfCache[r.nr_factura] = r.pdf_url; });
+  } catch(e) {
+    // Tabelul poate să nu existe încă — fallback localStorage
+    try { _facturiPdfCache = JSON.parse(localStorage.getItem('crm_facturi_pdf')||'{}'); } catch(e2){}
+  }
 }
 
 function getFacturaPdfUrl(nrFactura) {
-  return getFacturiPdfStore()[nrFactura] || null;
+  return _facturiPdfCache[nrFactura] || null;
 }
 
-function setFacturaPdfUrl(nrFactura, url) {
-  const store = getFacturiPdfStore();
-  store[nrFactura] = url;
-  localStorage.setItem(PDF_STORAGE_KEY, JSON.stringify(store));
+async function setFacturaPdfUrl(nrFactura, url) {
+  _facturiPdfCache[nrFactura] = url;
+  // Sync localStorage ca backup
+  localStorage.setItem('crm_facturi_pdf', JSON.stringify(_facturiPdfCache));
+  // Sync Supabase
+  try {
+    await api('facturi_pdf', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ nr_factura: nrFactura, pdf_url: url })
+    });
+  } catch(e) { /* silent - tabelul poate lipsi */ }
 }
 
-function removeFacturaPdf(nrFactura) {
-  const store = getFacturiPdfStore();
-  delete store[nrFactura];
-  localStorage.setItem(PDF_STORAGE_KEY, JSON.stringify(store));
+async function removeFacturaPdf(nrFactura) {
+  delete _facturiPdfCache[nrFactura];
+  localStorage.setItem('crm_facturi_pdf', JSON.stringify(_facturiPdfCache));
+  try {
+    await api(`facturi_pdf?nr_factura=eq.${encodeURIComponent(nrFactura)}`,
+      { method: 'DELETE', headers: { 'Prefer': 'return=minimal' } });
+  } catch(e) {}
   toast('PDF eliminat.', 'info');
   loadFacturi();
 }
@@ -5163,6 +5192,89 @@ function previewFacturaPdf(nrFactura) {
   document.getElementById('pdf-fact-nr').textContent = nrFactura;
   document.getElementById('pdf-fact-iframe').src = url;
   openModal('modal-pdf-factura');
+}
+
+// ════════════════════════════════════════════════════════════
+// GOOGLE DRIVE — Upload & Preview PDF Facturi
+// ════════════════════════════════════════════════════════════
+let _gdriveToken   = null;
+let _gdriveLoaded  = false;
+
+async function gdriveGetToken() {
+  return new Promise((resolve, reject) => {
+    if(_gdriveToken) { resolve(_gdriveToken); return; }
+
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GDRIVE_CLIENT_ID,
+      scope:     GDRIVE_SCOPE,
+      callback:  (resp) => {
+        if(resp.error) { reject(new Error(resp.error)); return; }
+        _gdriveToken = resp.access_token;
+        // Expiră în ~1h, resetăm
+        setTimeout(() => { _gdriveToken = null; }, 3500 * 1000);
+        resolve(_gdriveToken);
+      },
+    });
+    client.requestAccessToken();
+  });
+}
+
+async function gdriveUpload(nrFactura, file) {
+  const token = await gdriveGetToken();
+
+  // Metadata fișier
+  const metadata = {
+    name:    `Factura_${nrFactura.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
+    parents: [GDRIVE_FOLDER_ID],
+    mimeType: 'application/pdf',
+    description: `Factură furnizor: ${nrFactura}`,
+  };
+
+  // Multipart upload
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', file);
+
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+    {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body:    form,
+    }
+  );
+  if(!res.ok) throw new Error(`Drive upload error: ${res.status}`);
+  const data = await res.json();
+
+  // Setează permisiune publică (anyone with link can view)
+  await fetch(`https://www.googleapis.com/drive/v3/files/${data.id}/permissions`, {
+    method:  'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ role: 'reader', type: 'anyone' }),
+  });
+
+  // Returnează URL preview
+  return `https://drive.google.com/file/d/${data.id}/preview`;
+}
+
+async function uploadFacturaPdf(nrFactura, inputEl) {
+  const file = inputEl?.files?.[0];
+  if(!file) return;
+  if(file.type !== 'application/pdf') { toast('Doar fișiere PDF!', 'warn'); return; }
+
+  const btn = document.querySelector(`[data-upload-nr="${CSS.escape(nrFactura)}"]`);
+  if(btn) { btn.disabled = true; btn.textContent = '⏳ Se urcă...'; }
+
+  try {
+    toast('⏳ Se urcă PDF-ul în Google Drive...', 'info');
+    const previewUrl = await gdriveUpload(nrFactura, file);
+    setFacturaPdfUrl(nrFactura, previewUrl);
+    toast(`✅ PDF urcat pentru factura ${nrFactura}!`, 'success');
+    loadFacturi();
+  } catch(e) {
+    toast('Eroare upload: ' + e.message, 'error');
+    if(btn) { btn.disabled = false; btn.textContent = '📤 Upload PDF'; }
+  }
 }
 
 // ════ INIT — verifică sesiune salvată ════
