@@ -1614,9 +1614,20 @@ async function showApp(email, userId, mustChangePass=false) {
   document.getElementById('login-page').classList.remove('visible');
   document.getElementById('app').style.display = 'flex';
   document.getElementById('topbar').style.display='flex';
-  document.getElementById('sidebar-user').textContent = email;
   currentUserEmail = email;
   if(userId) currentUserId = userId;
+  // Fetch name from profile
+  try {
+    const prof = await api(`user_profiles?id=eq.${userId || currentUserId}&select=name,role`);
+    const fullName = prof?.[0]?.name || '';
+    const firstName = fullName.trim().split(' ')[0] || fullName;
+    document.getElementById('sidebar-user').textContent = firstName || email;
+    // Store first name for agent_vanzari
+    window._currentAgentFirstName = firstName || email.split('@')[0];
+  } catch(e) {
+    document.getElementById('sidebar-user').textContent = email;
+    window._currentAgentFirstName = email.split('@')[0];
+  }
 
   // Adaugă badge rol în sidebar dacă nu există
   if(!document.getElementById('sidebar-role')) {
@@ -1920,10 +1931,10 @@ function renderOrdersTable(orders) {
       <td>${fmtRON(o.avans_achitat)}</td>
       <td class="fw-bold" style="color:${calcRest(o)>0?'var(--yellow)':'var(--green)'}">${fmtRON(calcRest(o))}</td>
       <td style="font-size:12px">${plataBadge(o)}</td>
-      <td style="white-space:nowrap">
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
         ${statusBadge(o)}
         <br>
-        <select class="status-sel" data-id="${o.id}" onchange="updateOrderStatus(this)" style="font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;background:var(--s2);cursor:pointer;margin-top:4px;padding:2px 6px">
+        <select class="status-sel" data-id="${o.id}" onchange="updateOrderStatus(this)" onclick="event.stopPropagation()" style="font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;background:var(--s2);cursor:pointer;margin-top:4px;padding:2px 6px">
           <option value="in_lucru"   ${o.status_general==='in_lucru'  ?'selected':''}>✏️ În lucru</option>
           <option value="finalizata" ${o.status_general==='finalizata'?'selected':''}>✏️ Finalizată</option>
           <option value="anulata"    ${o.status_general==='anulata'   ?'selected':''}>❌ Anulată</option>
@@ -2406,13 +2417,7 @@ async function saveOrder() {
 
   try {
     // Agent = prenumele userului curent din dashboard
-    // Fetch prenume din user_profiles dacă nu avem
-    let agentName = null;
-    try {
-      const prof = await api(`user_profiles?id=eq.${currentUserId}&select=name`);
-      const fullName = prof?.[0]?.name || '';
-      agentName = fullName.trim().split(' ')[0] || fullName || currentUserEmail?.split('@')[0] || null;
-    } catch(e) { agentName = currentUserEmail?.split('@')[0] || null; }
+    const agentName = window._currentAgentFirstName || currentUserEmail?.split('@')[0] || null;
 
     const [comanda] = await api('comenzi', { method:'POST', body:JSON.stringify({
       client_id:     clientId,
