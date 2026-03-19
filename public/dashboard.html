@@ -5912,6 +5912,19 @@ async function analyzeFacturaPdf(nrFactura, file) {
   }
 }
 
+function parseRoPrice(str) {
+  if(!str) return 0;
+  const s = str.trim();
+  // Format romanesc: 1.234,56 -> 1234.56
+  if(s.includes(',') && s.includes('.')) {
+    return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  }
+  // Doar virgula: 69,10 -> 69.10
+  if(s.includes(',')) return parseFloat(s.replace(',', '.'));
+  // Doar punct: 69.10 -> 69.10
+  return parseFloat(s);
+}
+
 function parseFacturaText(text, nrFactura) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const result = { nr_factura: nrFactura, furnizor: null, data: null, produse: [] };
