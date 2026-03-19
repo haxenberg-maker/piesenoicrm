@@ -3716,9 +3716,12 @@ function applyRoleUI() {
 // ════════════════════════════════════════════════════════════
 async function logAction(actiune, entitate, entitateId, detalii={}) {
   try {
-    await api('audit_log', {
+    const res = await fetch(`${SB}/rest/v1/audit_log`, {
       method: 'POST',
-      headers: { 'Prefer': 'return=minimal' },
+      headers: {
+        ...getHeaders({ 'Prefer': 'return=minimal' }),
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
         user_id:    currentUserId,
         user_email: currentUserEmail,
@@ -3729,6 +3732,8 @@ async function logAction(actiune, entitate, entitateId, detalii={}) {
         detalii,
       })
     });
+    // 201 sau 204 — nu parsăm JSON
+    if(!res.ok) console.warn('Log error status:', res.status);
   } catch(e) { console.warn('Log error:', e.message); }
 }
 
