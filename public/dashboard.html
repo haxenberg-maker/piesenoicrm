@@ -817,14 +817,31 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
 <div class="page" id="page-facturi">
   <div class="page-header">
     <div class="page-title">Facturi furnizori <small id="facturi-count"></small></div>
-    <button class="btn btn-primary" onclick="openInvoiceWizard()">＋ Procesează factură nouă</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="showFacturiTab('pdf-list')">📋 PDF-uri urcate</button>
+      <button class="btn btn-primary" onclick="openInvoiceWizard()">＋ Procesează factură</button>
+    </div>
   </div>
 
-  <div class="filters">
-    <input type="text" id="f-factura-nr" placeholder="🔍 Caută număr factură..."/>
-    <select id="f-factura-furnizor"><option value="">Toți furnizorii</option></select>
-    <button class="btn btn-secondary btn-sm" onclick="loadFacturi()">↻</button>
+  <!-- Sub-tabs: Produse / PDF-uri -->
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:18px">
+    <button class="ftab active" id="ftab-produse" onclick="showFacturiTab('produse')"
+      style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer;margin-bottom:-2px">
+      📦 Din produse
+    </button>
+    <button class="ftab" id="ftab-pdf-list" onclick="showFacturiTab('pdf-list')"
+      style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;margin-bottom:-2px">
+      🧾 PDF-uri urcate
+    </button>
   </div>
+
+  <!-- Tab 1: Din produse -->
+  <div id="ftab-content-produse">
+    <div class="filters">
+      <input type="text" id="f-factura-nr" placeholder="🔍 Caută număr factură..."/>
+      <select id="f-factura-furnizor"><option value="">Toți furnizorii</option></select>
+      <button class="btn btn-secondary btn-sm" onclick="loadFacturi()">↻</button>
+    </div>
 
   <div class="tbl-wrap">
     <div id="facturi-loading"><span class="spinner"></span>Se încarcă...</div>
@@ -843,7 +860,34 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
       </thead>
       <tbody id="facturi-body"></tbody>
     </table>
+  </div><!-- /ftab-content-produse -->
+
+  <!-- Tab 2: PDF-uri urcate -->
+  <div id="ftab-content-pdf-list" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--muted)" id="pdf-list-count">0 fișiere</div>
+      <button class="btn btn-primary" onclick="startUploadNewPdf()">
+        📤 Upload factură PDF nouă
+      </button>
+    </div>
+
+    <div class="tbl-wrap">
+      <div id="pdf-list-loading" style="display:none"><span class="spinner"></span>Se încarcă...</div>
+      <table id="pdf-list-table">
+        <thead>
+          <tr>
+            <th>Nr. Factură</th>
+            <th>Denumire fișier</th>
+            <th>Data upload</th>
+            <th>Linkuri produse</th>
+            <th>Acțiuni</th>
+          </tr>
+        </thead>
+        <tbody id="pdf-list-body"></tbody>
+      </table>
+    </div>
   </div>
+
 </div>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -5286,6 +5330,77 @@ async function uploadFacturaPdf(nrFactura, inputEl) {
   } catch(e) {
     toast('Eroare upload: ' + e.message, 'error');
   }
+}
+
+// ════════════════════════════════════════════════════════════
+// FACTURI — TAB-URI + PDF LIST
+// ════════════════════════════════════════════════════════════
+function showFacturiTab(tab) {
+  // Tab buttons
+  document.querySelectorAll('.ftab').forEach(b => {
+    const isActive = b.id === `ftab-${tab}`;
+    b.style.borderBottomColor = isActive ? 'var(--accent)' : 'transparent';
+    b.style.color = isActive ? 'var(--accent)' : 'var(--muted)';
+  });
+  // Content
+  document.getElementById('ftab-content-produse').style.display   = tab === 'produse'  ? 'block' : 'none';
+  document.getElementById('ftab-content-pdf-list').style.display  = tab === 'pdf-list' ? 'block' : 'none';
+  if(tab === 'pdf-list') renderPdfList();
+}
+
+function renderPdfList() {
+  const store = _facturiPdfCache;
+  const entries = Object.entries(store);
+  document.getElementById('pdf-list-count').textContent = `${entries.length} fișier${entries.length !== 1 ? 'e' : ''}`;
+
+  const tbody = document.getElementById('pdf-list-body');
+  tbody.innerHTML = '';
+
+  if(!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Niciun PDF urcat încă.<br><span style="font-size:12px">Apasă "Upload factură PDF nouă" pentru a adăuga.</span></td></tr>';
+    return;
+  }
+
+  // Sort by nr_factura desc
+  entries.sort((a, b) => b[0].localeCompare(a[0]));
+
+  entries.forEach(([nr, url]) => {
+    // Check if has products in system
+    const hasProducts = allOrders.some(o =>
+      o.id && _produseCacheByOrder &&
+      Object.values(_produseCacheByOrder).flat().some(p => p.cod_factura_furnizor === nr)
+    );
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <span class="fw-bold font-mono" style="color:var(--accent);cursor:pointer"
+          onclick="previewFacturaPdf('${escHtml(nr)}')">${escHtml(nr)}</span>
+      </td>
+      <td style="font-size:12px;color:var(--muted)">
+        Factura_${escHtml(nr.replace(/[^a-zA-Z0-9]/g,'_'))}.pdf
+      </td>
+      <td style="font-size:12px;color:var(--muted)">—</td>
+      <td>
+        ${hasProducts
+          ? '<span style="color:var(--green);font-size:12px">✅ Linkată la produse</span>'
+          : '<span style="color:var(--muted);font-size:12px">⏳ Fără produse încă</span>'}
+      </td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-primary btn-xs" onclick="previewFacturaPdf('${escHtml(nr)}')">👁 Preview</button>
+        <button class="btn btn-secondary btn-xs" onclick="startUploadFactura('${escHtml(nr)}')">🔄 Re-upload</button>
+        <button class="icon-btn" style="color:var(--red)" onclick="removeFacturaPdf('${escHtml(nr)}')">🗑</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function startUploadNewPdf() {
+  // Cere numărul facturii, apoi urcă PDF-ul
+  const nr = prompt('Introdu numarul facturii (Ex: RO8726005676):');
+  if(!nr?.trim()) return;
+  await startUploadFactura(nr.trim());
 }
 
 // ════ INIT — verifică sesiune salvată ════
