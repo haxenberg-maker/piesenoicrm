@@ -844,25 +844,25 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
   <div class="page-header">
     <div class="page-title">Facturi furnizori <small id="facturi-count"></small></div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-secondary" onclick="showFacturiTab('pdf-list')">📋 PDF-uri urcate</button>
+      <button class="btn btn-secondary" onclick="showFacturiTab('produse')">📦 Din produse</button>
       <button class="btn btn-primary" onclick="openInvoiceWizard()">＋ Procesează factură</button>
     </div>
   </div>
 
   <!-- Sub-tabs: Produse / PDF-uri -->
   <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:18px">
-    <button class="ftab active" id="ftab-produse" onclick="showFacturiTab('produse')"
+    <button class="ftab active" id="ftab-pdf-list" onclick="showFacturiTab('pdf-list')"
       style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer;margin-bottom:-2px">
-      📦 Din produse
+      🧾 Intrări
     </button>
-    <button class="ftab" id="ftab-pdf-list" onclick="showFacturiTab('pdf-list')"
+    <button class="ftab" id="ftab-produse" onclick="showFacturiTab('produse')"
       style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;margin-bottom:-2px">
-      🧾 PDF-uri urcate
+      📦 Din produse
     </button>
   </div>
 
   <!-- Tab 1: Din produse -->
-  <div id="ftab-content-produse">
+  <div id="ftab-content-produse" style="display:none">
     <div class="filters">
       <input type="text" id="f-factura-nr" placeholder="🔍 Caută număr factură..."/>
       <select id="f-factura-furnizor"><option value="">Toți furnizorii</option></select>
@@ -890,7 +890,7 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
   </div><!-- /ftab-content-produse -->
 
   <!-- Tab 2: PDF-uri urcate -->
-  <div id="ftab-content-pdf-list" style="display:none;min-height:200px">
+  <div id="ftab-content-pdf-list" style="min-height:200px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="font-size:13px;font-weight:600" id="pdf-list-count">0 facturi</div>
       <div style="display:flex;gap:8px">
@@ -923,7 +923,6 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
   </div>
 
 </div>
-</div><!-- /page-facturi extra close -->
 
 <!-- ══════════════════════════════════════════════════════════
      PAGE: PREDARE CLIENT
@@ -1886,7 +1885,7 @@ function navigate(page) {
   if (page==='produse') loadAllProducts();
   if (page==='loguri')   loadLogs();
   if (page==='utilizatori') loadUsers();
-  if (page==='facturi') { loadFacturi(); showFacturiTab('produse'); }
+  if (page==='facturi') { loadFacturi(); showFacturiTab('pdf-list'); }
   if (page==='predare')  loadPredare();
   if (page==='retururi') loadRetururi();
 }
