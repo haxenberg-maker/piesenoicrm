@@ -1919,12 +1919,13 @@ function renderOrdersTable(orders) {
       <td class="fw-bold">${fmtRON(o.total_plata)}</td>
       <td>${fmtRON(o.avans_achitat)}</td>
       <td class="fw-bold" style="color:${calcRest(o)>0?'var(--yellow)':'var(--green)'}">${fmtRON(calcRest(o))}</td>
-      <td style="font-size:12px">${isAchitat(o)?'✅ Achitat':'⏳ Avans ('+fmtRON(o.avans_achitat)+' RON)'}</td>
+      <td style="font-size:12px">${plataBadge(o)}</td>
       <td style="white-space:nowrap">
-        <span class="order-indicator-cell">${orderIndicator(o)}</span>
-        <select class="status-sel badge b-${o.status_general}" data-id="${o.id}" onclick="event.stopPropagation()" onchange="updateOrderStatus(this)">
-          <option value="in_lucru"   ${o.status_general==='in_lucru'  ?'selected':''}>🔄 În Lucru</option>
-          <option value="finalizata" ${o.status_general==='finalizata'?'selected':''}>✅ Finalizată</option>
+        ${statusBadge(o)}
+        <br>
+        <select class="status-sel" data-id="${o.id}" onchange="updateOrderStatus(this)" style="font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;background:var(--s2);cursor:pointer;margin-top:4px;padding:2px 6px">
+          <option value="in_lucru"   ${o.status_general==='in_lucru'  ?'selected':''}>✏️ În lucru</option>
+          <option value="finalizata" ${o.status_general==='finalizata'?'selected':''}>✏️ Finalizată</option>
           <option value="anulata"    ${o.status_general==='anulata'   ?'selected':''}>❌ Anulată</option>
         </select>
       </td>
@@ -2405,13 +2406,13 @@ async function saveOrder() {
 
   try {
     // Agent = prenumele userului curent din dashboard
-    const agentName = (() => {
-      const n = document.getElementById('sidebar-user')?.textContent||'';
-      // Try from allUsers profile
-      const profile = allUsers?.find(u=>u.id===currentUserId);
-      const fullName = profile?.name || n;
-      return fullName.split(' ')[0] || fullName || null;
-    })();
+    // Fetch prenume din user_profiles dacă nu avem
+    let agentName = null;
+    try {
+      const prof = await api(`user_profiles?id=eq.${currentUserId}&select=name`);
+      const fullName = prof?.[0]?.name || '';
+      agentName = fullName.trim().split(' ')[0] || fullName || currentUserEmail?.split('@')[0] || null;
+    } catch(e) { agentName = currentUserEmail?.split('@')[0] || null; }
 
     const [comanda] = await api('comenzi', { method:'POST', body:JSON.stringify({
       client_id:     clientId,
@@ -3104,6 +3105,67 @@ async function preiaToateInFactura() {
   await loadOrders();
 }
 
+// Show existing factura products in step 1
+function showExistingFacturaProducts() {
+  const prods = window._existingFacturaProds || [];
+  if(!prods.length) return;
+
+  const panel = document.getElementById('inv-quick-products');
+  const tbody  = document.getElementById('inv-quick-body');
+  const codEl  = document.getElementById('inv-quick-cod');
+  const nrFact = document.getElementById('inv-nr').value.trim();
+
+  panel.style.display = 'block';
+  codEl.textContent   = nrFact + ' (existente)';
+  tbody.innerHTML     = '';
+
+  prods.forEach(p => {
+    const cmd = p.comenzi || {};
+    const tr  = document.createElement('tr');
+    tr.dataset.prodId = p.id;
+    tr.innerHTML = `
+      <td class="text-yellow fw-bold font-mono" style="font-size:12px">${escHtml(p.cod_aftermarket)}</td>
+      <td style="font-size:12px">${escHtml(p.descriere||'—')}</td>
+      <td><span class="badge b-${p.status_produs}">${p.status_produs}</span></td>
+      <td>
+        <input class="sf-input inv-sku-input" value="${escHtml(p.sku||'')}"
+          placeholder="SKU" style="width:100px" data-prod-id="${p.id}"/>
+      </td>
+      <td><span style="color:var(--green);font-size:13px">✅ În factură</span></td>
+      <td>
+        <button class="btn btn-secondary btn-xs" onclick="saveSkuOnly('${p.id}',this.closest('tr'))">
+          💾 SKU
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Autosave SKU
+  tbody.querySelectorAll('.inv-sku-input').forEach(input => {
+    input.addEventListener('blur', async () => {
+      const pid = input.dataset.prodId;
+      const val = input.value.trim();
+      if(!val) return;
+      try {
+        await api(`produse_comandate?id=eq.${pid}`, { method:'PATCH', body:JSON.stringify({ sku: val }) });
+        showAutosaveStatus('SKU salvat ✓');
+        input.style.borderColor = 'var(--green)';
+        setTimeout(() => input.style.borderColor = '', 1500);
+      } catch(e) { toast('Eroare SKU: '+e.message,'error'); }
+    });
+  });
+}
+
+async function saveSkuOnly(prodId, row) {
+  const skuVal = row.querySelector('.inv-sku-input')?.value?.trim();
+  if(!skuVal) { toast('Introdu un SKU!','warn'); return; }
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, { method:'PATCH', body:JSON.stringify({ sku: skuVal }) });
+    toast('SKU salvat!','success');
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
+
 // Close suggestions on outside click
 document.addEventListener('click', e => {
   if(!e.target.closest('#inv-cod-unic') && !e.target.closest('#inv-cod-unic-suggestions')) {
@@ -3116,8 +3178,18 @@ async function checkExistingInvoice() {
   const nr = document.getElementById('inv-nr').value.trim();
   if(!nr) return;
   try {
-    const existing = await api(`produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nr)}&select=id&limit=1`);
-    document.getElementById('inv-existing-warning').style.display = existing.length ? 'block' : 'none';
+    const existing = await api(
+      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nr)}&select=*,comenzi(nr_comanda,cod_comanda_unic,clienti(nume))&limit=20`
+    );
+    const warn = document.getElementById('inv-existing-warning');
+    if(existing.length) {
+      warn.style.display = 'block';
+      warn.innerHTML = `⚠️ Există deja ${existing.length} produs(e) cu această factură. <strong style="cursor:pointer;text-decoration:underline" onclick="showExistingFacturaProducts()">Vezi produsele →</strong>`;
+      window._existingFacturaProds = existing;
+    } else {
+      warn.style.display = 'none';
+      window._existingFacturaProds = [];
+    }
   } catch(e) { /* silent */ }
 }
 
