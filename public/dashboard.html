@@ -1753,6 +1753,26 @@ async function showApp(email, userId, mustChangePass=false) {
   await loadUserProfile();
   loadOrders();
   await logAction('LOGIN', 'user', currentUserId, { email });
+
+  // Pre-autentificare Google Drive în background (fără popup blocat)
+  // Rulează silențios după 2 secunde ca să nu interfereze cu loginul
+  setTimeout(() => {
+    if(typeof google !== 'undefined') {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GDRIVE_CLIENT_ID,
+        scope:     GDRIVE_SCOPE,
+        prompt:    '',  // fără prompt dacă e deja autentificat
+        callback:  (resp) => {
+          if(!resp.error) {
+            _gdriveToken = resp.access_token;
+            setTimeout(() => { _gdriveToken = null; }, 3500 * 1000);
+            console.log('Google Drive: autentificat silențios ✓');
+          }
+        },
+      });
+      client.requestAccessToken({ prompt: '' });
+    }
+  }, 2000);
 }
 
 // Enter key pe login
@@ -5360,18 +5380,35 @@ let _pendingUploadNr = null;
 
 async function startUploadFactura(nrFactura) {
   _pendingUploadNr = nrFactura;
+
+  if(_gdriveToken) {
+    // Token există — deschide direct file picker
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = '.pdf';
+    input.onchange = (e) => uploadFacturaPdf(nrFactura, e.target);
+    input.click();
+    return;
+  }
+
+  // Token lipsă — trebuie autentificare (popup)
+  // Afișăm un buton explicit ca utilizatorul să-l apese conștient
+  const confirmed = confirm(
+    'Este nevoie de autentificare Google Drive.\n\nApasă OK pentru a deschide fereastra de autentificare, după care vei putea selecta fișierul PDF.'
+  );
+  if(!confirmed) return;
+
   try {
-    // Pasul 1: autentifică cu Google (popup)
     toast('⏳ Autentificare Google...', 'info');
     await gdriveGetToken();
-    // Pasul 2: după auth reușit → deschide file picker
+    toast('✅ Autentificat! Selectează fișierul PDF.', 'success');
     const input = document.createElement('input');
     input.type   = 'file';
     input.accept = '.pdf';
     input.onchange = (e) => uploadFacturaPdf(nrFactura, e.target);
     input.click();
   } catch(e) {
-    toast('Autentificare Google eșuată: ' + e.message, 'error');
+    toast('Autentificare eșuată: ' + e.message + '\nVerifică că ești în lista Test Users din Google Cloud.', 'error');
   }
 }
 
