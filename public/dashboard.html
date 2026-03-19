@@ -71,9 +71,10 @@
   --t-med:  .25s cubic-bezier(.4,0,.2,1);
 }
 
-*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; font-size:inherit }
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
 body {
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 14px;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -343,7 +344,7 @@ tbody tr:nth-child(even):hover { background:var(--accent-bg) }
 .b-predat     { background:var(--green-bg);   color:var(--green-text);  border:1px solid #6ee7b7 }
 .b-returnat   { background:var(--red-bg);     color:var(--red-text);    border:1px solid #fca5a5 }
 
-.nr-cmd { font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--accent); font-size:12px }
+.nr-cmd { font-family:var(--font-mono); font-weight:700; color:var(--accent); font-size:12px }
 .arrived-badge { font-size:12px; font-weight:600; white-space:nowrap }
 
 /* ════ DETAIL PANEL ═══════════════════════════════════════════ */
@@ -530,7 +531,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .log-UPDATE { color:var(--blue) }
 .log-DELETE { color:var(--red) }
 .log-LOGIN  { color:var(--accent) }
-.log-details { font-size:11px; color:var(--muted); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; font-family:'JetBrains Mono',monospace }
+.log-details { font-size:11px; color:var(--muted); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; font-family:var(--font-mono) }
 .log-details:hover { white-space:normal; color:var(--text) }
 
 /* ════ INLINE EDIT ════════════════════════════════════════════ */
@@ -579,7 +580,7 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .dsb-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; font-weight:600; margin-bottom:3px }
 .dsb-val { font-size:14px; font-weight:700; color:var(--text) }
 .fw-bold { font-weight:700 }
-.font-mono { font-family:'JetBrains Mono',monospace }
+.font-mono { font-family:var(--font-mono) }
 
 /* ════ ROW DEBT ════════════════════════════════════════════════ */
 tbody tr.row-debt { background:rgba(220,38,38,.04) !important }
