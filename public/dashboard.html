@@ -5915,13 +5915,23 @@ async function analyzeFacturaPdf(nrFactura, file) {
 function parseRoPrice(str) {
   if(!str) return 0;
   const s = str.trim();
-  // Format romanesc: 1.234,56 -> 1234.56
+  // Detectează formatul:
+  // 1,056.34  → englezesc (virgulă=mii, punct=zecimale) → 1056.34
+  // 1.056,34  → românesc (punct=mii, virgulă=zecimale)  → 1056.34
+  // 686.62    → punct decimal → 686.62
+  // 686,62    → virgulă decimal → 686.62
   if(s.includes(',') && s.includes('.')) {
-    return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+    const commaPos = s.lastIndexOf(',');
+    const dotPos   = s.lastIndexOf('.');
+    if(dotPos > commaPos) {
+      // 1,056.34 → punct e decimal (englezesc)
+      return parseFloat(s.replace(/,/g, ''));
+    } else {
+      // 1.056,34 → virgulă e decimal (românesc)
+      return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+    }
   }
-  // Doar virgula: 69,10 -> 69.10
   if(s.includes(',')) return parseFloat(s.replace(',', '.'));
-  // Doar punct: 69.10 -> 69.10
   return parseFloat(s);
 }
 
@@ -5929,56 +5939,120 @@ function parseFacturaText(text, nrFactura) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const result = { nr_factura: nrFactura, furnizor: null, data: null, produse: [] };
 
-  // Detectează furnizorul
+  // Furnizor
   for(const line of lines) {
     if(/intercars/i.test(line))  { result.furnizor = 'Intercars'; break; }
     if(/elit/i.test(line))       { result.furnizor = 'Elit'; break; }
     if(/autofore/i.test(line))   { result.furnizor = 'Autofore'; break; }
-    if(/aftermarket/i.test(line)){ result.furnizor = line.trim(); break; }
   }
 
-  // Detectează data
-  const dateMatch = text.match(/(\d{2}[./-]\d{2}[./-]\d{4})/);
+  // Data
+  const dateMatch = text.match(/(\d{2}[.\/\-]\d{2}[.\/\-]\d{2,4})/);
   if(dateMatch) result.data = dateMatch[1];
 
-  // ── Strategie 1: rânduri cu cod + descriere + cantitate + preț ──────
-  // Format tipic Intercars: COD  Descriere  cant  pret_unitar  total
-  // Exemplu: "FP 2939  Filtru aer habitaclu  1  69.10  69.10"
-  const prodRegex = /^([A-Z0-9][A-Z0-9\s\-\.\/]{2,25}?)\s{2,}(.{5,60}?)\s{2,}(\d+)\s+([\d]+[.,]\d{2})\s+([\d]+[.,]\d{2})/gm;
-  let match;
-  while((match = prodRegex.exec(text)) !== null) {
-    const cod   = match[1].trim();
-    const desc  = match[2].trim();
-    const cant  = parseInt(match[3]);
-    const pret  = parseFloat(match[4].replace(',', '.'));
-    // Exclude rânduri care par header-e sau totaluri
-    if(/total|subtotal|tva|livrare|transport/i.test(cod)) continue;
-    if(cod.length < 2 || cant < 1 || pret <= 0) continue;
-    result.produse.push({ cod_aftermarket: cod, descriere: desc, cantitate: cant, pret_achizitie: pret });
-  }
+  // ── Parser Intercars ─────────────────────────────────────────────────
+  // Format linie: LINIE  COD_ARTICOL  TARIF_VAMAL  DESCRIERE  CANT  [BUC]  PRET_UNIT  REDUCERE  PRET_DISC  TVA  TOTAL
+  // Exemplu: "1 BM80509H 84213200 Convertor catlitic 1 BUC 1,056.34 35.00 686.62 21 686.62"
 
-  // ── Strategie 2: dacă nu am găsit nimic, încearcă regex mai lax ────
-  if(!result.produse.length) {
-    // Caută linii cu cod de produs (litere + cifre) urmat de preț
-    const laxRegex = /([A-Z]{1,5}[\s\-]?\d{3,}[\w\s\-\.]*?)\s+([\d]+[.,]\d{2})/g;
-    while((match = laxRegex.exec(text)) !== null) {
-      const cod  = match[1].trim();
-      const pret = parseFloat(match[2].replace(',', '.'));
-      if(cod.length < 3 || pret <= 0 || pret > 50000) continue;
-      if(/total|tva|transport/i.test(cod)) continue;
-      result.produse.push({ cod_aftermarket: cod, descriere: '', cantitate: 1, pret_achizitie: pret });
+  // Găsim headerul
+  const headerIdx = lines.findIndex(l => /NR.*ARTICOL|Nr\.?\s*Articol/i.test(l));
+
+  const dataLines = headerIdx >= 0 ? lines.slice(headerIdx + 1) : lines;
+
+  for(const line of dataLines) {
+    // Skip linii goale, totaluri, sumar TVA
+    if(/^(total|sumar|tva|baza|valoare|pagina|furnizor|client|swift|iban|capital)/i.test(line)) continue;
+    if(/^\d{1,3}$/.test(line)) continue; // doar număr
+
+    // Tokenizăm simplu după spații
+    const tokens = line.split(/\s+/).filter(Boolean);
+    if(tokens.length < 5) continue;
+
+    let idx = 0;
+
+    // Skip nr. linie dacă primul token e număr mic
+    if(/^\d{1,3}$/.test(tokens[idx])) idx++;
+
+    // COD ARTICOL — alfanumeric, nu e număr pur de 8+ cifre
+    const cod = tokens[idx];
+    if(!cod || /^\d{6,}$/.test(cod)) continue; // skip tarife vamale pure
+    if(!/[A-Z]/i.test(cod)) continue; // trebuie să conțină litere
+    if(/^(BUC|PCS|SET|KIT|ML|LT|KG)$/i.test(cod)) continue;
+    idx++;
+
+    // Skip TARIF VAMAL dacă e număr de 6-10 cifre
+    if(tokens[idx] && /^\d{6,10}$/.test(tokens[idx])) idx++;
+
+    // DESCRIERE — adunăm token-uri non-numerice
+    let descriere = '';
+    while(idx < tokens.length) {
+      const t = tokens[idx];
+      // Ne oprim când găsim cantitatea (număr întreg mic urmat de prețuri)
+      if(/^\d{1,4}$/.test(t) && idx < tokens.length - 1) {
+        const next = tokens[idx + 1];
+        if(/BUC|PCS|SET|KIT/i.test(next) || /[\d,.]+/.test(next)) break;
+      }
+      if(/^[\d,.]+$/.test(t) && t.length > 3) break; // preț
+      descriere += (descriere ? ' ' : '') + t;
+      idx++;
     }
+
+    // CANTITATE
+    let cantitate = 1;
+    if(tokens[idx] && /^\d{1,4}$/.test(tokens[idx])) {
+      cantitate = parseInt(tokens[idx]);
+      idx++;
+    }
+
+    // Skip unitate măsură (BUC, PCS etc)
+    if(tokens[idx] && /^(BUC|PCS|SET|KIT|ML|LT|KG|L|M)$/i.test(tokens[idx])) idx++;
+
+    // Parsăm de la DREAPTA spre stânga — structura fixă Intercars:
+    // ... PRET_UNIT  REDUCERE  PRET_DISC  TVA%  TOTAL
+    // De la dreapta: [0]=TOTAL [1]=TVA% [2]=PRET_DISC [3]=REDUCERE [4]=PRET_UNIT
+    const allTokens = tokens;
+    const numericFromRight = [];
+    for(let j = allTokens.length - 1; j >= 0; j--) {
+      if(/^[\d,.]+$/.test(allTokens[j])) {
+        numericFromRight.push({ val: parseRoPrice(allTokens[j]), raw: allTokens[j], pos: j });
+      } else break; // oprim la primul non-numeric din dreapta
+    }
+
+    // TVA% = primul număr mic (5-25) din dreapta
+    let tva = 21;
+    for(let j = allTokens.length - 1; j >= 0; j--) {
+      const v = parseInt(allTokens[j]);
+      if(/^\d{1,2}$/.test(allTokens[j]) && v >= 5 && v <= 25) {
+        tva = v;
+        break;
+      }
+    }
+
+    // PRET_DISC = al 3-lea numeric de la dreapta (după TOTAL și TVA%)
+    // Structura: PRET_UNIT  REDUCERE  PRET_DISC  TVA%  TOTAL
+    let pretDisc = 0;
+    if(numericFromRight.length >= 3) {
+      pretDisc = numericFromRight[2].val; // PRET_DISC
+    } else if(numericFromRight.length === 2) {
+      pretDisc = numericFromRight[0].val; // TOTAL (=PRET_DISC când nu e reducere)
+    } else if(numericFromRight.length === 1) {
+      pretDisc = numericFromRight[0].val;
+    }
+
+    if(pretDisc <= 0 || !cod || cod.length < 3) continue;
+
+    // PRET ACHIZITIE = PRET UNIT DISC * (1 + TVA/100)
+    const pretAchizitie = parseFloat((pretDisc * (1 + tva / 100)).toFixed(2));
+
+    result.produse.push({
+      cod_aftermarket: cod,
+      descriere:       descriere.trim(),
+      cantitate,
+      pret_achizitie:  pretAchizitie
+    });
   }
 
-  // Deduplică
-  const seen = new Set();
-  result.produse = result.produse.filter(p => {
-    const key = p.cod_aftermarket + p.pret_achizitie;
-    if(seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
+  console.log('Produse extrase:', result.produse);
   return result;
 }
 
