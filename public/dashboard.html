@@ -3652,11 +3652,13 @@ async function loadUserProfile(forceUserId) {
 }
 
 function applyRoleUI() {
+  // Nu aplica nimic dacă rolul nu e încă setat
+  if(!currentUserRole) return;
+
   const isAdmin     = currentUserRole === 'administrator';
   const isGestionar = currentUserRole === 'gestionar' || isAdmin;
-  const isAnyUser   = !!currentUserRole; // orice utilizator autentificat
 
-  // Nav items
+  // Nav items — predare/retururi sunt MEREU vizibile pentru utilizatori autentificați
   const navLoguri    = document.getElementById('nav-loguri');
   const navUsers     = document.getElementById('nav-utilizatori');
   const navPredare   = document.getElementById('nav-predare');
@@ -3664,8 +3666,8 @@ function applyRoleUI() {
 
   if(navLoguri)   navLoguri.style.display   = isGestionar ? 'flex' : 'none';
   if(navUsers)    navUsers.style.display    = isAdmin     ? 'flex' : 'none';
-  if(navPredare)  navPredare.style.display  = isAnyUser   ? 'flex' : 'none';
-  if(navRetururi) navRetururi.style.display = isAnyUser   ? 'flex' : 'none';
+  if(navPredare)  navPredare.style.display  = 'flex'; // toți utilizatorii
+  if(navRetururi) navRetururi.style.display = 'flex'; // toți utilizatorii
 
   // Rol badge în sidebar
   const roleEl = document.getElementById('sidebar-role');
