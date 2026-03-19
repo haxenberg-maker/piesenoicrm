@@ -4404,14 +4404,9 @@ function renderFacturi(prods) {
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         ${getFacturaPdfUrl(f.nr)
           ? `<button class="btn btn-primary btn-xs" onclick="previewFacturaPdf('${escHtml(f.nr)}')">👁 Preview</button>
-             <label class="btn btn-secondary btn-xs" style="cursor:pointer" title="Înlocuiește PDF">
-               🔄<input type="file" accept=".pdf" style="display:none" onchange="uploadFacturaPdf('${escHtml(f.nr)}',this)"/>
-             </label>
+             <button class="btn btn-secondary btn-xs" onclick="startUploadFactura('${escHtml(f.nr)}')">🔄</button>
              <button class="icon-btn" style="color:var(--red);font-size:12px" onclick="removeFacturaPdf('${escHtml(f.nr)}')">✕</button>`
-          : `<label class="btn btn-secondary btn-xs" style="cursor:pointer" data-upload-nr="${escHtml(f.nr)}">
-               📤 Upload PDF
-               <input type="file" accept=".pdf" style="display:none" onchange="uploadFacturaPdf('${escHtml(f.nr)}',this)"/>
-             </label>`
+          : `<button class="btn btn-secondary btn-xs" onclick="startUploadFactura('${escHtml(f.nr)}')">📤 Upload PDF</button>`
         }
       </td>
     `;
@@ -5257,23 +5252,39 @@ async function gdriveUpload(nrFactura, file) {
   return `https://drive.google.com/file/d/${data.id}/preview`;
 }
 
+// Upload în 2 pași: 1) auth Google → 2) file picker → 3) upload
+let _pendingUploadNr = null;
+
+async function startUploadFactura(nrFactura) {
+  _pendingUploadNr = nrFactura;
+  try {
+    // Pasul 1: autentifică cu Google (popup)
+    toast('⏳ Autentificare Google...', 'info');
+    await gdriveGetToken();
+    // Pasul 2: după auth reușit → deschide file picker
+    const input = document.createElement('input');
+    input.type   = 'file';
+    input.accept = '.pdf';
+    input.onchange = (e) => uploadFacturaPdf(nrFactura, e.target);
+    input.click();
+  } catch(e) {
+    toast('Autentificare Google eșuată: ' + e.message, 'error');
+  }
+}
+
 async function uploadFacturaPdf(nrFactura, inputEl) {
   const file = inputEl?.files?.[0];
   if(!file) return;
   if(file.type !== 'application/pdf') { toast('Doar fișiere PDF!', 'warn'); return; }
 
-  const btn = document.querySelector(`[data-upload-nr="${CSS.escape(nrFactura)}"]`);
-  if(btn) { btn.disabled = true; btn.textContent = '⏳ Se urcă...'; }
-
   try {
     toast('⏳ Se urcă PDF-ul în Google Drive...', 'info');
     const previewUrl = await gdriveUpload(nrFactura, file);
-    setFacturaPdfUrl(nrFactura, previewUrl);
+    await setFacturaPdfUrl(nrFactura, previewUrl);
     toast(`✅ PDF urcat pentru factura ${nrFactura}!`, 'success');
     loadFacturi();
   } catch(e) {
     toast('Eroare upload: ' + e.message, 'error');
-    if(btn) { btn.disabled = false; btn.textContent = '📤 Upload PDF'; }
   }
 }
 
