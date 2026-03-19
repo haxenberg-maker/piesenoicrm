@@ -686,7 +686,8 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
   </div>
 
   <div class="filters">
-    <input type="text"  id="f-client"   placeholder="🔍 Client..."/>
+    <input type="text" id="f-client"   placeholder="🔍 Client sau telefon..."/>
+    <input type="text" id="f-produs"   placeholder="🔍 Cod produs / SKU..." style="min-width:160px"/>
     <select id="f-status">
       <option value="">Toate statusurile</option>
       <option value="in_lucru">În Lucru</option>
@@ -1738,17 +1739,17 @@ document.querySelectorAll('.modal-overlay').forEach(o =>
 
 function switchTab(btn, tabId) {
   if(tabId === 'tab-plati' && currentOrderId) loadPlati(currentOrderId);
-  // Support both detail-modal and client-detail containers
-  const parent = btn.closest('.detail-head')?.nextElementSibling
-              || btn.closest('.tabs');
-  // deactivate all tabs in same group
+
+  // Deactivate all tabs in same tabs bar
   btn.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   btn.classList.add('active');
-  // find tab bodies - siblings of tabs container
-  const container = btn.closest('#detail-panel,#client-detail');
-  if (container) {
+
+  // Find container — suportă detail-modal, detail-panel, client-detail
+  const container = btn.closest('#detail-modal,#detail-panel,#client-detail');
+  if(container) {
     container.querySelectorAll('.tab-body').forEach(b=>b.classList.remove('active'));
-    container.querySelector(`#${tabId}`)?.classList.add('active');
+    const target = container.querySelector(`#${tabId}`);
+    if(target) target.classList.add('active');
   }
 }
 
@@ -1756,6 +1757,7 @@ function switchTab(btn, tabId) {
 // PAGE: COMENZI — LOAD
 // ════════════════════════════════════════════════════════════
 async function loadOrders() {
+  _produseCacheByOrder = null; // Reset cache la reload
   document.getElementById('orders-loading').style.display='block';
   document.getElementById('orders-table').style.display='none';
   try {
@@ -1772,17 +1774,62 @@ async function loadOrders() {
 
 function applyOrderFilters(orders) {
   const q = document.getElementById('f-client').value.toLowerCase();
+  const qProd = document.getElementById('f-produs')?.value?.toLowerCase()||'';
   const s = document.getElementById('f-status').value;
   const f = document.getElementById('f-furnizor').value;
   const p = document.getElementById('f-plata').value;
-  return orders.filter(o=>
-    (!q||o.client_nume?.toLowerCase().includes(q))&&
-    (!s||o.status_general===s)&&
-    (!f||o.furnizor===f)&&
-    (!p||o.tip_plata===p)
+
+  let filtered = orders.filter(o=>
+    (!q || o.client_nume?.toLowerCase().includes(q) || o.client_telefon?.toLowerCase().includes(q))&&
+    (!s || o.status_general===s)&&
+    (!f || o.furnizor===f)&&
+    (!p || o.tip_plata===p)
   );
+
+  // Filtrare după produs — async din DB dacă există termen
+  if(qProd) {
+    // Marchează comenzile care au produse matching (din cache local dacă există)
+    // Fallback: caută în _produseCacheByOrder
+    const matchingOrderIds = _produseCacheByOrder
+      ? Object.entries(_produseCacheByOrder)
+          .filter(([,prods]) => prods.some(p =>
+            p.cod_aftermarket?.toLowerCase().includes(qProd) ||
+            p.sku?.toLowerCase().includes(qProd) ||
+            p.descriere?.toLowerCase().includes(qProd)
+          ))
+          .map(([id]) => id)
+      : [];
+
+    if(matchingOrderIds.length) {
+      filtered = filtered.filter(o => matchingOrderIds.includes(o.id));
+    } else if(!_produseFetchedForSearch) {
+      // Fetch din DB prima dată
+      fetchProduseForSearch(qProd);
+    }
+  }
+  return filtered;
 }
-['f-client','f-status','f-furnizor','f-plata'].forEach(id=>{
+
+let _produseCacheByOrder = null;
+let _produseFetchedForSearch = false;
+
+async function fetchProduseForSearch(q) {
+  _produseFetchedForSearch = true;
+  try {
+    const prods = await api(
+      `produse_comandate?select=comanda_id,cod_aftermarket,sku,descriere` +
+      `&or=(cod_aftermarket.ilike.*${encodeURIComponent(q)}*,sku.ilike.*${encodeURIComponent(q)}*,descriere.ilike.*${encodeURIComponent(q)}*)`
+    );
+    _produseCacheByOrder = {};
+    prods.forEach(p => {
+      if(!_produseCacheByOrder[p.comanda_id]) _produseCacheByOrder[p.comanda_id] = [];
+      _produseCacheByOrder[p.comanda_id].push(p);
+    });
+    renderOrdersTable(applyOrderFilters(allOrders));
+  } catch(e) { console.warn('fetchProduseForSearch:', e.message); }
+  _produseFetchedForSearch = false;
+}
+['f-client','f-produs','f-status','f-furnizor','f-plata'].forEach(id=>{
   const el = document.getElementById(id);
   if(el) el.addEventListener(id==='f-client'?'input':'change', ()=>renderOrdersTable(applyOrderFilters(allOrders)));
 });
@@ -2223,10 +2270,13 @@ async function openNewOrder() {
     <div class="grid2">
       <div class="field">
         <label>Client *</label>
-        <select id="no-client">
-          <option value="">— selectează —</option>
-          ${clients.map(c=>`<option value="${c.id}">${escHtml(c.nume)}</option>`).join('')}
-        </select>
+        <div style="display:flex;gap:8px">
+          <select id="no-client" style="flex:1">
+            <option value="">— selectează —</option>
+            ${clients.map(c=>`<option value="${c.id}">${escHtml(c.nume)}</option>`).join('')}
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="openQuickAddClient()" type="button" title="Adaugă client nou">＋</button>
+        </div>
       </div>
       <div class="field">
         <label>Furnizor</label>
@@ -4810,6 +4860,32 @@ Această acțiune este ireversibilă.`)) return;
     allClients = allClients.filter(c=>c.id!==clientId);
     renderClientsTable(allClients);
     toast('Client șters.','info');
+  } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// QUICK ADD CLIENT din modal Comandă Nouă
+// ════════════════════════════════════════════════════════════
+async function openQuickAddClient() {
+  const nume = prompt('Nume client nou:');
+  if(!nume?.trim()) return;
+  const telefon = prompt('Telefon (opțional):') || '';
+  try {
+    const [client] = await api('clienti', {
+      method:'POST',
+      body: JSON.stringify({ nume: nume.trim(), telefon: telefon.trim()||null })
+    });
+    // Adaugă în allClients și în select
+    allClients.push(client);
+    const sel = document.getElementById('no-client');
+    if(sel) {
+      const opt = document.createElement('option');
+      opt.value = client.id;
+      opt.textContent = escHtml(client.nume);
+      opt.selected = true;
+      sel.appendChild(opt);
+    }
+    toast(`✅ Client "${client.nume}" adăugat și selectat!`,'success');
   } catch(e){ toast('Eroare: '+e.message,'error'); }
 }
 
