@@ -877,9 +877,10 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
         <thead>
           <tr>
             <th>Nr. Factură</th>
-            <th>Denumire fișier</th>
-            <th>Data upload</th>
-            <th>Linkuri produse</th>
+            <th>Furnizor</th>
+            <th>Fișier PDF</th>
+            <th>Status</th>
+            <th>Data</th>
             <th>Acțiuni</th>
           </tr>
         </thead>
@@ -5145,46 +5146,61 @@ async function openQuickAddClient() {
 // ════════════════════════════════════════════════════════════
 // FACTURI PDF — Google Drive (stocat în localStorage)
 // ════════════════════════════════════════════════════════════
-// PDF URLs stocate în Supabase pentru sincronizare între utilizatori
-let _facturiPdfCache = {};
+// ════════════════════════════════════════════════════════════
+// FACTURI — Stocare Supabase (persistent, sincronizat)
+// ════════════════════════════════════════════════════════════
+let _facturiDb = []; // cache local al tabelului facturi
 
-async function loadFacturiPdfUrls() {
+async function loadFacturiDb() {
   try {
-    const rows = await api('facturi_pdf?select=nr_factura,pdf_url');
-    _facturiPdfCache = {};
-    rows.forEach(r => { _facturiPdfCache[r.nr_factura] = r.pdf_url; });
-  } catch(e) {
-    // Tabelul poate să nu existe încă — fallback localStorage
-    try { _facturiPdfCache = JSON.parse(localStorage.getItem('crm_facturi_pdf')||'{}'); } catch(e2){}
+    _facturiDb = await api('facturi?select=*&order=creat_la.desc');
+  } catch(e) { console.warn('loadFacturiDb:', e.message); _facturiDb = []; }
+}
+
+function getFacturaByNr(nr) {
+  return _facturiDb.find(f => f.nr_factura === nr) || null;
+}
+
+function getFacturaPdfUrl(nr) {
+  return getFacturaByNr(nr)?.pdf_url || null;
+}
+
+async function upsertFactura(nr, data) {
+  // Creează sau actualizează intrarea în tabelul facturi
+  const existing = getFacturaByNr(nr);
+  if(existing) {
+    const updated = await api(`facturi?id=eq.${existing.id}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=representation' },
+      body: JSON.stringify({ ...data, actualizat: new Date().toISOString() })
+    });
+    // Update cache
+    const idx = _facturiDb.findIndex(f=>f.id===existing.id);
+    if(idx>=0) _facturiDb[idx] = { ...existing, ...data };
+    return updated?.[0] || existing;
+  } else {
+    const [created] = await api('facturi', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=representation' },
+      body: JSON.stringify({ nr_factura: nr, creat_de: currentUserEmail, ...data })
+    });
+    _facturiDb.unshift(created);
+    return created;
   }
 }
 
-function getFacturaPdfUrl(nrFactura) {
-  return _facturiPdfCache[nrFactura] || null;
+async function setFacturaPdfUrl(nr, url, filename) {
+  await upsertFactura(nr, { pdf_url: url, pdf_filename: filename || null });
 }
 
-async function setFacturaPdfUrl(nrFactura, url) {
-  _facturiPdfCache[nrFactura] = url;
-  // Sync localStorage ca backup
-  localStorage.setItem('crm_facturi_pdf', JSON.stringify(_facturiPdfCache));
-  // Sync Supabase
-  try {
-    await api('facturi_pdf', {
-      method: 'POST',
-      headers: { 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify({ nr_factura: nrFactura, pdf_url: url })
-    });
-  } catch(e) { /* silent - tabelul poate lipsi */ }
-}
-
-async function removeFacturaPdf(nrFactura) {
-  delete _facturiPdfCache[nrFactura];
-  localStorage.setItem('crm_facturi_pdf', JSON.stringify(_facturiPdfCache));
-  try {
-    await api(`facturi_pdf?nr_factura=eq.${encodeURIComponent(nrFactura)}`,
-      { method: 'DELETE', headers: { 'Prefer': 'return=minimal' } });
-  } catch(e) {}
-  toast('PDF eliminat.', 'info');
+async function removeFacturaPdf(nr) {
+  const f = getFacturaByNr(nr);
+  if(!f) return;
+  if(!confirm(`Ștergi intrarea pentru factura ${nr}?`)) return;
+  await api(`facturi?id=eq.${f.id}`, { method:'DELETE', headers:{'Prefer':'return=minimal'} });
+  _facturiDb = _facturiDb.filter(x=>x.id!==f.id);
+  toast('Factură eliminată.','info');
+  renderPdfList();
   loadFacturi();
 }
 
@@ -5324,8 +5340,12 @@ async function uploadFacturaPdf(nrFactura, inputEl) {
   try {
     toast('⏳ Se urcă PDF-ul în Google Drive...', 'info');
     const previewUrl = await gdriveUpload(nrFactura, file);
-    await setFacturaPdfUrl(nrFactura, previewUrl);
-    toast(`✅ PDF urcat pentru factura ${nrFactura}!`, 'success');
+    await setFacturaPdfUrl(nrFactura, previewUrl, file.name);
+    // Marchează ca "nou" în sistem
+    await upsertFactura(nrFactura, { status: 'nou' });
+    toast(`✅ PDF urcat! Factura ${nrFactura} e în sistem.`, 'success');
+    showFacturiTab('pdf-list');
+    renderPdfList();
     loadFacturi();
   } catch(e) {
     toast('Eroare upload: ' + e.message, 'error');
@@ -5348,59 +5368,250 @@ function showFacturiTab(tab) {
   if(tab === 'pdf-list') renderPdfList();
 }
 
-function renderPdfList() {
-  const store = _facturiPdfCache;
-  const entries = Object.entries(store);
-  document.getElementById('pdf-list-count').textContent = `${entries.length} fișier${entries.length !== 1 ? 'e' : ''}`;
+async function renderPdfList() {
+  await loadFacturiDb();
+  const facturi = _facturiDb;
+  document.getElementById('pdf-list-count').textContent = `${facturi.length} factur${facturi.length !== 1 ? 'i' : 'ă'}`;
 
   const tbody = document.getElementById('pdf-list-body');
   tbody.innerHTML = '';
 
-  if(!entries.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Niciun PDF urcat încă.<br><span style="font-size:12px">Apasă "Upload factură PDF nouă" pentru a adăuga.</span></td></tr>';
+  if(!facturi.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
+      Nicio factură în sistem.<br>
+      <span style="font-size:12px;color:var(--muted)">Apasă "📤 Upload factură nouă" pentru a adăuga.</span>
+    </td></tr>`;
     return;
   }
 
-  // Sort by nr_factura desc
-  entries.sort((a, b) => b[0].localeCompare(a[0]));
+  const statusLabel = { nou:'🆕 Nouă', in_procesare:'⏳ În procesare', procesat:'✅ Procesat' };
+  const statusColor = { nou:'var(--accent)', in_procesare:'var(--yellow)', procesat:'var(--green)' };
 
-  entries.forEach(([nr, url]) => {
-    // Check if has products in system
-    const hasProducts = allOrders.some(o =>
-      o.id && _produseCacheByOrder &&
-      Object.values(_produseCacheByOrder).flat().some(p => p.cod_factura_furnizor === nr)
-    );
-
+  facturi.forEach(f => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
-        <span class="fw-bold font-mono" style="color:var(--accent);cursor:pointer"
-          onclick="previewFacturaPdf('${escHtml(nr)}')">${escHtml(nr)}</span>
+        <span class="fw-bold font-mono" style="color:var(--accent);cursor:pointer;text-decoration:underline dotted"
+          onclick="openFacturaWorkspace('${escHtml(f.nr_factura)}')">${escHtml(f.nr_factura)}</span>
       </td>
+      <td style="font-size:12px">${escHtml(f.furnizor||'—')}</td>
       <td style="font-size:12px;color:var(--muted)">
-        Factura_${escHtml(nr.replace(/[^a-zA-Z0-9]/g,'_'))}.pdf
+        ${f.pdf_filename ? `📎 ${escHtml(f.pdf_filename)}` : '<span style="color:var(--muted)">Fără PDF</span>'}
       </td>
-      <td style="font-size:12px;color:var(--muted)">—</td>
       <td>
-        ${hasProducts
-          ? '<span style="color:var(--green);font-size:12px">✅ Linkată la produse</span>'
-          : '<span style="color:var(--muted);font-size:12px">⏳ Fără produse încă</span>'}
+        <span style="color:${statusColor[f.status]||'var(--muted)'};font-size:12px;font-weight:600">
+          ${statusLabel[f.status]||f.status}
+        </span>
       </td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-primary btn-xs" onclick="previewFacturaPdf('${escHtml(nr)}')">👁 Preview</button>
-        <button class="btn btn-secondary btn-xs" onclick="startUploadFactura('${escHtml(nr)}')">🔄 Re-upload</button>
-        <button class="icon-btn" style="color:var(--red)" onclick="removeFacturaPdf('${escHtml(nr)}')">🗑</button>
+      <td style="font-size:11px;color:var(--muted)">${fmtDate(f.creat_la)}</td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        ${f.pdf_url
+          ? `<button class="btn btn-primary btn-xs" onclick="openFacturaWorkspace('${escHtml(f.nr_factura)}')">📋 Deschide</button>`
+          : `<button class="btn btn-secondary btn-xs" onclick="startUploadFactura('${escHtml(f.nr_factura)}')">📤 Upload PDF</button>`
+        }
+        <button class="btn btn-secondary btn-xs" onclick="startUploadFactura('${escHtml(f.nr_factura)}')">🔄</button>
+        <button class="icon-btn" style="color:var(--red)" onclick="removeFacturaPdf('${escHtml(f.nr_factura)}')">🗑</button>
       </td>
     `;
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', () => openFacturaWorkspace(f.nr_factura));
     tbody.appendChild(tr);
   });
 }
 
 async function startUploadNewPdf() {
-  // Cere numărul facturii, apoi urcă PDF-ul
   const nr = prompt('Introdu numarul facturii (Ex: RO8726005676):');
   if(!nr?.trim()) return;
+  // Creează intrarea în DB înainte de upload
+  const furnizorEl = document.getElementById('f-factura-furnizor');
+  const furnizor = furnizorEl?.value || '';
+  await upsertFactura(nr.trim(), { furnizor: furnizor || null, status: 'nou' });
   await startUploadFactura(nr.trim());
+}
+
+// ════════════════════════════════════════════════════════════
+// FACTURA WORKSPACE — PDF preview + alocare SKU
+// ════════════════════════════════════════════════════════════
+async function openFacturaWorkspace(nrFactura) {
+  const f = getFacturaByNr(nrFactura);
+
+  // Creează modal dinamic dacă nu există
+  let overlay = document.getElementById('modal-factura-workspace');
+  if(!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'modal-factura-workspace';
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'z-index:600';
+    overlay.innerHTML = `
+      <div class="modal modal-lg" style="max-width:1200px;height:94vh;display:flex;flex-direction:column">
+        <div class="modal-head">
+          <div>
+            <h3>🧾 <span id="fw-nr" style="color:var(--accent)"></span></h3>
+            <div id="fw-subtitle" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="fw-status" onchange="updateFacturaStatus()" style="background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;cursor:pointer">
+              <option value="nou">🆕 Nouă</option>
+              <option value="in_procesare">⏳ În procesare</option>
+              <option value="procesat">✅ Procesat</option>
+            </select>
+            <button class="icon-btn" onclick="closeModal('modal-factura-workspace')">✕</button>
+          </div>
+        </div>
+
+        <div style="flex:1;display:flex;gap:0;overflow:hidden;min-height:0">
+          <!-- Stânga: PDF preview -->
+          <div style="flex:1;border-right:1px solid var(--border);display:flex;flex-direction:column;min-width:0">
+            <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;background:var(--s2)">
+              <span style="font-size:12px;color:var(--muted);font-weight:600">PDF FACTURĂ</span>
+              <button class="btn btn-secondary btn-xs" onclick="startUploadFactura(document.getElementById('fw-nr').textContent)">🔄 Re-upload</button>
+            </div>
+            <div id="fw-pdf-area" style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--s3)">
+              <div id="fw-no-pdf" style="text-align:center;color:var(--muted)">
+                <div style="font-size:48px;margin-bottom:12px">📄</div>
+                <div>Niciun PDF urcat</div>
+                <button class="btn btn-primary" style="margin-top:12px" onclick="startUploadFactura(document.getElementById('fw-nr').textContent)">📤 Upload PDF</button>
+              </div>
+              <iframe id="fw-iframe" src="" style="width:100%;height:100%;border:none;display:none"></iframe>
+            </div>
+          </div>
+
+          <!-- Dreapta: Produse + SKU -->
+          <div style="width:480px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden">
+            <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:var(--s2)">
+              <span style="font-size:12px;color:var(--muted);font-weight:600">PRODUSE DIN ACEASTĂ FACTURĂ</span>
+            </div>
+            <div style="flex:1;overflow-y:auto;padding:12px">
+              <div id="fw-products-loading"><span class="spinner"></span>Se încarcă...</div>
+              <div id="fw-products-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    overlay.addEventListener('click', e => { if(e.target===overlay) closeModal('modal-factura-workspace'); });
+    document.body.appendChild(overlay);
+  }
+
+  // Populează datele
+  document.getElementById('fw-nr').textContent = nrFactura;
+  document.getElementById('fw-subtitle').textContent =
+    `${f?.furnizor||''} · Creat: ${f?.creat_la ? fmtDate(f.creat_la) : '—'} · ${f?.creat_de||''}`;
+
+  // Status
+  const statusSel = document.getElementById('fw-status');
+  statusSel.value = f?.status || 'nou';
+
+  // PDF
+  if(f?.pdf_url) {
+    document.getElementById('fw-no-pdf').style.display = 'none';
+    document.getElementById('fw-iframe').style.display = 'block';
+    document.getElementById('fw-iframe').src = f.pdf_url;
+  } else {
+    document.getElementById('fw-no-pdf').style.display = 'block';
+    document.getElementById('fw-iframe').style.display = 'none';
+    document.getElementById('fw-iframe').src = '';
+  }
+
+  openModal('modal-factura-workspace');
+  await loadWorkspaceProducts(nrFactura);
+}
+
+async function loadWorkspaceProducts(nrFactura) {
+  const listEl = document.getElementById('fw-products-list');
+  document.getElementById('fw-products-loading').style.display = 'block';
+  listEl.innerHTML = '';
+
+  try {
+    const prods = await api(
+      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&select=*,comenzi(nr_comanda,cod_comanda_unic,clienti(nume))`
+    );
+    document.getElementById('fw-products-loading').style.display = 'none';
+
+    if(!prods.length) {
+      listEl.innerHTML = `
+        <div style="text-align:center;padding:32px;color:var(--muted)">
+          <div style="font-size:32px;margin-bottom:8px">📦</div>
+          <div style="font-size:13px">Niciun produs legat de această factură.</div>
+          <div style="font-size:12px;margin-top:8px">Procesează factura din Pasul 1 pentru a lega produse.</div>
+          <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="closeModal('modal-factura-workspace');openInvoiceWizard()">
+            ＋ Procesează factura
+          </button>
+        </div>`;
+      return;
+    }
+
+    prods.forEach(p => {
+      const cmd = p.comenzi||{};
+      const hasSku = !!p.sku;
+      const div = document.createElement('div');
+      div.style.cssText = `
+        padding:10px 12px;border-radius:var(--r-md);margin-bottom:8px;
+        border:1px solid ${hasSku ? 'var(--green)' : 'var(--border)'};
+        background:${hasSku ? 'rgba(16,185,129,.04)' : 'var(--s1)'};
+        transition:all .2s;
+      `;
+      div.innerHTML = `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div style="min-width:0">
+            <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(p.descriere||'')}</div>
+            <div style="font-size:10px;color:var(--muted2);margin-top:3px">
+              ${escHtml(cmd.cod_comanda_unic||'')} · ${escHtml(cmd.clienti?.nume||'—')}
+            </div>
+          </div>
+          <span class="badge b-${p.status_produs}" style="flex-shrink:0">${p.status_produs}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+          <input
+            id="sku-${p.id}"
+            value="${escHtml(p.sku||'')}"
+            placeholder="${hasSku ? '' : '⚠ SKU lipsă — introdu codul'}"
+            style="flex:1;background:var(--s2);border:1px solid ${hasSku?'var(--green)':'var(--accent)'};border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;font-family:monospace;outline:none"
+          />
+          <button class="btn btn-primary btn-xs" onclick="saveWorkspaceSku('${p.id}','${escHtml(p.cod_aftermarket)}')">
+            💾
+          </button>
+        </div>
+      `;
+      listEl.appendChild(div);
+    });
+
+  } catch(e) {
+    document.getElementById('fw-products-loading').style.display = 'none';
+    listEl.innerHTML = `<div style="color:var(--red);padding:12px">Eroare: ${e.message}</div>`;
+  }
+}
+
+async function saveWorkspaceSku(prodId, cod) {
+  const sku = document.getElementById(`sku-${prodId}`)?.value?.trim();
+  if(!sku) { toast('Introdu un SKU!','warn'); return; }
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, {
+      method:'PATCH',
+      body: JSON.stringify({ sku })
+    });
+    const nrFact = document.getElementById('fw-nr').textContent;
+    await upsertFactura(nrFact, { status: 'in_procesare' });
+    toast(`SKU ${sku} salvat pentru ${cod}!`, 'success');
+    // Visual feedback
+    const input = document.getElementById(`sku-${prodId}`);
+    if(input) {
+      input.style.borderColor = 'var(--green)';
+      input.closest('div[style]').style.borderColor = 'var(--green)';
+      input.closest('div[style]').style.background = 'rgba(16,185,129,.04)';
+    }
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
+
+async function updateFacturaStatus() {
+  const nr = document.getElementById('fw-nr').textContent;
+  const status = document.getElementById('fw-status').value;
+  try {
+    await upsertFactura(nr, { status });
+    toast('Status actualizat.','success');
+    renderPdfList();
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
 }
 
 // ════ INIT — verifică sesiune salvată ════
