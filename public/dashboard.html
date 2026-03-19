@@ -5589,13 +5589,53 @@ async function renderPdfList() {
 }
 
 async function startUploadNewPdf() {
-  const nr = prompt('Introdu numarul facturii (Ex: RO8726005676):');
-  if(!nr?.trim()) return;
-  // Creează intrarea în DB înainte de upload
-  const furnizorEl = document.getElementById('f-factura-furnizor');
-  const furnizor = furnizorEl?.value || '';
-  await upsertFactura(nr.trim(), { furnizor: furnizor || null, status: 'nou' });
-  await startUploadFactura(nr.trim());
+  // Autentificare Google dacă nu avem token
+  if(!_gdriveToken) {
+    const ok = confirm('Este nevoie de autentificare Google Drive.\nApasă OK pentru a continua.');
+    if(!ok) return;
+    try {
+      await gdriveGetToken();
+    } catch(e) {
+      toast('Autentificare eșuată: ' + e.message, 'error');
+      return;
+    }
+  }
+
+  // Deschide file picker direct
+  const input = document.createElement('input');
+  input.type   = 'file';
+  input.accept = '.pdf';
+  input.onchange = async (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+
+    // Extrage numărul facturii din numele fișierului (fără extensie)
+    const nrFactura = file.name.replace(/\.pdf$/i, '').trim();
+
+    // Creează intrarea în DB
+    const furnizor = document.getElementById('f-factura-furnizor')?.value || null;
+    await upsertFactura(nrFactura, { furnizor, status: 'nou' });
+
+    // Upload în Drive
+    try {
+      toast('⏳ Se urcă în Google Drive...', 'info');
+      const previewUrl = await gdriveUpload(nrFactura, file);
+      await upsertFactura(nrFactura, {
+        pdf_url:      previewUrl,
+        pdf_filename: file.name,
+        status:       'nou'
+      });
+      toast(`✅ Factură ${nrFactura} urcată!`, 'success');
+
+      // Analizează cu Claude dacă nu are produse
+      await renderPdfList();
+      await analyzeFacturaPdf(nrFactura, file);
+
+    } catch(e) {
+      toast('Eroare upload: ' + e.message, 'error');
+    }
+  };
+  input.click();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -5819,6 +5859,218 @@ async function saveAddFactura() {
     // Deschide workspace dacă are PDF
     if(pdfUrl) openFacturaWorkspace(nr);
   } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
+
+// ════════════════════════════════════════════════════════════
+// ANALIZĂ PDF CU CLAUDE API
+// ════════════════════════════════════════════════════════════
+async function analyzeFacturaPdf(nrFactura, file) {
+  // Citește fișierul ca base64
+  const base64 = await new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload  = () => res(reader.result.split(',')[1]);
+    reader.onerror = () => rej(new Error('Eroare citire fișier'));
+    reader.readAsDataURL(file);
+  });
+
+  // Arată modal de analiză
+  showAnalyzeModal(nrFactura);
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: base64 }
+            },
+            {
+              type: 'text',
+              text: `Ești un asistent care extrage date din facturi auto.
+Analizează această factură și returnează DOAR un JSON valid (fără text suplimentar, fără markdown) cu structura:
+{
+  "nr_factura": "numărul facturii",
+  "furnizor": "numele furnizorului",
+  "data": "data facturii",
+  "produse": [
+    {
+      "cod_aftermarket": "codul produsului",
+      "descriere": "descrierea produsului",
+      "cantitate": 1,
+      "pret_achizitie": 0.00
+    }
+  ]
+}
+Dacă nu găsești un câmp, pune null. Prețurile să fie în RON fără TVA dacă e posibil.`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || '';
+
+    // Parse JSON din răspuns
+    const clean = text.replace(/```json|```/g, '').trim();
+    const result = JSON.parse(clean);
+
+    renderAnalyzeResults(nrFactura, result);
+
+  } catch(e) {
+    document.getElementById('analyze-status').innerHTML =
+      `<span style="color:var(--red)">❌ Eroare analiză: ${e.message}</span>
+       <br><small>Poți adăuga produsele manual din workspace.</small>`;
+    console.error('Claude analyze error:', e);
+  }
+}
+
+function showAnalyzeModal(nrFactura) {
+  // Creează modal dinamic
+  let modal = document.getElementById('modal-analyze-pdf');
+  if(!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-analyze-pdf';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '700';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:700px">
+        <div class="modal-head">
+          <h3>🤖 Analiză PDF — <span id="analyze-nr" style="color:var(--accent)"></span></h3>
+          <button class="icon-btn" onclick="closeModal('modal-analyze-pdf')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="analyze-status" style="text-align:center;padding:20px;color:var(--muted)">
+            <span class="spinner"></span> Claude analizează factura...
+          </div>
+          <div id="analyze-results" style="display:none">
+            <div id="analyze-info" style="margin-bottom:12px;font-size:13px;color:var(--muted)"></div>
+            <div class="tbl-wrap">
+              <table style="width:100%">
+                <thead>
+                  <tr>
+                    <th>Cod aftermarket</th>
+                    <th>Descriere</th>
+                    <th>Cant.</th>
+                    <th>Preț acq. (RON)</th>
+                    <th><input type="checkbox" id="analyze-check-all" checked onchange="document.querySelectorAll('.analyze-row-check').forEach(c=>c.checked=this.checked)"/></th>
+                  </tr>
+                </thead>
+                <tbody id="analyze-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot" id="analyze-foot" style="display:none">
+          <button class="btn btn-ghost" onclick="closeModal('modal-analyze-pdf')">Anulează</button>
+          <button class="btn btn-primary" onclick="saveAnalyzeResults()">💾 Salvează produsele selectate</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('analyze-nr').textContent = nrFactura;
+  document.getElementById('analyze-status').innerHTML = '<span class="spinner"></span> Claude analizează factura...';
+  document.getElementById('analyze-results').style.display = 'none';
+  document.getElementById('analyze-foot').style.display = 'none';
+  window._analyzeNrFactura = nrFactura;
+  openModal('modal-analyze-pdf');
+}
+
+function renderAnalyzeResults(nrFactura, result) {
+  const statusEl  = document.getElementById('analyze-status');
+  const resultsEl = document.getElementById('analyze-results');
+  const footEl    = document.getElementById('analyze-foot');
+  const tbody     = document.getElementById('analyze-tbody');
+
+  if(!result.produse?.length) {
+    statusEl.innerHTML = '⚠️ Nu s-au găsit produse în factură. Poți adăuga manual din workspace.';
+    return;
+  }
+
+  statusEl.style.display = 'none';
+  resultsEl.style.display = 'block';
+  footEl.style.display = 'flex';
+
+  document.getElementById('analyze-info').innerHTML =
+    `Furnizor: <strong>${result.furnizor||'—'}</strong> &nbsp;·&nbsp;
+     Data: <strong>${result.data||'—'}</strong> &nbsp;·&nbsp;
+     <strong>${result.produse.length}</strong> produse găsite`;
+
+  // Actualizează furnizorul în DB dacă l-am găsit
+  if(result.furnizor) {
+    upsertFactura(nrFactura, { furnizor: result.furnizor });
+  }
+
+  tbody.innerHTML = '';
+  window._analyzeProds = result.produse;
+
+  result.produse.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input class="sf-input" id="ap-cod-${i}" value="${escHtml(p.cod_aftermarket||'')}" style="width:120px"/></td>
+      <td><input class="sf-input" id="ap-desc-${i}" value="${escHtml(p.descriere||'')}" style="width:200px"/></td>
+      <td><input class="sf-input" type="number" id="ap-cant-${i}" value="${p.cantitate||1}" style="width:60px"/></td>
+      <td><input class="sf-input" type="number" id="ap-pret-${i}" value="${p.pret_achizitie||0}" step="0.01" style="width:90px"/></td>
+      <td><input type="checkbox" class="analyze-row-check" data-idx="${i}" checked/></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function saveAnalyzeResults() {
+  const nrFactura = window._analyzeNrFactura;
+  const checked   = document.querySelectorAll('.analyze-row-check:checked');
+
+  if(!checked.length) { toast('Selectează cel puțin un produs!', 'warn'); return; }
+
+  // Găsim comanda asociată acestei facturi (dacă există)
+  const factura = getFacturaByNr(nrFactura);
+
+  // Dacă nu există comandă asociată, creăm una nouă sau cerem cod unic
+  const codUnic = prompt('Cod unic comanda (Ex: INT-0004-1803):');
+
+  let comandaId = null;
+  if(codUnic?.trim()) {
+    const comenzi = await api(`comenzi?cod_comanda_unic=eq.${encodeURIComponent(codUnic.trim())}&select=id`);
+    comandaId = comenzi?.[0]?.id;
+    if(!comandaId) { toast(`Comanda ${codUnic} nu există!`, 'error'); return; }
+  }
+
+  if(!comandaId) {
+    toast('Introduceți un cod de comandă valid!', 'warn');
+    return;
+  }
+
+  let saved = 0;
+  for(const cb of checked) {
+    const i = cb.dataset.idx;
+    const prod = {
+      comanda_id:          comandaId,
+      cod_aftermarket:     document.getElementById(`ap-cod-${i}`)?.value?.trim() || 'N/A',
+      descriere:           document.getElementById(`ap-desc-${i}`)?.value?.trim() || '',
+      cantitate:           parseFloat(document.getElementById(`ap-cant-${i}`)?.value) || 1,
+      pret_achizitie:      parseFloat(document.getElementById(`ap-pret-${i}`)?.value) || 0,
+      cod_factura_furnizor: nrFactura,
+      status_produs:       'ajuns',
+    };
+    try {
+      await api('produse_comandate', { method:'POST', body: JSON.stringify(prod) });
+      saved++;
+    } catch(e) { console.warn('Save prod error:', e.message); }
+  }
+
+  await upsertFactura(nrFactura, { status: 'in_procesare' });
+  toast(`✅ ${saved} produse salvate din factura ${nrFactura}!`, 'success');
+  closeModal('modal-analyze-pdf');
+  await renderPdfList();
 }
 
 // ════ INIT — verifică sesiune salvată ════
