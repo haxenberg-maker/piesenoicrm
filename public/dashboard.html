@@ -1760,25 +1760,19 @@ async function showApp(email, userId, mustChangePass=false) {
     showChangePasswordPrompt();
     return;
   }
-  document.getElementById('login-page').classList.remove('visible');
-  document.getElementById('app').style.display = 'flex';
-  document.getElementById('topbar').style.display='flex';
-  currentUserEmail = email;
-  if(userId) currentUserId = userId;
-  // Sidebar arată emailul
-  document.getElementById('sidebar-user').textContent = email;
-  // Setează fallback imediat
-  window._currentAgentFirstName = email.split('@')[0];
-  // Fetch prenumele complet din profil
-  try {
-    const prof = await api(`user_profiles?id=eq.${userId || currentUserId}&select=name,role`);
-    const fullName = prof?.[0]?.name || '';
-    if(fullName.trim()) {
-      window._currentAgentFirstName = fullName.trim(); // Numele complet
-    }
-  } catch(e) { /* keep fallback */ }
 
-  // Adaugă badge rol în sidebar dacă nu există
+  // 1. Setează imediat variabilele globale
+  currentUserEmail = email;
+  currentUserId    = userId || currentUserId;
+
+  // 2. Arată UI-ul
+  document.getElementById('login-page').classList.remove('visible');
+  document.getElementById('app').style.display    = 'flex';
+  document.getElementById('topbar').style.display = 'flex';
+  document.getElementById('sidebar-user').textContent = email;
+  window._currentAgentFirstName = email.split('@')[0];
+
+  // 3. Badge rol în sidebar
   if(!document.getElementById('sidebar-role')) {
     const roleDiv = document.createElement('div');
     roleDiv.id = 'sidebar-role';
@@ -1786,11 +1780,42 @@ async function showApp(email, userId, mustChangePass=false) {
     document.getElementById('sidebar-user').after(roleDiv);
   }
 
-  await loadUserProfile();
-  loadOrders();
-  await logAction('LOGIN', 'user', currentUserId, { email });
+  // 4. Încarcă profilul — EXPLICIT cu userId
+  try {
+    const profiles = await api(`user_profiles?id=eq.${currentUserId}&select=id,email,name,role`);
+    if(profiles && profiles.length > 0) {
+      const p = profiles[0];
+      currentUserRole = p.role;
+      window._currentAgentFirstName = p.name || email.split('@')[0];
+      // Actualizează badge rol
+      const roleEl = document.getElementById('sidebar-role');
+      if(roleEl) {
+        roleEl.className   = `role-${p.role}`;
+        roleEl.textContent = p.role?.toUpperCase() || '';
+      }
+      // Aplică UI pe baza rolului
+      applyRoleUI();
+      console.log('Profile loaded:', p.role, p.name);
+    } else {
+      console.warn('No profile found for userId:', currentUserId);
+      // Încearcă să creeze profilul dacă lipsește (Google OAuth nou)
+      try {
+        await api('user_profiles', {
+          method: 'POST',
+          headers: { 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ id: currentUserId, email, name: email.split('@')[0], role: 'user' })
+        });
+        currentUserRole = 'user';
+        applyRoleUI();
+      } catch(e2) { console.warn('Could not create profile:', e2.message); }
+    }
+  } catch(e) {
+    console.error('Profile load error:', e.message);
+  }
 
-  // Google Drive token vine din OAuth Supabase
+  // 5. Încarcă datele
+  loadOrders();
+  logAction('LOGIN', 'user', currentUserId, { email });
 }
 
 // Enter key pe login
