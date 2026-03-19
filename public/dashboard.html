@@ -6066,49 +6066,36 @@ function renderAnalyzeResults(nrFactura, result) {
 async function saveAnalyzeResults() {
   const nrFactura = window._analyzeNrFactura;
   const checked   = document.querySelectorAll('.analyze-row-check:checked');
-
   if(!checked.length) { toast('Selectează cel puțin un produs!', 'warn'); return; }
 
-  // Găsim comanda asociată acestei facturi (dacă există)
-  const factura = getFacturaByNr(nrFactura);
-
-  // Dacă nu există comandă asociată, creăm una nouă sau cerem cod unic
-  const codUnic = prompt('Cod unic comanda (Ex: INT-0004-1803):');
-
-  let comandaId = null;
-  if(codUnic?.trim()) {
-    const comenzi = await api(`comenzi?cod_comanda_unic=eq.${encodeURIComponent(codUnic.trim())}&select=id`);
-    comandaId = comenzi?.[0]?.id;
-    if(!comandaId) { toast(`Comanda ${codUnic} nu există!`, 'error'); return; }
-  }
-
-  if(!comandaId) {
-    toast('Introduceți un cod de comandă valid!', 'warn');
-    return;
-  }
-
+  // Salvăm produsele în tabelul facturi_produse (fără comandă obligatorie)
+  // Folosim produse_comandate cu comanda_id = null (permis prin schema)
   let saved = 0;
+  const produse = [];
   for(const cb of checked) {
     const i = cb.dataset.idx;
-    const prod = {
-      comanda_id:          comandaId,
-      cod_aftermarket:     document.getElementById(`ap-cod-${i}`)?.value?.trim() || 'N/A',
-      descriere:           document.getElementById(`ap-desc-${i}`)?.value?.trim() || '',
-      cantitate:           parseFloat(document.getElementById(`ap-cant-${i}`)?.value) || 1,
-      pret_achizitie:      parseFloat(document.getElementById(`ap-pret-${i}`)?.value) || 0,
+    produse.push({
+      cod_aftermarket:      document.getElementById(`ap-cod-${i}`)?.value?.trim() || 'N/A',
+      descriere:            document.getElementById(`ap-desc-${i}`)?.value?.trim() || '',
+      cantitate:            parseFloat(document.getElementById(`ap-cant-${i}`)?.value) || 1,
+      pret_achizitie:       parseFloat(document.getElementById(`ap-pret-${i}`)?.value) || 0,
       cod_factura_furnizor: nrFactura,
-      status_produs:       'ajuns',
-    };
-    try {
-      await api('produse_comandate', { method:'POST', body: JSON.stringify(prod) });
-      saved++;
-    } catch(e) { console.warn('Save prod error:', e.message); }
+    });
+    saved++;
   }
 
+  // Salvează în localStorage ca produse_neaocate (pending)
+  const existing = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
+  existing[nrFactura] = (existing[nrFactura] || []).concat(produse);
+  localStorage.setItem('crm_produse_nealocate', JSON.stringify(existing));
+
   await upsertFactura(nrFactura, { status: 'in_procesare' });
-  toast(`✅ ${saved} produse salvate din factura ${nrFactura}!`, 'success');
+  toast(`✅ ${saved} produse salvate! Alocă-le la o comandă din workspace.`, 'success');
   closeModal('modal-analyze-pdf');
+
+  // Deschide workspace pentru alocare
   await renderPdfList();
+  openFacturaWorkspace(nrFactura);
 }
 
 // ════ INIT — verifică sesiune salvată ════
