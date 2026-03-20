@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T18:30:53.254422
+// Bundle generat: 2026-03-20T18:44:19.472783
 
 
 // ══════════════════════════════════════════════════════════
@@ -300,6 +300,7 @@ async function showApp(email, userId, mustChangePass=false) {
   // 5. Încarcă datele
   loadOrders();
   logAction('LOGIN', 'user', currentUserId, { email });
+  if(typeof initPushOnLogin === 'function') initPushOnLogin();
 }
 
 async function loadUserProfile(forceUserId) {
@@ -3818,8 +3819,32 @@ async function saveWorkspaceSku(prodId, cod) {
       body: JSON.stringify({ sku })
     });
     const nrFact = document.getElementById('fw-nr').textContent;
-    await upsertFactura(nrFact, { status: 'in_procesare' });
-    toast(`SKU ${sku} salvat pentru ${cod}!`, 'success');
+
+    // Verifică dacă toate produsele din factură au SKU acum
+    const prodsFactura = await api(
+      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFact)}&select=sku`
+    );
+    const toateAuSku = prodsFactura.length > 0 && prodsFactura.every(p => !!p.sku);
+    const newStatus  = toateAuSku ? 'procesat' : 'in_procesare';
+    await upsertFactura(nrFact, { status: newStatus });
+
+    if(toateAuSku) {
+      toast(`✅ Toate produsele au SKU — factura marcată Procesată!`, 'success');
+    } else {
+      toast(`SKU ${sku} salvat pentru ${cod}!`, 'success');
+    }
+
+    // Notificare push — SKU adăugat
+    if(typeof sendPushNotification === 'function') {
+      const emails = await getSubscribedEmails('notif_sku_adaugat');
+      if(emails.length) {
+        sendPushNotification('sku_adaugat',
+          'SKU adăugat',
+          `${sku} → ${cod} (Factura ${nrFact})`,
+          emails
+        );
+      }
+    }
     // Visual feedback
     const input = document.getElementById(`sku-${prodId}`);
     if(input) {
@@ -4277,6 +4302,74 @@ function closeAndJump(modalId, orderId) {
   if(o) setTimeout(()=>loadDetail(orderId,o), 150);
 }
 
+
+// ════════════════════════════════════════════════════════════
+// TAB FĂRĂ SKU — produse din facturi care nu au SKU
+// ════════════════════════════════════════════════════════════
+async function renderFaraSku() {
+  const listEl = document.getElementById('fara-sku-list');
+  if(!listEl) return;
+  listEl.innerHTML = '<div style="color:var(--muted);padding:12px"><span class="spinner"></span> Se încarcă...</div>';
+
+  try {
+    // Produse cu cod_factura_furnizor setat dar fără SKU
+    const prods = await api(
+      'produse_comandate?sku=is.null&cod_factura_furnizor=not.is.null' +
+      '&select=*,comenzi(nr_comanda,cod_comanda_unic,clienti(nume))' +
+      '&order=cod_factura_furnizor&limit=200'
+    );
+
+    // Update badge
+    const badge = document.getElementById('badge-fara-sku');
+    if(badge) badge.textContent = prods.length || '';
+    if(badge) badge.style.display = prods.length ? 'inline' : 'none';
+
+    if(!prods.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:32px;color:var(--green)"><div style="font-size:32px">✅</div><div style="margin-top:8px;font-weight:600">Toate produsele au SKU!</div></div>';
+      return;
+    }
+
+    // Grupează după factură
+    const byFactura = {};
+    prods.forEach(p => {
+      const nr = p.cod_factura_furnizor;
+      if(!byFactura[nr]) byFactura[nr] = [];
+      byFactura[nr].push(p);
+    });
+
+    listEl.innerHTML = '';
+    Object.entries(byFactura).forEach(([nr, prods]) => {
+      const section = document.createElement('div');
+      section.style.cssText = 'margin-bottom:16px;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden';
+      section.innerHTML = `
+        <div style="padding:10px 16px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-weight:700;color:var(--accent);font-family:monospace">${escHtml(nr)}</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:12px;color:var(--red);font-weight:600">⚠️ ${prods.length} fără SKU</span>
+            <button class="btn btn-secondary btn-xs" onclick="openFacturaWorkspace('${escHtml(nr)}')">📋 Deschide</button>
+          </div>
+        </div>
+        <div style="padding:8px 12px;display:flex;flex-direction:column;gap:6px">
+          ${prods.map(p => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--s1);border-radius:var(--r-md)">
+              <span style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px;min-width:140px">${escHtml(p.cod_aftermarket)}</span>
+              <span style="font-size:11px;color:var(--muted);flex:1">${escHtml(p.descriere||'')}</span>
+              <span style="font-size:10px;color:var(--muted2)">${escHtml(p.comenzi?.cod_comanda_unic||'')}</span>
+              <input id="quick-sku-${p.id}" placeholder="SKU" 
+                style="background:var(--s2);border:1px solid var(--accent);border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px;font-family:monospace;outline:none;width:110px"/>
+              <button class="btn btn-primary btn-xs" onclick="saveWorkspaceSku('${p.id}','${escHtml(p.cod_aftermarket)}')">💾</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      // Remap input IDs to match saveWorkspaceSku format
+      listEl.appendChild(section);
+    });
+
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:var(--red);padding:12px">Eroare: ${e.message}</div>`;
+  }
+}
 
 // ══════════════════════════════════════════════════════════
 // DELIVERY
@@ -4760,11 +4853,258 @@ async function toggleUserActive(id, newState) {
 }
 
 
+// ══════════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ══════════════════════════════════════════════════════════
 
+// notifications.js — CRM Piese Auto
 // ════════════════════════════════════════════════════════════
-// INIT — verifică sesiune, procesează OAuth callback
-// ════════════════════════════════════════════════════════════
+// Browser Push Notifications + Setări
 
+const VAPID_PUBLIC_KEY = 'CKJBwMvNGcbrPm2PK1ktmlxHezRmx3bDQ31TZA3QyK4pvUh4qenCglWyaZX73U_jRKQGk96gk5dpjbHaiAoq4A';
+
+// ─── SERVICE WORKER SETUP ─────────────────────────────────
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('Push notifications not supported');
+    return null;
+  }
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    return reg;
+  } catch(e) {
+    console.error('SW register error:', e);
+    return null;
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return new Uint8Array([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function subscribeToPush() {
+  const reg = await registerServiceWorker();
+  if (!reg) return null;
+
+  try {
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly:      true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+
+    // Salvează în Supabase
+    const subJson = sub.toJSON();
+    await api('push_subscriptions', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({
+        user_email: currentUserEmail,
+        endpoint:   subJson.endpoint,
+        p256dh:     subJson.keys.p256dh,
+        auth:       subJson.keys.auth,
+      })
+    });
+
+    console.log('Push subscription saved ✓');
+    return sub;
+  } catch(e) {
+    console.error('Push subscribe error:', e);
+    return null;
+  }
+}
+
+async function unsubscribeFromPush() {
+  const reg = await navigator.serviceWorker?.getRegistration();
+  const sub = await reg?.pushManager?.getSubscription();
+  if (sub) {
+    await sub.unsubscribe();
+    await api(`push_subscriptions?endpoint=eq.${encodeURIComponent(sub.endpoint)}`, {
+      method: 'DELETE', headers: { 'Prefer': 'return=minimal' }
+    });
+  }
+}
+
+// ─── SEND NOTIFICATION ────────────────────────────────────
+async function sendPushNotification(type, title, body, emails) {
+  try {
+    await fetch(`https://ddieqobpxejocfnbmfck.supabase.co/functions/v1/send-push`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken || ANON_KEY}`,
+        'apikey': ANON_KEY,
+      },
+      body: JSON.stringify({ type, payload: { title, body }, emails })
+    });
+  } catch(e) { console.warn('Push send error:', e.message); }
+}
+
+// ─── NOTIFICATION SETTINGS ────────────────────────────────
+let _notifSettings = null;
+
+async function loadNotifSettings() {
+  if (!currentUserEmail) return;
+  try {
+    const rows = await api(`notification_settings?user_email=eq.${encodeURIComponent(currentUserEmail)}&select=*`);
+    _notifSettings = rows?.[0] || {
+      notif_factura_noua:  true,
+      notif_sku_lipsa:     true,
+      notif_sku_adaugat:   false,
+      notif_ora_lipsa_sku: true,
+    };
+  } catch(e) { _notifSettings = null; }
+}
+
+async function saveNotifSettings(settings) {
+  await api('notification_settings', {
+    method: 'POST',
+    headers: { 'Prefer': 'resolution=merge-duplicates' },
+    body: JSON.stringify({ user_email: currentUserEmail, ...settings })
+  });
+  _notifSettings = settings;
+}
+
+// ─── GET SUBSCRIBED EMAILS FOR EVENT ──────────────────────
+async function getSubscribedEmails(eventType) {
+  try {
+    const rows = await api(`notification_settings?${eventType}=eq.true&select=user_email`);
+    return rows.map(r => r.user_email);
+  } catch(e) { return []; }
+}
+
+// ─── OPEN NOTIFICATION SETTINGS MODAL ────────────────────
+async function openNotifSettings() {
+  // Creează modal dacă nu există
+  let modal = document.getElementById('modal-notif-settings');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-notif-settings';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:520px">
+        <div class="modal-head">
+          <h3>🔔 Setări notificări</h3>
+          <button class="icon-btn" onclick="closeModal('modal-notif-settings')">✕</button>
+        </div>
+        <div class="modal-body" style="gap:0">
+          <div id="notif-push-status" style="background:var(--s2);border-radius:var(--r-md);padding:12px 16px;margin-bottom:16px;font-size:13px">
+            ⏳ Se verifică statusul notificărilor...
+          </div>
+
+          <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">
+            Primești notificări pentru:
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <label style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--s1);border-radius:var(--r-md);cursor:pointer">
+              <div>
+                <div style="font-weight:600;font-size:13px">🧾 Factură nouă în sistem</div>
+                <div style="font-size:11px;color:var(--muted)">Când cineva uploadează o factură</div>
+              </div>
+              <input type="checkbox" id="notif-factura-noua" style="width:18px;height:18px;cursor:pointer"/>
+            </label>
+            <label style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--s1);border-radius:var(--r-md);cursor:pointer">
+              <div>
+                <div style="font-weight:600;font-size:13px">⚠️ Facturi cu SKU lipsă (orar)</div>
+                <div style="font-size:11px;color:var(--muted)">Verificare automată la fiecare oră</div>
+              </div>
+              <input type="checkbox" id="notif-ora-lipsa-sku" style="width:18px;height:18px;cursor:pointer"/>
+            </label>
+            <label style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--s1);border-radius:var(--r-md);cursor:pointer">
+              <div>
+                <div style="font-weight:600;font-size:13px">✅ SKU adăugat la produs</div>
+                <div style="font-size:11px;color:var(--muted)">Când gestionarul alocă un SKU</div>
+              </div>
+              <input type="checkbox" id="notif-sku-adaugat" style="width:18px;height:18px;cursor:pointer"/>
+            </label>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" onclick="closeModal('modal-notif-settings')">Închide</button>
+          <button class="btn btn-primary" onclick="saveNotifSettingsFromModal()">💾 Salvează</button>
+        </div>
+      </div>
+    `;
+    modal.addEventListener('click', e => { if(e.target===modal) closeModal('modal-notif-settings'); });
+    document.body.appendChild(modal);
+  }
+
+  await loadNotifSettings();
+
+  // Populează checkboxuri
+  document.getElementById('notif-factura-noua').checked  = _notifSettings?.notif_factura_noua  ?? true;
+  document.getElementById('notif-ora-lipsa-sku').checked = _notifSettings?.notif_ora_lipsa_sku ?? true;
+  document.getElementById('notif-sku-adaugat').checked   = _notifSettings?.notif_sku_adaugat   ?? false;
+
+  // Check push permission
+  const statusEl = document.getElementById('notif-push-status');
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    statusEl.innerHTML = '✅ Notificările push sunt <strong>active</strong> pe acest dispozitiv.';
+    statusEl.style.color = 'var(--green)';
+  } else if (perm === 'denied') {
+    statusEl.innerHTML = '❌ Notificările sunt <strong>blocate</strong>. Activează-le din setările browserului.';
+    statusEl.style.color = 'var(--red)';
+  } else {
+    statusEl.innerHTML = `<button class="btn btn-primary btn-sm" onclick="enablePushNotifications()">🔔 Activează notificările push</button>`;
+  }
+
+  openModal('modal-notif-settings');
+}
+
+async function enablePushNotifications() {
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    await subscribeToPush();
+    const statusEl = document.getElementById('notif-push-status');
+    statusEl.innerHTML = '✅ Notificările push sunt <strong>active</strong>!';
+    statusEl.style.color = 'var(--green)';
+    toast('✅ Notificările push sunt activate!', 'success');
+  } else {
+    toast('Notificările au fost refuzate.', 'warn');
+  }
+}
+
+async function saveNotifSettingsFromModal() {
+  const settings = {
+    notif_factura_noua:  document.getElementById('notif-factura-noua').checked,
+    notif_ora_lipsa_sku: document.getElementById('notif-ora-lipsa-sku').checked,
+    notif_sku_adaugat:   document.getElementById('notif-sku-adaugat').checked,
+    notif_sku_lipsa:     true,
+  };
+  try {
+    await saveNotifSettings(settings);
+    // Dacă nu are subscription încă, încearcă să subscribie
+    if (Notification.permission === 'granted') {
+      await subscribeToPush();
+    }
+    toast('✅ Setări salvate!', 'success');
+    closeModal('modal-notif-settings');
+  } catch(e) { toast('Eroare: ' + e.message, 'error'); }
+}
+
+// ─── AUTO-SUBSCRIBE LA LOGIN ──────────────────────────────
+async function initPushOnLogin() {
+  if (!('serviceWorker' in navigator)) return;
+  await registerServiceWorker();
+  if (Notification.permission === 'granted') {
+    await subscribeToPush();
+  }
+  await loadNotifSettings();
+}
+
+// INIT
+// main.js — CRM Piese Auto
+// Entry point — importă toate modulele și rulează init
+
+
+// ════ INIT ════
 // ════ INIT — verifică sesiune salvată ════
 (async () => {
   // ── Handle Google OAuth callback (hash fragment) ──────────
