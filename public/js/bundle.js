@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T18:44:19.472783
+// Bundle generat: 2026-03-20T18:56:59.591808
 
 
 // ══════════════════════════════════════════════════════════
@@ -2263,21 +2263,41 @@ async function saveAddProduct() {
 // ════════════════════════════════════════════════════════════
 
 async function gdriveGetToken() {
-  return new Promise((resolve, reject) => {
-    if(_gdriveToken) { resolve(_gdriveToken); return; }
+  // Verifică dacă tokenul existent mai funcționează
+  if(_gdriveToken) {
+    try {
+      const test = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: { 'Authorization': `Bearer ${_gdriveToken}` }
+      });
+      if(test.ok) return _gdriveToken;
+      // Token invalid/expirat — resetăm
+      _gdriveToken = null;
+      localStorage.removeItem('crm_gdrive_token');
+    } catch(e) { _gdriveToken = null; }
+  }
 
+  // Cere token nou via Google Identity Services
+  return new Promise((resolve, reject) => {
+    if(typeof google === 'undefined') {
+      reject(new Error('Google API nu e încărcat'));
+      return;
+    }
     const client = google.accounts.oauth2.initTokenClient({
       client_id: GDRIVE_CLIENT_ID,
       scope:     GDRIVE_SCOPE,
       callback:  (resp) => {
-        if(resp.error) { reject(new Error(resp.error)); return; }
+        if(resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
         _gdriveToken = resp.access_token;
-        // Expiră în ~1h, resetăm
-        setTimeout(() => { _gdriveToken = null; }, 3500 * 1000);
+        localStorage.setItem('crm_gdrive_token', resp.access_token);
+        // Expiră în ~1h
+        setTimeout(() => {
+          _gdriveToken = null;
+          localStorage.removeItem('crm_gdrive_token');
+        }, 3500 * 1000);
         resolve(_gdriveToken);
       },
     });
-    client.requestAccessToken();
+    client.requestAccessToken({ prompt: '' }); // fără prompt dacă e deja autentificat
   });
 }
 
