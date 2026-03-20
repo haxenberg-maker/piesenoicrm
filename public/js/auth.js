@@ -7,7 +7,9 @@ function doLoginGoogle() {
   btn.innerHTML = '<span class="spinner"></span>Se redirecționează...';
 
   // Redirect direct — nu fetch (CORS)
-  const redirectTo = encodeURIComponent(window.location.href.split('#')[0]);
+  // Redirecționează întotdeauna la dashboard.html (nu la root /)
+  const base = window.location.origin + '/dashboard.html';
+  const redirectTo = encodeURIComponent(base);
   const scopes     = encodeURIComponent('email profile https://www.googleapis.com/auth/drive.file');
   window.location.href = `${SB}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}&scopes=${scopes}`;
 }
@@ -241,4 +243,3 @@ async function doChangePassword() {
     errEl.style.display = 'block';
   }
 }
-
