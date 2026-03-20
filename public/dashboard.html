@@ -6266,15 +6266,26 @@ function parseFacturaText(text, nrFactura) {
     // Skip nr. linie dacă primul token e număr mic
     if(/^\d{1,3}$/.test(tokens[idx])) idx++;
 
-    // COD ARTICOL — alfanumeric, nu e număr pur de 8+ cifre
-    const cod = tokens[idx];
-    if(!cod || /^\d{6,}$/.test(cod)) continue; // skip tarife vamale pure
-    if(!/[A-Z]/i.test(cod)) continue; // trebuie să conțină litere
-    if(/^(BUC|PCS|SET|KIT|ML|LT|KG)$/i.test(cod)) continue;
-    idx++;
+    // Găsim indexul tarifului vamal (exact 8 cifre)
+    const tarifIdx = tokens.findIndex((t, i) => i >= idx && /^\d{8}$/.test(t));
 
-    // Skip TARIF VAMAL dacă e număr de 6-10 cifre
-    if(tokens[idx] && /^\d{6,10}$/.test(tokens[idx])) idx++;
+    let cod = '';
+    if(tarifIdx > idx) {
+      // COD ARTICOL = toate token-urile între linie și tarif vamal
+      // Exemplu: "538 0356 10" sau "BM80509H"
+      cod = tokens.slice(idx, tarifIdx).join(' ').trim();
+      idx = tarifIdx + 1; // skip tarif vamal
+    } else {
+      // Fără tarif vamal detectat — primul token e codul
+      cod = tokens[idx];
+      idx++;
+      // Skip dacă pare tarif vamal
+      if(tokens[idx] && /^\d{6,10}$/.test(tokens[idx])) idx++;
+    }
+
+    if(!cod || cod.length < 2) continue;
+    if(/^(BUC|PCS|SET|KIT|ML|LT|KG)$/i.test(cod)) continue;
+    if(/linie|articol|descriere|cantitate|pret|vamal/i.test(cod)) continue;
 
     // DESCRIERE — adunăm token-uri non-numerice
     let descriere = '';
