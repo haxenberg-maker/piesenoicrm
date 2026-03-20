@@ -44,6 +44,16 @@ def build():
 
     bundle = ''.join(parts)
 
+    # Add INIT block (from main.js or full_dashboard.js)
+    init_path = os.path.join(JS_DIR, 'main.js')
+    if os.path.exists(init_path):
+        with open(init_path, 'r', encoding='utf-8') as f:
+            main_content = f.read()
+        # Remove import lines
+        init_lines = [l for l in main_content.split('\n') if not l.startswith('import ')]
+        bundle_parts.append('\n// INIT\n')
+        bundle_parts.append('\n'.join(init_lines))
+
     # Syntax check
     tmp = '/tmp/crm_bundle_check.js'
     with open(tmp, 'w', encoding='utf-8') as f:
