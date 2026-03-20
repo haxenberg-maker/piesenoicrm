@@ -5857,17 +5857,31 @@ async function loadWorkspaceProducts(nrFactura) {
       listEl.appendChild(secTitle);
 
       onlyLocal.forEach(p => {
+        const localIdx = onlyLocal.indexOf(p);
         const card = document.createElement('div');
         card.style.cssText = 'padding:10px 12px;border-radius:var(--r-md);margin-bottom:6px;border:1px solid var(--yellow);background:rgba(245,158,11,.05)';
         card.innerHTML = `
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-            <div>
+            <div style="min-width:0">
               <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(p.descriere||'')}</div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px">Cant: ${p.cantitate} · Preț: ${fmtRON(p.pret_achizitie)} RON</div>
             </div>
             <span style="font-size:10px;color:var(--yellow);font-weight:600;flex-shrink:0">NEALOCATĂ</span>
-          </div>`;
+          </div>
+          ${onlyDbProds.length ? `
+          <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <span style="font-size:11px;color:var(--muted)">Fuzionează cu:</span>
+            <select id="fuz-sel-${localIdx}"
+              style="flex:1;min-width:0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px;cursor:pointer">
+              <option value="">— selectează produs din sistem —</option>
+              ${onlyDbProds.map(dp => `<option value="${dp.id}">${escHtml(dp.cod_aftermarket||'N/A')} · ${escHtml(dp.descriere||'')} · ${escHtml(dp.comenzi?.clienti?.nume||'')}</option>`).join('')}
+            </select>
+            <button class="btn btn-primary btn-xs" onclick="fuzionează('${escHtml(nrFactura)}',${localIdx},'${escHtml(JSON.stringify(p))}')">
+              🔗 Fuzionează
+            </button>
+          </div>` : ''}
+        `;
         listEl.appendChild(card);
       });
     }
@@ -5924,6 +5938,61 @@ async function syncFromFactura(prodId, pretAchizitie, cantitate) {
   } catch(e) { toast('Eroare: '+e.message, 'error'); }
 }
 
+
+async function fuzionează(nrFactura, localIdx, localJson) {
+  const local = JSON.parse(localJson);
+  const selEl = document.getElementById(`fuz-sel-${localIdx}`);
+  const dbProdId = selEl?.value;
+  if(!dbProdId) { toast('Selectează un produs din sistem!', 'warn'); return; }
+
+  try {
+    // Actualizează produsul din sistem cu datele din factură
+    // Păstrează: comanda_id, client, sku existent, status
+    // Actualizează: cod_aftermarket (dacă era N/A), pret_achizitie, cantitate, cod_factura_furnizor
+    const existing = await api(`produse_comandate?id=eq.${dbProdId}&select=*`);
+    const prod = existing?.[0];
+    if(!prod) { toast('Produs negăsit!', 'error'); return; }
+
+    const patch = {
+      pret_achizitie:       local.pret_achizitie,
+      cantitate:            local.cantitate,
+      cod_factura_furnizor: nrFactura,
+    };
+    // Actualizează codul dacă cel din sistem e N/A sau gol
+    if(!prod.cod_aftermarket || prod.cod_aftermarket === 'N/A' || prod.cod_aftermarket === '') {
+      patch.cod_aftermarket = local.cod_aftermarket;
+    }
+    // Actualizează descrierea dacă cea din sistem e goală
+    if(!prod.descriere && local.descriere) {
+      patch.descriere = local.descriere;
+    }
+    // Adaugă SKU din factură dacă nu are deja
+    if(!prod.sku && local.sku) {
+      patch.sku = local.sku;
+    }
+
+    await api(`produse_comandate?id=eq.${dbProdId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch)
+    });
+
+    // Elimină produsul din localStorage (nealocate)
+    const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
+    if(nealocate[nrFactura]) {
+      nealocate[nrFactura] = nealocate[nrFactura].filter((_, i) => {
+        // Găsim produsul după cod+pret
+        return !(nealocate[nrFactura][i]?.cod_aftermarket === local.cod_aftermarket &&
+                 nealocate[nrFactura][i]?.pret_achizitie  === local.pret_achizitie);
+      });
+      if(!nealocate[nrFactura].length) delete nealocate[nrFactura];
+      localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
+    }
+
+    toast(`✅ ${local.cod_aftermarket} fuzionat cu produsul din sistem!`, 'success');
+    await loadWorkspaceProducts(nrFactura);
+
+  } catch(e) { toast('Eroare: ' + e.message, 'error'); }
+}
 
 async function openAllocateModal(nrFactura) {
   // Creează modal dinamic
