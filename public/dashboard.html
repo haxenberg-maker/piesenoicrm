@@ -1109,6 +1109,12 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
         <button class="btn btn-secondary btn-sm" id="btn-edit-order">✏️ Editează</button>
         <button class="btn btn-primary btn-sm"   id="btn-add-prod-to-order">＋ Produs</button>
         <button class="btn btn-secondary btn-sm" id="btn-copy-order">📋 WA</button>
+        <select id="detail-status-sel" onchange="updateOrderStatusFromDetail(this)"
+          style="background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;cursor:pointer">
+          <option value="in_lucru">🔄 În lucru</option>
+          <option value="finalizata">✅ Finalizată</option>
+          <option value="anulata">❌ Anulată</option>
+        </select>
         <button class="btn btn-danger btn-sm"    id="btn-delete-order">🗑</button>
         <button class="icon-btn" onclick="closeDetail()" style="font-size:18px">✕</button>
       </div>
@@ -2190,6 +2196,8 @@ async function loadDetail(id, o) {
   // Buttons
   document.getElementById('btn-edit-order').onclick         = ()=>openEditOrder(id);
   document.getElementById('btn-delete-order').onclick       = ()=>confirmDeleteOrder(id, o.client_nume);
+  const statusSel = document.getElementById('detail-status-sel');
+  if(statusSel) statusSel.value = o.status_general || 'in_lucru';
   document.getElementById('btn-add-prod-to-order').onclick  = ()=>openAddProductToOrder(id, o.cod_comanda_unic||nr);
   document.getElementById('btn-copy-order').onclick         = ()=>copyOrderWhatsApp(id, o);
   document.getElementById('btn-add-plata-detail').onclick   = ()=>openAddPlata(id);
@@ -3430,7 +3438,7 @@ async function invoiceNext() {
         const chunks = [];
         for(let i=0;i<ids.length;i+=20) chunks.push(ids.slice(i,i+20));
         for(const chunk of chunks) {
-          const p = await api(`produse_comandate?comanda_id=in.(${chunk.join(',')})&status_produs=eq.comandat&select=*`);
+          const p = await api(`produse_comandate?comanda_id=in.(${chunk.join(',')})&status_produs=in.(comandat,ajuns)&select=*`);
           p.forEach(x => { if(!seenIds.has(x.id)){ seenIds.add(x.id); allProds.push(x); } });
         }
       }
@@ -6369,6 +6377,7 @@ function showAnalyzeModal(nrFactura) {
                     <th>Descriere</th>
                     <th>Cant.</th>
                     <th>Preț acq. (RON)</th>
+                    <th>SKU</th>
                     <th><input type="checkbox" id="analyze-check-all" checked onchange="document.querySelectorAll('.analyze-row-check').forEach(c=>c.checked=this.checked)"/></th>
                   </tr>
                 </thead>
@@ -6425,10 +6434,11 @@ function renderAnalyzeResults(nrFactura, result) {
   result.produse.forEach((p, i) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><input class="sf-input" id="ap-cod-${i}" value="${escHtml(p.cod_aftermarket||'')}" style="width:120px"/></td>
-      <td><input class="sf-input" id="ap-desc-${i}" value="${escHtml(p.descriere||'')}" style="width:200px"/></td>
-      <td><input class="sf-input" type="number" id="ap-cant-${i}" value="${p.cantitate||1}" style="width:60px"/></td>
-      <td><input class="sf-input" type="number" id="ap-pret-${i}" value="${p.pret_achizitie||0}" step="0.01" style="width:90px"/></td>
+      <td><input class="sf-input" id="ap-cod-${i}" value="${escHtml(p.cod_aftermarket||'')}" style="width:110px"/></td>
+      <td><input class="sf-input" id="ap-desc-${i}" value="${escHtml(p.descriere||'')}" style="width:160px"/></td>
+      <td><input class="sf-input" type="number" id="ap-cant-${i}" value="${p.cantitate||1}" style="width:55px"/></td>
+      <td><input class="sf-input" type="number" id="ap-pret-${i}" value="${p.pret_achizitie||0}" step="0.01" style="width:80px"/></td>
+      <td><input class="sf-input" id="ap-sku-${i}" placeholder="SKU" style="width:90px"/></td>
       <td><input type="checkbox" class="analyze-row-check" data-idx="${i}" checked/></td>
     `;
     tbody.appendChild(tr);
@@ -6451,6 +6461,7 @@ async function saveAnalyzeResults() {
       descriere:            document.getElementById(`ap-desc-${i}`)?.value?.trim() || '',
       cantitate:            parseFloat(document.getElementById(`ap-cant-${i}`)?.value) || 1,
       pret_achizitie:       parseFloat(document.getElementById(`ap-pret-${i}`)?.value) || 0,
+      sku:                  document.getElementById(`ap-sku-${i}`)?.value?.trim() || null,
       cod_factura_furnizor: nrFactura,
     });
     saved++;
