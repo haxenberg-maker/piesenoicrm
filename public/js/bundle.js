@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T19:00:10.106008
+// Bundle generat: 2026-03-20T19:08:18.318602
 
 
 // ══════════════════════════════════════════════════════════
@@ -446,7 +446,11 @@ function navigate(page) {
   if (page==='produse') loadAllProducts();
   if (page==='loguri')   loadLogs();
   if (page==='utilizatori') loadUsers();
-  if (page==='facturi') { loadFacturi(); showFacturiTab('pdf-list'); }
+  if (page==='facturi') {
+    loadFacturi();
+    showFacturiTab('pdf-list');
+    setTimeout(() => { if(typeof renderFaraSku === 'function') renderFaraSku(); }, 1000);
+  }
   if (page==='predare')  loadPredare();
   if (page==='retururi') loadRetururi();
 }
@@ -3035,6 +3039,11 @@ async function saveAddFactura() {
 async function loadFacturiDb() {
   try {
     _facturiDb = await api('facturi?select=*&order=creat_la.desc');
+    // Sortează: neprocessate primele, procesate la urmă
+    _facturiDb.sort((a, b) => {
+      const order = { nou: 0, in_procesare: 1, procesat: 2 };
+      return (order[a.status] ?? 1) - (order[b.status] ?? 1);
+    });
   } catch(e) { console.warn('loadFacturiDb:', e.message); _facturiDb = []; }
 }
 
@@ -3152,6 +3161,11 @@ async function renderPdfList() {
   // Always fetch fresh from Supabase
   try {
     _facturiDb = await api('facturi?select=*&order=creat_la.desc');
+    // Sortează: neprocessate primele, procesate la urmă
+    _facturiDb.sort((a, b) => {
+      const order = { nou: 0, in_procesare: 1, procesat: 2 };
+      return (order[a.status] ?? 1) - (order[b.status] ?? 1);
+    });
   } catch(e) {
     document.getElementById('pdf-list-count').textContent = '❌ Eroare: ' + e.message;
     return;
@@ -3173,7 +3187,28 @@ async function renderPdfList() {
   const statusLabel = { nou:'🆕 Nouă', in_procesare:'⏳ În procesare', procesat:'✅ Procesat' };
   const statusColor = { nou:'var(--accent)', in_procesare:'var(--yellow)', procesat:'var(--green)' };
 
-  facturi.forEach(f => {
+  // Adaugă separator între "De procesat" și "Procesate"
+  const deProcesat = facturi.filter(f => f.status !== 'procesat');
+  const procesate  = facturi.filter(f => f.status === 'procesat');
+
+  if(deProcesat.length) {
+    const sep = document.createElement('div');
+    sep.style.cssText = 'font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;padding:6px 0;border-bottom:1px solid var(--border)';
+    sep.textContent = `🔔 De procesat (${deProcesat.length})`;
+    tbody.appendChild(sep);
+  }
+
+  const allSorted = [...deProcesat, ...(procesate.length ? [null] : []), ...procesate];
+
+  allSorted.forEach(f => {
+    if(f === null) {
+      // Separator Procesate
+      const sep = document.createElement('div');
+      sep.style.cssText = 'font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 10px;padding:6px 0;border-bottom:1px solid var(--border)';
+      sep.textContent = `✅ Procesate (${procesate.length})`;
+      tbody.appendChild(sep);
+      return;
+    }
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>

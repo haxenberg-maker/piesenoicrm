@@ -680,7 +680,7 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
   </nav>
   <div class="sidebar-footer">
     <div id="sidebar-time">—</div>
-    <div id="autosave-status" style="font-size:10px;color:var(--green);margin-top:3px;min-height:14px"></div>
+<div id="autosave-status" style="font-size:10px;color:var(--green);margin-top:3px;min-height:14px"></div>
     <div id="sidebar-user" style="font-size:11px;color:var(--muted);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
     <button onclick="doLogout()" style="margin-top:6px;width:100%;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);padding:5px;font-size:11px;cursor:pointer">Deconectare</button>
   </div>
@@ -693,6 +693,11 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
   <div class="topbar-stat"><span class="ts-label">Active</span><span class="ts-val amber" id="tb-active">—</span></div>
   <div class="topbar-stat"><span class="ts-label">Rest total</span><span class="ts-val red" id="tb-rest">—</span></div>
   <div class="topbar-stat"><span class="ts-label">Vânzări</span><span class="ts-val green" id="tb-vanzari">—</span></div>
+  <button onclick="openNotifSettings()" title="Setări notificări"
+    style="background:none;border:none;cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;color:var(--muted);margin-left:auto"
+    onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--muted)'">
+    🔔
+  </button>
   <div class="topbar-right" id="tb-time" style="margin-left:auto;font-size:11px;color:var(--muted)">—</div>
 </div>
 
@@ -860,6 +865,10 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
       style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;margin-bottom:-2px">
       📦 Din produse
     </button>
+    <button class="ftab" id="ftab-fara-sku" onclick="showFacturiTab('fara-sku')"
+      style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;margin-bottom:-2px">
+      ⚠️ Fără SKU <span id="badge-fara-sku" style="background:var(--red);color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;display:none"></span>
+    </button>
   </div>
 
   <!-- Tab 1: Din produse -->
@@ -889,6 +898,15 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
     </table>
   </div><!-- /tbl-wrap -->
   </div><!-- /ftab-content-produse -->
+
+  <!-- Tab 3: Fără SKU -->
+  <div id="ftab-content-fara-sku" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600">Produse cu factură alocată dar fără SKU</div>
+      <button class="btn btn-secondary btn-sm" onclick="renderFaraSku()">↻ Reîncarcă</button>
+    </div>
+    <div id="fara-sku-list"></div>
+  </div>
 
   <!-- Tab 2: PDF-uri urcate -->
   <div id="ftab-content-pdf-list" style="min-height:200px">
