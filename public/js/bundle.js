@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T19:19:51.524725
+// Bundle generat: 2026-03-20T19:29:20.706971
 
 
 // ══════════════════════════════════════════════════════════
@@ -3544,7 +3544,7 @@ async function loadWorkspaceProducts(nrFactura) {
           </div>
 
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-secondary btn-xs" onclick="saveNealocatFields('${escHtml(nrFactura)}',${localIdx})">
+            <button class="btn btn-secondary btn-xs" onclick="saveNealocatFields('${escHtml(nrFactura)}',${localIdx},this)">
               💾 Salvează câmpuri
             </button>
             ${onlyDbProds.length ? `
@@ -3614,7 +3614,7 @@ async function syncFromFactura(prodId, pretAchizitie, cantitate) {
   } catch(e) { toast('Eroare: '+e.message, 'error'); }
 }
 
-async function saveNealocatFields(nrFactura, localIdx) {
+async function saveNealocatFields(nrFactura, localIdx, btn) {
   const sku  = document.getElementById(`nl-sku-${localIdx}`)?.value?.trim() || null;
   const cant = parseFloat(document.getElementById(`nl-cant-${localIdx}`)?.value) || 1;
   const pret = parseFloat(document.getElementById(`nl-pret-${localIdx}`)?.value) || 0;
@@ -3630,13 +3630,14 @@ async function saveNealocatFields(nrFactura, localIdx) {
   };
   localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
 
-  // Visual feedback - tot cardul devine verde
-  const btn = document.querySelector(`button[onclick*="saveNealocatFields('${nrFactura}',${localIdx})"]`);
-  const card = btn?.closest('div[style*="border:1px solid var(--yellow)"]');
-  if(card) {
-    card.style.border = '1px solid var(--green)';
-    card.style.background = 'rgba(16,185,129,.08)';
-    btn.textContent = '✅ Salvat';
+  // Visual feedback
+  if(btn) {
+    const card = btn.closest('div[style]');
+    if(card) {
+      card.style.borderColor = 'var(--green)';
+      card.style.background  = 'rgba(16,185,129,.08)';
+    }
+    btn.textContent = '✅ Salvat!';
     btn.style.background = 'var(--green)';
     btn.style.color = 'white';
     setTimeout(() => {
@@ -5077,7 +5078,10 @@ let _notifSettings = null;
 async function loadNotifSettings() {
   if (!currentUserEmail) return;
   try {
-    const rows = await api(`notification_settings?user_email=eq.${encodeURIComponent(currentUserEmail)}&select=*`);
+    const res  = await fetch(`${SB}/rest/v1/notification_settings?user_email=eq.${encodeURIComponent(currentUserEmail)}&select=*`, {
+      headers: getHeaders()
+    });
+    const rows = res.ok ? await res.json() : [];
     _notifSettings = rows?.[0] || {
       notif_factura_noua:  true,
       notif_sku_lipsa:     true,
@@ -5088,9 +5092,11 @@ async function loadNotifSettings() {
 }
 
 async function saveNotifSettings(settings) {
-  await api('notification_settings', {
+  await fetch(`${SB}/rest/v1/notification_settings`, {
     method: 'POST',
-    headers: { 'Prefer': 'resolution=merge-duplicates' },
+    headers: {
+      ...getHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+    },
     body: JSON.stringify({ user_email: currentUserEmail, ...settings })
   });
   _notifSettings = settings;
