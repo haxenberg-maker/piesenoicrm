@@ -8,7 +8,7 @@ function doLoginGoogle() {
 
   // Redirect direct — nu fetch (CORS)
   // Redirecționează întotdeauna la dashboard.html (nu la root /)
-  const base = window.location.origin + '/dashboard.html';
+  const base = window.location.origin + '/';
   const redirectTo = encodeURIComponent(base);
   const scopes     = encodeURIComponent('email profile https://www.googleapis.com/auth/drive.file');
   window.location.href = `${SB}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}&scopes=${scopes}`;
