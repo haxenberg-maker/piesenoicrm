@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T18:56:59.591808
+// Bundle generat: 2026-03-20T19:00:10.106008
 
 
 // ══════════════════════════════════════════════════════════
@@ -13,7 +13,7 @@
 const SB       = 'https://ddieqobpxejocfnbmfck.supabase.co';
 const GDRIVE_CLIENT_ID = '1015751927121-5dsu2gl9s8pojdaki9sub28dcehibg9j.apps.googleusercontent.com';
 const GDRIVE_FOLDER_ID = '19WKvi4sa2BpbHA5QrEylVWptouGVQwrJ';
-const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive.file';
+const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
 
 // ══════════════════════════════════════════════════════════
@@ -164,7 +164,7 @@ function doLoginGoogle() {
   // Redirecționează întotdeauna la dashboard.html (nu la root /)
   const base = window.location.origin + '/';
   const redirectTo = encodeURIComponent(base);
-  const scopes     = encodeURIComponent('email profile https://www.googleapis.com/auth/drive.file');
+  const scopes     = encodeURIComponent('email profile https://www.googleapis.com/auth/drive');
   window.location.href = `${SB}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}&scopes=${scopes}`;
 }
 
