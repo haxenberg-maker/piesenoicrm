@@ -5741,44 +5741,125 @@ async function loadWorkspaceProducts(nrFactura) {
   listEl.innerHTML = '';
 
   try {
-    // Produse din Supabase (alocate la comenzi)
-    const prodsDb = await api(
-      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&select=*,comenzi(nr_comanda,cod_comanda_unic,clienti(nume))`
-    );
-
-    // Produse nealocate din localStorage
-    const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
-    const prodsLocal = (nealocate[nrFactura] || []).map((p, i) => ({ ...p, _local: true, _localIdx: i }));
+    const [prodsDb, nealocateStore] = await Promise.all([
+      api(`produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&select=*,comenzi(nr_comanda,cod_comanda_unic,clienti(nume))`),
+      Promise.resolve(JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}'))
+    ]);
+    const prodsLocal = nealocateStore[nrFactura] || [];
 
     document.getElementById('fw-products-loading').style.display = 'none';
 
-    const total = prodsDb.length + prodsLocal.length;
-
-    if(!total) {
-      listEl.innerHTML = `
-        <div style="text-align:center;padding:32px;color:var(--muted)">
-          <div style="font-size:32px;margin-bottom:8px">📦</div>
-          <div style="font-size:13px">Niciun produs legat de această factură.</div>
-          <div style="font-size:12px;margin-top:8px">Procesează factura din Pasul 1 pentru a lega produse.</div>
-          <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="closeModal('modal-factura-workspace');openInvoiceWizard()">
-            ＋ Procesează factura
-          </button>
-        </div>`;
+    if(!prodsDb.length && !prodsLocal.length) {
+      listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted)">
+        <div style="font-size:32px;margin-bottom:8px">📦</div>
+        <div>Niciun produs legat de această factură.</div>
+        <button class="btn btn-primary btn-sm" style="margin-top:12px"
+          onclick="closeModal('modal-factura-workspace');openInvoiceWizard()">＋ Procesează factura</button>
+      </div>`;
       return;
     }
 
-    // ── Produse nealocate (din localStorage) ─────────────────────────
-    if(prodsLocal.length) {
-      const header = document.createElement('div');
-      header.style.cssText = 'font-size:11px;font-weight:700;color:var(--yellow);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center';
-      header.innerHTML = `<span>⏳ Nealocate (${prodsLocal.length})</span>
-        <button class="btn btn-primary btn-xs" onclick="openAllocateModal('${escHtml(nrFactura)}')">🔗 Alocă la comandă</button>`;
-      listEl.appendChild(header);
+    // ── Potrivire automată nealocate ↔ alocate ──────────────────────
+    // Indexăm alocatele după cod aftermarket
+    const dbByCod = {};
+    prodsDb.forEach(p => {
+      const key = p.cod_aftermarket?.trim().toUpperCase();
+      if(!dbByCod[key]) dbByCod[key] = [];
+      dbByCod[key].push(p);
+    });
 
-      prodsLocal.forEach((p, i) => {
-        const div = document.createElement('div');
-        div.style.cssText = 'padding:10px 12px;border-radius:var(--r-md);margin-bottom:6px;border:1px solid var(--yellow);background:rgba(245,158,11,.05)';
-        div.innerHTML = `
+    const matched   = []; // { local, db } perechi potrivite
+    const onlyLocal = []; // nealocate fără pereche
+    const onlyDb    = new Set(prodsDb.map(p => p.id)); // alocate fără pereche
+
+    prodsLocal.forEach(local => {
+      const key = local.cod_aftermarket?.trim().toUpperCase();
+      const dbMatches = dbByCod[key] || [];
+      if(dbMatches.length) {
+        const db = dbMatches.shift(); // ia primul match
+        matched.push({ local, db });
+        onlyDb.delete(db.id);
+      } else {
+        onlyLocal.push(local);
+      }
+    });
+
+    const onlyDbProds = prodsDb.filter(p => onlyDb.has(p.id));
+
+    // ── Render ────────────────────────────────────────────────────────
+    listEl.innerHTML = '';
+
+    // Header statistici
+    const statsDiv = document.createElement('div');
+    statsDiv.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;font-size:12px';
+    statsDiv.innerHTML = `
+      ${matched.length   ? `<span style="background:rgba(16,185,129,.1);color:var(--green);padding:4px 10px;border-radius:20px;font-weight:600">✅ ${matched.length} potrivite</span>` : ''}
+      ${onlyLocal.length ? `<span style="background:rgba(245,158,11,.1);color:var(--yellow);padding:4px 10px;border-radius:20px;font-weight:600">⏳ ${onlyLocal.length} nealocate</span>` : ''}
+      ${onlyDbProds.length ? `<span style="background:rgba(99,102,241,.1);color:#818cf8;padding:4px 10px;border-radius:20px;font-weight:600">🔗 ${onlyDbProds.length} doar în sistem</span>` : ''}
+    `;
+    listEl.appendChild(statsDiv);
+
+    // ── Produse POTRIVITE ─────────────────────────────────────────────
+    if(matched.length) {
+      const secTitle = document.createElement('div');
+      secTitle.style.cssText = 'font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px';
+      secTitle.textContent = `✅ Potrivite (${matched.length})`;
+      listEl.appendChild(secTitle);
+
+      matched.forEach(({ local, db }) => {
+        const cmd = db.comenzi || {};
+        const hasSku = !!db.sku;
+        const card = document.createElement('div');
+        card.style.cssText = 'border:1px solid var(--green);border-radius:var(--r-md);margin-bottom:8px;overflow:hidden;background:var(--s1)';
+        card.innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+            <!-- Stânga: din factură -->
+            <div style="padding:10px 12px;border-right:1px solid var(--border);background:rgba(16,185,129,.03)">
+              <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px">DIN FACTURĂ</div>
+              <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(local.cod_aftermarket)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(local.descriere||'')}</div>
+              <div style="font-size:11px;margin-top:2px">
+                Cant: <strong>${local.cantitate}</strong> &nbsp;·&nbsp;
+                Preț: <strong>${fmtRON(local.pret_achizitie)} RON</strong>
+              </div>
+            </div>
+            <!-- Dreapta: din sistem -->
+            <div style="padding:10px 12px;background:rgba(16,185,129,.03)">
+              <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px">ÎN SISTEM</div>
+              <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(db.cod_aftermarket)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(db.descriere||'')}</div>
+              <div style="font-size:10px;color:var(--muted2);margin-top:2px">${escHtml(cmd.cod_comanda_unic||'')} · ${escHtml(cmd.clienti?.nume||'—')}</div>
+              <span class="badge b-${db.status_produs}" style="margin-top:4px;display:inline-block">${db.status_produs}</span>
+            </div>
+          </div>
+          <!-- SKU row -->
+          <div style="padding:8px 12px;display:flex;align-items:center;gap:8px;background:var(--s2)">
+            <span style="font-size:11px;color:var(--muted);flex-shrink:0">SKU:</span>
+            <input id="sku-${db.id}" value="${escHtml(db.sku||local.sku||'')}"
+              placeholder="${hasSku ? '' : '⚠ SKU lipsă'}"
+              style="flex:1;background:var(--bg);border:1px solid ${hasSku?'var(--green)':'var(--accent)'};border-radius:6px;color:var(--text);padding:4px 8px;font-size:12px;font-family:monospace;outline:none"/>
+            <button class="btn btn-primary btn-xs" onclick="saveWorkspaceSku('${db.id}','${escHtml(db.cod_aftermarket)}')">💾</button>
+            <button class="btn btn-secondary btn-xs" onclick="syncFromFactura('${db.id}','${escHtml(local.pret_achizitie)}','${escHtml(local.cantitate)}')" title="Actualizează prețul din factură">
+              🔄 Preț factură
+            </button>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    // ── Produse NEALOCATE ─────────────────────────────────────────────
+    if(onlyLocal.length) {
+      const secTitle = document.createElement('div');
+      secTitle.style.cssText = 'font-size:11px;font-weight:700;color:var(--yellow);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 8px;display:flex;justify-content:space-between;align-items:center';
+      secTitle.innerHTML = `<span>⏳ Nealocate (${onlyLocal.length})</span>
+        <button class="btn btn-primary btn-xs" onclick="openAllocateModal('${escHtml(nrFactura)}')">🔗 Alocă la comandă</button>`;
+      listEl.appendChild(secTitle);
+
+      onlyLocal.forEach(p => {
+        const card = document.createElement('div');
+        card.style.cssText = 'padding:10px 12px;border-radius:var(--r-md);margin-bottom:6px;border:1px solid var(--yellow);background:rgba(245,158,11,.05)';
+        card.innerHTML = `
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
             <div>
               <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
@@ -5787,48 +5868,62 @@ async function loadWorkspaceProducts(nrFactura) {
             </div>
             <span style="font-size:10px;color:var(--yellow);font-weight:600;flex-shrink:0">NEALOCATĂ</span>
           </div>`;
-        listEl.appendChild(div);
+        listEl.appendChild(card);
       });
-
-      if(prodsDb.length) {
-        const sep = document.createElement('div');
-        sep.style.cssText = 'font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:12px 0 8px';
-        sep.textContent = `✅ Alocate (${prodsDb.length})`;
-        listEl.appendChild(sep);
-      }
     }
 
-    // ── Produse din Supabase (alocate) ───────────────────────────────
-    prodsDb.forEach(p => {
-      const cmd = p.comenzi||{};
-      const hasSku = !!p.sku;
-      const div = document.createElement('div');
-      div.style.cssText = `padding:10px 12px;border-radius:var(--r-md);margin-bottom:8px;
-        border:1px solid ${hasSku ? 'var(--green)' : 'var(--border)'};
-        background:${hasSku ? 'rgba(16,185,129,.04)' : 'var(--s1)'}`;
-      div.innerHTML = `
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-          <div style="min-width:0">
-            <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(p.descriere||'')}</div>
-            <div style="font-size:10px;color:var(--muted2);margin-top:3px">${escHtml(cmd.cod_comanda_unic||'')} · ${escHtml(cmd.clienti?.nume||'—')}</div>
+    // ── Produse DOAR ÎN SISTEM ────────────────────────────────────────
+    if(onlyDbProds.length) {
+      const secTitle = document.createElement('div');
+      secTitle.style.cssText = 'font-size:11px;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:.6px;margin:12px 0 8px';
+      secTitle.textContent = `🔗 Doar în sistem (${onlyDbProds.length})`;
+      listEl.appendChild(secTitle);
+
+      onlyDbProds.forEach(p => {
+        const cmd = p.comenzi || {};
+        const hasSku = !!p.sku;
+        const card = document.createElement('div');
+        card.style.cssText = `padding:10px 12px;border-radius:var(--r-md);margin-bottom:8px;border:1px solid ${hasSku?'var(--green)':'var(--border)'};background:var(--s1)`;
+        card.innerHTML = `
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <div style="min-width:0">
+              <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(p.descriere||'')}</div>
+              <div style="font-size:10px;color:var(--muted2);margin-top:2px">${escHtml(cmd.cod_comanda_unic||'')} · ${escHtml(cmd.clienti?.nume||'—')}</div>
+            </div>
+            <span class="badge b-${p.status_produs}" style="flex-shrink:0">${p.status_produs}</span>
           </div>
-          <span class="badge b-${p.status_produs}" style="flex-shrink:0">${p.status_produs}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
-          <input id="sku-${p.id}" value="${escHtml(p.sku||'')}"
-            placeholder="${hasSku ? '' : '⚠ SKU lipsă'}"
-            style="flex:1;background:var(--s2);border:1px solid ${hasSku?'var(--green)':'var(--accent)'};border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;font-family:monospace;outline:none"/>
-          <button class="btn btn-primary btn-xs" onclick="saveWorkspaceSku('${p.id}','${escHtml(p.cod_aftermarket)}')">💾</button>
-        </div>`;
-      listEl.appendChild(div);
-    });
+          <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+            <input id="sku-${p.id}" value="${escHtml(p.sku||'')}"
+              placeholder="${hasSku ? '' : '⚠ SKU lipsă'}"
+              style="flex:1;background:var(--s2);border:1px solid ${hasSku?'var(--green)':'var(--accent)'};border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;font-family:monospace;outline:none"/>
+            <button class="btn btn-primary btn-xs" onclick="saveWorkspaceSku('${p.id}','${escHtml(p.cod_aftermarket)}')">💾</button>
+          </div>`;
+        listEl.appendChild(card);
+      });
+    }
 
   } catch(e) {
     document.getElementById('fw-products-loading').style.display = 'none';
     listEl.innerHTML = `<div style="color:var(--red);padding:12px">Eroare: ${e.message}</div>`;
   }
 }
+
+async function syncFromFactura(prodId, pretAchizitie, cantitate) {
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        pret_achizitie: parseFloat(pretAchizitie),
+        cantitate:      parseInt(cantitate)
+      })
+    });
+    toast('Preț și cantitate actualizate din factură!', 'success');
+    const nrFact = document.getElementById('fw-nr').textContent;
+    await loadWorkspaceProducts(nrFact);
+  } catch(e) { toast('Eroare: '+e.message, 'error'); }
+}
+
 
 async function openAllocateModal(nrFactura) {
   // Creează modal dinamic
