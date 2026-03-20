@@ -849,10 +849,6 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
 <div class="page" id="page-facturi">
   <div class="page-header">
     <div class="page-title">Facturi furnizori <small id="facturi-count"></small></div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-secondary" onclick="showFacturiTab('produse')">📦 Din produse</button>
-      <button class="btn btn-primary" onclick="openInvoiceWizard()">＋ Procesează factură</button>
-    </div>
   </div>
 
   <!-- Sub-tabs: Produse / PDF-uri -->
@@ -861,14 +857,8 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
       style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer;margin-bottom:-2px">
       🧾 Intrări
     </button>
-    <button class="ftab" id="ftab-produse" onclick="showFacturiTab('produse')"
-      style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;margin-bottom:-2px">
-      📦 Din produse
-    </button>
-    <button class="ftab" id="ftab-fara-sku" onclick="showFacturiTab('fara-sku')"
-      style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;margin-bottom:-2px">
-      ⚠️ Fără SKU <span id="badge-fara-sku" style="background:var(--red);color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;display:none"></span>
-    </button>
+
+
   </div>
 
   <!-- Tab 1: Din produse -->

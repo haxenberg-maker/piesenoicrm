@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T19:08:18.318602
+// Bundle generat: 2026-03-20T19:13:45.379018
 
 
 // ══════════════════════════════════════════════════════════
@@ -14,6 +14,7 @@ const SB       = 'https://ddieqobpxejocfnbmfck.supabase.co';
 const GDRIVE_CLIENT_ID = '1015751927121-5dsu2gl9s8pojdaki9sub28dcehibg9j.apps.googleusercontent.com';
 const GDRIVE_FOLDER_ID = '19WKvi4sa2BpbHA5QrEylVWptouGVQwrJ';
 const GDRIVE_SCOPE     = 'https://www.googleapis.com/auth/drive';
+const VAPID_PUBLIC_KEY = 'BPWh_phx4N5244FAv2_xXJKCaQUcexhJEHIsyQUe7YcTie1cZ2KfNtVSN-DOKubCpca8_yu2emQ0dtnWe5o53SE';
 const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
 
 // ══════════════════════════════════════════════════════════
@@ -3187,28 +3188,40 @@ async function renderPdfList() {
   const statusLabel = { nou:'🆕 Nouă', in_procesare:'⏳ În procesare', procesat:'✅ Procesat' };
   const statusColor = { nou:'var(--accent)', in_procesare:'var(--yellow)', procesat:'var(--green)' };
 
-  // Adaugă separator între "De procesat" și "Procesate"
-  const deProcesat = facturi.filter(f => f.status !== 'procesat');
-  const procesate  = facturi.filter(f => f.status === 'procesat');
+  // Fetch produse fără SKU pentru a marca facturile
+  let faraSku = new Set();
+  try {
+    const prods = await api(
+      'produse_comandate?sku=is.null&cod_factura_furnizor=not.is.null&select=cod_factura_furnizor'
+    );
+    prods.forEach(p => faraSku.add(p.cod_factura_furnizor));
+  } catch(e) {}
 
-  if(deProcesat.length) {
+  // Grupează: fără SKU, de procesat, procesate
+  const cuFaraSku  = facturi.filter(f => faraSku.has(f.nr_factura));
+  const deProcesat = facturi.filter(f => !faraSku.has(f.nr_factura) && f.status !== 'procesat');
+  const procesate  = facturi.filter(f => !faraSku.has(f.nr_factura) && f.status === 'procesat');
+
+  // Update badge fara-sku
+  const badgeFaraSku = document.getElementById('badge-fara-sku');
+  if(badgeFaraSku) { badgeFaraSku.textContent = cuFaraSku.length || ''; badgeFaraSku.style.display = cuFaraSku.length ? 'inline' : 'none'; }
+
+  const addSep = (text, color) => {
     const sep = document.createElement('div');
-    sep.style.cssText = 'font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;padding:6px 0;border-bottom:1px solid var(--border)';
-    sep.textContent = `🔔 De procesat (${deProcesat.length})`;
+    sep.style.cssText = `font-size:11px;font-weight:700;color:${color};text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;padding:6px 0;border-bottom:1px solid var(--border)`;
+    sep.textContent = text;
     tbody.appendChild(sep);
-  }
+  };
 
-  const allSorted = [...deProcesat, ...(procesate.length ? [null] : []), ...procesate];
+  // Build ordered list with separators
+  const sections = [];
+  if(cuFaraSku.length)  { sections.push({ label: `⚠️ FĂRĂ SKU (${cuFaraSku.length})`,    color: 'var(--red)',    items: cuFaraSku }); }
+  if(deProcesat.length) { sections.push({ label: `🔔 De procesat (${deProcesat.length})`, color: 'var(--accent)', items: deProcesat }); }
+  if(procesate.length)  { sections.push({ label: `✅ Procesate (${procesate.length})`,    color: 'var(--muted)',  items: procesate }); }
 
-  allSorted.forEach(f => {
-    if(f === null) {
-      // Separator Procesate
-      const sep = document.createElement('div');
-      sep.style.cssText = 'font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 10px;padding:6px 0;border-bottom:1px solid var(--border)';
-      sep.textContent = `✅ Procesate (${procesate.length})`;
-      tbody.appendChild(sep);
-      return;
-    }
+  sections.forEach(({ label, color, items }) => {
+    addSep(label, color);
+    items.forEach(f => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
@@ -3234,9 +3247,10 @@ async function renderPdfList() {
         <button class="icon-btn" style="color:var(--red)" onclick="removeFacturaPdf('${escHtml(f.nr_factura)}')">🗑</button>
       </td>
     `;
-    tr.style.cursor = 'pointer';
-    tr.addEventListener('click', () => openFacturaWorkspace(f.nr_factura));
-    tbody.appendChild(tr);
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', () => openFacturaWorkspace(f.nr_factura));
+      tbody.appendChild(tr);
+    });
   });
 }
 
@@ -4916,7 +4930,6 @@ async function toggleUserActive(id, newState) {
 // ════════════════════════════════════════════════════════════
 // Browser Push Notifications + Setări
 
-const VAPID_PUBLIC_KEY = 'CKJBwMvNGcbrPm2PK1ktmlxHezRmx3bDQ31TZA3QyK4pvUh4qenCglWyaZX73U_jRKQGk96gk5dpjbHaiAoq4A';
 
 // ─── SERVICE WORKER SETUP ─────────────────────────────────
 async function registerServiceWorker() {
