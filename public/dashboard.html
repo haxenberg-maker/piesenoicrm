@@ -1726,6 +1726,14 @@ let _pendingUploadNr = null;
 // Misc
 let autosaveTimers   = {};
 
+// Formatters & helpers
+const fmtNr   = n => n ? `CMD-${String(n).padStart(4,'0')}` : '—';
+const fmtDate = d => new Date(d).toLocaleDateString('ro-RO');
+const fmtRON  = v => (+v||0).toFixed(2);
+const calcRest  = o => o.tip_plata==='achitat_integral' ? 0 : Math.max(0, (+o.total_plata||0)-(+o.avans_achitat||0));
+const isAchitat = o => o.tip_plata==='achitat_integral' || calcRest(o)<=0;
+const escHtml   = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
 // ════════════════════════════════════════════════════════════
 // API
 // ════════════════════════════════════════════════════════════
