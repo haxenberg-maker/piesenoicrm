@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T19:13:45.379018
+// Bundle generat: 2026-03-20T19:17:34.822355
 
 
 // ══════════════════════════════════════════════════════════
@@ -3512,29 +3512,51 @@ async function loadWorkspaceProducts(nrFactura) {
 
       onlyLocal.forEach(p => {
         const localIdx = onlyLocal.indexOf(p);
+        const pJson = escHtml(JSON.stringify(p));
         const card = document.createElement('div');
-        card.style.cssText = 'padding:10px 12px;border-radius:var(--r-md);margin-bottom:6px;border:1px solid var(--yellow);background:rgba(245,158,11,.05)';
+        card.style.cssText = 'padding:10px 12px;border-radius:var(--r-md);margin-bottom:8px;border:1px solid var(--yellow);background:rgba(245,158,11,.05)';
         card.innerHTML = `
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
             <div style="min-width:0">
               <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
               <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(p.descriere||'')}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">Cant: ${p.cantitate} · Preț: ${fmtRON(p.pret_achizitie)} RON</div>
             </div>
-            <span style="font-size:10px;color:var(--yellow);font-weight:600;flex-shrink:0">NEALOCATĂ</span>
+            <span style="font-size:10px;color:var(--yellow);font-weight:600;flex-shrink:0;background:rgba(245,158,11,.15);padding:2px 8px;border-radius:10px">NEALOCATĂ</span>
           </div>
-          ${onlyDbProds.length ? `
-          <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <span style="font-size:11px;color:var(--muted)">Fuzionează cu:</span>
+
+          <!-- Câmpuri editabile SKU / Cantitate / Preț -->
+          <div style="display:grid;grid-template-columns:1fr 80px 100px;gap:6px;margin-bottom:8px">
+            <div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">SKU</div>
+              <input id="nl-sku-${localIdx}" value="${escHtml(p.sku||'')}" placeholder="SKU"
+                style="width:100%;background:var(--s2);border:1px solid var(--accent);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;font-family:monospace;outline:none"/>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">Cant.</div>
+              <input id="nl-cant-${localIdx}" type="number" value="${p.cantitate||1}" min="1"
+                style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none"/>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">Preț acq. (RON)</div>
+              <input id="nl-pret-${localIdx}" type="number" value="${p.pret_achizitie||0}" step="0.01"
+                style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 8px;font-size:12px;outline:none"/>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-secondary btn-xs" onclick="saveNealocatFields('${escHtml(nrFactura)}',${localIdx})">
+              💾 Salvează câmpuri
+            </button>
+            ${onlyDbProds.length ? `
             <select id="fuz-sel-${localIdx}"
-              style="flex:1;min-width:0;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px;cursor:pointer">
-              <option value="">— selectează produs din sistem —</option>
+              style="flex:1;min-width:100px;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px;cursor:pointer">
+              <option value="">🔗 Fuzionează cu produs din sistem...</option>
               ${onlyDbProds.map(dp => `<option value="${dp.id}">${escHtml(dp.cod_aftermarket||'N/A')} · ${escHtml(dp.descriere||'')} · ${escHtml(dp.comenzi?.clienti?.nume||'')}</option>`).join('')}
             </select>
-            <button class="btn btn-primary btn-xs" onclick="fuzionează('${escHtml(nrFactura)}',${localIdx},'${escHtml(JSON.stringify(p))}')">
-              🔗 Fuzionează
-            </button>
-          </div>` : ''}
+            <button class="btn btn-primary btn-xs" onclick="fuzionează('${escHtml(nrFactura)}',${localIdx},'${pJson}')">
+              🔗
+            </button>` : ''}
+          </div>
         `;
         listEl.appendChild(card);
       });
@@ -3590,6 +3612,28 @@ async function syncFromFactura(prodId, pretAchizitie, cantitate) {
     const nrFact = document.getElementById('fw-nr').textContent;
     await loadWorkspaceProducts(nrFact);
   } catch(e) { toast('Eroare: '+e.message, 'error'); }
+}
+
+async function saveNealocatFields(nrFactura, localIdx) {
+  const sku  = document.getElementById(`nl-sku-${localIdx}`)?.value?.trim() || null;
+  const cant = parseFloat(document.getElementById(`nl-cant-${localIdx}`)?.value) || 1;
+  const pret = parseFloat(document.getElementById(`nl-pret-${localIdx}`)?.value) || 0;
+
+  const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
+  if(!nealocate[nrFactura]?.[localIdx]) { toast('Produs negăsit!', 'warn'); return; }
+
+  nealocate[nrFactura][localIdx] = {
+    ...nealocate[nrFactura][localIdx],
+    sku,
+    cantitate:      cant,
+    pret_achizitie: pret,
+  };
+  localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
+
+  // Visual feedback
+  const skuInput = document.getElementById(`nl-sku-${localIdx}`);
+  if(skuInput) { skuInput.style.borderColor = 'var(--green)'; setTimeout(()=>skuInput.style.borderColor='var(--accent)',1500); }
+  toast('Câmpuri salvate!', 'success');
 }
 
 async function fuzionează(nrFactura, localIdx, localJson) {
@@ -4966,11 +5010,13 @@ async function subscribeToPush() {
       });
     }
 
-    // Salvează în Supabase
+    // Salvează în Supabase (direct fetch - api() nu suportă 204)
     const subJson = sub.toJSON();
-    await api('push_subscriptions', {
+    await fetch(`${SB}/rest/v1/push_subscriptions`, {
       method: 'POST',
-      headers: { 'Prefer': 'resolution=merge-duplicates' },
+      headers: {
+        ...getHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+      },
       body: JSON.stringify({
         user_email: currentUserEmail,
         endpoint:   subJson.endpoint,
