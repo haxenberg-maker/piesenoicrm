@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T19:29:20.706971
+// Bundle generat: 2026-03-20T19:32:23.554338
 
 
 // ══════════════════════════════════════════════════════════
@@ -5025,10 +5025,13 @@ async function subscribeToPush() {
 
     // Salvează în Supabase (direct fetch - api() nu suportă 204)
     const subJson = sub.toJSON();
-    await fetch(`${SB}/rest/v1/push_subscriptions`, {
+    const subRes = await fetch(`${SB}/rest/v1/push_subscriptions`, {
       method: 'POST',
       headers: {
-        ...getHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+        ...getHeaders({
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
+          'on-conflict': 'endpoint',
+        }),
       },
       body: JSON.stringify({
         user_email: currentUserEmail,
@@ -5037,6 +5040,7 @@ async function subscribeToPush() {
         auth:       subJson.keys.auth,
       })
     });
+    // 409 = duplicate = already saved, treat as success
 
     console.log('Push subscription saved ✓');
     return sub;
