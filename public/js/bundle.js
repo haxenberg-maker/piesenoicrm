@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T19:17:34.822355
+// Bundle generat: 2026-03-20T19:19:51.524725
 
 
 // ══════════════════════════════════════════════════════════
@@ -3630,10 +3630,22 @@ async function saveNealocatFields(nrFactura, localIdx) {
   };
   localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
 
-  // Visual feedback
-  const skuInput = document.getElementById(`nl-sku-${localIdx}`);
-  if(skuInput) { skuInput.style.borderColor = 'var(--green)'; setTimeout(()=>skuInput.style.borderColor='var(--accent)',1500); }
-  toast('Câmpuri salvate!', 'success');
+  // Visual feedback - tot cardul devine verde
+  const btn = document.querySelector(`button[onclick*="saveNealocatFields('${nrFactura}',${localIdx})"]`);
+  const card = btn?.closest('div[style*="border:1px solid var(--yellow)"]');
+  if(card) {
+    card.style.border = '1px solid var(--green)';
+    card.style.background = 'rgba(16,185,129,.08)';
+    btn.textContent = '✅ Salvat';
+    btn.style.background = 'var(--green)';
+    btn.style.color = 'white';
+    setTimeout(() => {
+      btn.textContent = '💾 Salvează câmpuri';
+      btn.style.background = '';
+      btn.style.color = '';
+    }, 2000);
+  }
+  toast('✅ Câmpuri salvate!', 'success');
 }
 
 async function fuzionează(nrFactura, localIdx, localJson) {
