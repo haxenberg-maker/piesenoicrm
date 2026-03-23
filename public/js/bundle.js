@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-23T11:18:20.054965
+// Bundle generat: 2026-03-23T11:32:25.240176
 
 
 // ══════════════════════════════════════════════════════════
@@ -1502,19 +1502,94 @@ function openAddProductToOrder(comandaId, codUnic) {
 
   // Reset fields
   ['ato-cod','ato-desc','ato-ref-manual'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('ato-pret').value  = '0';
-  document.getElementById('ato-adaos').value = order?.adaos_procent||'0';
-  document.getElementById('ato-vanz').value  = '0';
-  document.getElementById('ato-cant').value  = '1';
+  document.getElementById('ato-pret').value   = '0';
+  document.getElementById('ato-adaos').value  = order?.adaos_procent||'0';
+  document.getElementById('ato-vanz').value   = '0';
+  document.getElementById('ato-cant').value   = '1';
   document.getElementById('ato-status').value = 'comandat';
 
-  // Afișează codul comenzii
   document.getElementById('ato-comanda-label').textContent =
     `Comandă: ${codUnic} — ${order?.client_nume||''}`;
 
-  // Preview REF Intern
   atoUpdateRefIntern();
+
+  // Show manual tab by default
+  atoSwitchTab('manual');
   openModal('modal-add-to-order');
+}
+
+function atoSwitchTab(tab) {
+  document.getElementById('ato-tab-manual').style.display    = tab === 'manual'   ? 'block' : 'none';
+  document.getElementById('ato-tab-facturi').style.display   = tab === 'facturi'  ? 'block' : 'none';
+  document.getElementById('ato-tab-btn-manual').style.borderBottomColor  = tab === 'manual'  ? 'var(--accent)' : 'transparent';
+  document.getElementById('ato-tab-btn-facturi').style.borderBottomColor = tab === 'facturi' ? 'var(--accent)' : 'transparent';
+  document.getElementById('ato-tab-btn-manual').style.color  = tab === 'manual'  ? 'var(--accent)' : 'var(--muted)';
+  document.getElementById('ato-tab-btn-facturi').style.color = tab === 'facturi' ? 'var(--accent)' : 'var(--muted)';
+  if(tab === 'facturi') loadNealocateForAto();
+}
+
+let _nealocateList = [];
+async function loadNealocateForAto(q = '') {
+  const listEl = document.getElementById('ato-nealocate-list');
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px"><span class="spinner"></span> Se încarcă...</div>';
+
+  try {
+    let url = `produse_comenzi?comanda_id=is.null&select=*&order=cod_factura_furnizor&limit=100`;
+    if(q) url += `&or=(cod_aftermarket.ilike.*${encodeURIComponent(q)}*,descriere.ilike.*${encodeURIComponent(q)}*,cod_factura_furnizor.ilike.*${encodeURIComponent(q)}*)`;
+    url = url.replace('produse_comenzi', 'produse_comandate');
+    _nealocateList = await api(url);
+
+    listEl.innerHTML = '';
+    if(!_nealocateList.length) {
+      listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">Niciun produs nealocate găsit.</div>';
+      return;
+    }
+
+    _nealocateList.forEach((p, i) => {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:8px 12px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--s1);cursor:pointer;transition:all .15s;margin-bottom:6px';
+      div.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div>
+            <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
+            <div style="font-size:11px;color:var(--muted)">${escHtml(p.descriere||'')}</div>
+            <div style="font-size:10px;color:var(--muted2);margin-top:2px">
+              Factură: ${escHtml(p.cod_factura_furnizor||'—')}
+              ${p.sku ? `· SKU: <strong>${escHtml(p.sku)}</strong>` : ''}
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:12px;font-weight:600">${fmtRON(p.pret_achizitie)} RON</div>
+            <div style="font-size:10px;color:var(--muted)">Cant: ${p.cantitate||1}</div>
+          </div>
+        </div>
+      `;
+      div.addEventListener('mouseenter', () => div.style.borderColor = 'var(--accent)');
+      div.addEventListener('mouseleave', () => div.style.borderColor = 'var(--border)');
+      div.addEventListener('click', () => selectNealocatForAto(p));
+      listEl.appendChild(div);
+    });
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px">Eroare: ${e.message}</div>`;
+  }
+}
+
+async function selectNealocatForAto(p) {
+  // Alocă direct produsul nealocate la comanda curentă
+  if(!confirm(`Alocă "${p.cod_aftermarket}" la comanda ${_atoCodUnic}?`)) return;
+
+  try {
+    await fetch(`${SB}/rest/v1/produse_comandate?id=eq.${p.id}`, {
+      method: 'PATCH',
+      headers: getHeaders({ 'Prefer': 'return=minimal' }),
+      body: JSON.stringify({ comanda_id: _atoComandaId, status_produs: p.status_produs || 'ajuns' })
+    });
+    await logAction('UPDATE','produs',p.id,{ alocat_la: _atoCodUnic });
+    toast(`✅ ${p.cod_aftermarket} alocat la ${_atoCodUnic}!`, 'success');
+    closeModal('modal-add-to-order');
+    await loadDetailProducts(_atoComandaId);
+    await loadOrders();
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
 }
 
 function atoUpdateRefIntern() {

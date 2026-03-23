@@ -1609,7 +1609,20 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
       </div>
       <button class="icon-btn" onclick="closeModal('modal-add-to-order')">✕</button>
     </div>
-    <div class="modal-body">
+    <!-- Tab buttons -->
+    <div style="display:flex;border-bottom:2px solid var(--border);padding:0 20px;background:var(--s1)">
+      <button id="ato-tab-btn-manual" onclick="atoSwitchTab('manual')"
+        style="padding:8px 16px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer;margin-bottom:-2px">
+        ✏️ Manual
+      </button>
+      <button id="ato-tab-btn-facturi" onclick="atoSwitchTab('facturi')"
+        style="padding:8px 16px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;margin-bottom:-2px">
+        🧾 Din facturi
+      </button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <!-- Tab: Manual -->
+      <div id="ato-tab-manual" style="padding:20px;display:block">
       <div class="grid2">
         <div class="field">
           <label>Cod aftermarket *</label>
@@ -1658,9 +1671,18 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
         <small style="color:var(--muted);font-size:11px">Dacă lași gol, se generează automat din codul comenzii</small>
       </div>
     </div>
+      </div><!-- /ato-tab-manual -->
+      <!-- Tab: Din facturi nealocate -->
+      <div id="ato-tab-facturi" style="padding:16px;display:none">
+        <input id="ato-nealocate-search" placeholder="🔍 Caută cod, descriere, nr. factură..."
+          style="width:100%;margin-bottom:12px"
+          oninput="loadNealocateForAto(this.value)"/>
+        <div id="ato-nealocate-list" style="max-height:320px;overflow-y:auto"></div>
+      </div>
+    </div><!-- /modal-body -->
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modal-add-to-order')">Anulează</button>
-      <button class="btn btn-primary" onclick="saveAddToOrder()">＋ Adaugă produs</button>
+      <button class="btn btn-primary" id="ato-save-btn" onclick="saveAddToOrder()">＋ Adaugă produs</button>
     </div>
   </div>
 </div>
