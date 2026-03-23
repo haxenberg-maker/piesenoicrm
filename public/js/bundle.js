@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-23T12:05:34.629816
+// Bundle generat: 2026-03-23T12:10:04.235388
 
 
 // ══════════════════════════════════════════════════════════
@@ -781,14 +781,8 @@ function renderOrdersTable(orders) {
       <td>${fmtRON(o.avans_achitat)}</td>
       <td class="fw-bold" style="color:${calcRest(o)>0?'var(--yellow)':'var(--green)'}">${fmtRON(calcRest(o))}</td>
       <td style="font-size:12px">${plataBadge(o)}</td>
-      <td style="white-space:nowrap" onclick="event.stopPropagation()">
+      <td style="white-space:nowrap">
         ${statusBadge(o)}
-        <br>
-        <select class="status-sel" data-id="${o.id}" onchange="updateOrderStatus(this)" onclick="event.stopPropagation()" style="font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;background:var(--s2);cursor:pointer;margin-top:4px;padding:2px 6px">
-          <option value="in_lucru"   ${o.status_general==='in_lucru'  ?'selected':''}>✏️ În lucru</option>
-          <option value="finalizata" ${o.status_general==='finalizata'?'selected':''}>✏️ Finalizată</option>
-          <option value="anulata"    ${o.status_general==='anulata'   ?'selected':''}>❌ Anulată</option>
-        </select>
       </td>
       <td style="font-size:11px;color:var(--muted)">${escHtml(o.agent_vanzari||'—')}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
