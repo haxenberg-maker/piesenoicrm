@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-20T19:32:23.554338
+// Bundle generat: 2026-03-23T11:18:20.054965
 
 
 // ══════════════════════════════════════════════════════════
@@ -3619,16 +3619,29 @@ async function saveNealocatFields(nrFactura, localIdx, btn) {
   const cant = parseFloat(document.getElementById(`nl-cant-${localIdx}`)?.value) || 1;
   const pret = parseFloat(document.getElementById(`nl-pret-${localIdx}`)?.value) || 0;
 
+  // Try to save to Supabase if product has an ID (from DB)
+  // Otherwise update localStorage
   const nealocate = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
-  if(!nealocate[nrFactura]?.[localIdx]) { toast('Produs negăsit!', 'warn'); return; }
-
-  nealocate[nrFactura][localIdx] = {
-    ...nealocate[nrFactura][localIdx],
-    sku,
-    cantitate:      cant,
-    pret_achizitie: pret,
-  };
-  localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
+  const localProd = nealocate[nrFactura]?.[localIdx];
+  
+  if(localProd) {
+    nealocate[nrFactura][localIdx] = { ...localProd, sku, cantitate: cant, pret_achizitie: pret };
+    localStorage.setItem('crm_produse_nealocate', JSON.stringify(nealocate));
+  }
+  // Also try to update Supabase nealocate records
+  // Find matching product by index in nealocate list
+  try {
+    const prods = await api(
+      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&comanda_id=is.null&select=id&order=id`
+    );
+    if(prods[localIdx]) {
+      await fetch(`${SB}/rest/v1/produse_comandate?id=eq.${prods[localIdx].id}`, {
+        method: 'PATCH',
+        headers: getHeaders({ 'Prefer': 'return=minimal' }),
+        body: JSON.stringify({ sku: sku||null, cantitate: cant, pret_achizitie: pret })
+      });
+    }
+  } catch(e) { console.warn('Supabase save:', e.message); }
 
   // Visual feedback
   if(btn) {
@@ -4294,9 +4307,6 @@ async function saveAnalyzeResults() {
   const checked   = document.querySelectorAll('.analyze-row-check:checked');
   if(!checked.length) { toast('Selectează cel puțin un produs!', 'warn'); return; }
 
-  // Salvăm produsele în tabelul facturi_produse (fără comandă obligatorie)
-  // Folosim produse_comandate cu comanda_id = null (permis prin schema)
-  let saved = 0;
   const produse = [];
   for(const cb of checked) {
     const i = cb.dataset.idx;
@@ -4307,20 +4317,37 @@ async function saveAnalyzeResults() {
       pret_achizitie:       parseFloat(document.getElementById(`ap-pret-${i}`)?.value) || 0,
       sku:                  document.getElementById(`ap-sku-${i}`)?.value?.trim() || null,
       cod_factura_furnizor: nrFactura,
+      status_produs:        'ajuns',
+      // comanda_id lipsă = NULL = nealocată, vizibilă pentru toți
     });
-    saved++;
   }
 
-  // Salvează în localStorage — ÎNLOCUIEȘTE (nu concat) ca să evităm duplicate
-  const existing = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
-  existing[nrFactura] = produse; // înlocuiește complet
-  localStorage.setItem('crm_produse_nealocate', JSON.stringify(existing));
+  // Șterge nealocatele existente pentru această factură
+  await fetch(`${SB}/rest/v1/produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&comanda_id=is.null`, {
+    method: 'DELETE', headers: getHeaders({ 'Prefer': 'return=minimal' })
+  });
+
+  // Inserează în Supabase
+  let saved = 0;
+  for(const p of produse) {
+    try {
+      await fetch(`${SB}/rest/v1/produse_comandate`, {
+        method: 'POST',
+        headers: getHeaders({ 'Prefer': 'return=minimal' }),
+        body: JSON.stringify(p)
+      });
+      saved++;
+    } catch(e) { console.warn(e); }
+  }
+
+  // Curăță localStorage
+  const ls = JSON.parse(localStorage.getItem('crm_produse_nealocate') || '{}');
+  delete ls[nrFactura];
+  localStorage.setItem('crm_produse_nealocate', JSON.stringify(ls));
 
   await upsertFactura(nrFactura, { status: 'in_procesare' });
-  toast(`✅ ${saved} produse salvate! Alocă-le la o comandă din workspace.`, 'success');
+  toast(`✅ ${saved} produse salvate în sistem! Vizibile pentru toți utilizatorii.`, 'success');
   closeModal('modal-analyze-pdf');
-
-  // Deschide workspace pentru alocare
   await renderPdfList();
   openFacturaWorkspace(nrFactura);
 }
