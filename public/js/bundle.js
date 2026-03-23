@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-23T11:32:25.240176
+// Bundle generat: 2026-03-23T12:05:34.629816
 
 
 // ══════════════════════════════════════════════════════════
@@ -913,7 +913,11 @@ async function loadDetailProducts(id) {
             <option value="returnat"  ${p.status_produs==='returnat'?'selected':''}>↩️ Returnat</option>
           </select>
         </td>
-
+        ${['administrator','gestionar'].includes(currentUserRole) ? `
+        <td>
+          <button class="icon-btn" style="color:var(--red)" title="Șterge produs"
+            onclick="deleteDetailProduct('${p.id}','${escHtml(p.cod_aftermarket)}')">🗑</button>
+        </td>` : '<td></td>'}
       `;
       tbody.appendChild(tr);
     });
@@ -1016,6 +1020,20 @@ async function saveProduct(prodId, row) {
     toast('Produs salvat. ✓','success');
     if(currentOrderId) await refreshOrderTotal(currentOrderId);
   } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+async function deleteDetailProduct(prodId, cod) {
+  if(!confirm(`Ștergi produsul "${cod}" din comandă?`)) return;
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=minimal' }
+    });
+    await logAction('DELETE','produs',prodId,{ cod });
+    toast(`🗑 "${cod}" șters din comandă.`, 'info');
+    await loadDetailProducts(currentOrderId);
+    await refreshOrderTotal(currentOrderId);
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
 }
 
 function closeDetail() {
@@ -1199,6 +1217,24 @@ async function openNewOrder() {
       <label>Note</label>
       <textarea id="no-note" placeholder="Note opționale..."></textarea>
     </div>
+
+    <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">💳 Plată la plasare (opțional)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field">
+          <label>Sumă (RON)</label>
+          <input type="number" id="no-plata-suma" value="0" min="0" step="0.01" placeholder="0.00"/>
+        </div>
+        <div class="field">
+          <label>Metodă</label>
+          <select id="no-plata-metoda">
+            <option value="cash">💵 Cash</option>
+            <option value="card">💳 Card</option>
+            <option value="transfer">🏦 Transfer</option>
+          </select>
+        </div>
+      </div>
+    </div>
   `;
   renderNewOrderProducts();
   document.querySelector('#modal-order .modal-foot .btn-primary').onclick = saveOrder;
@@ -1280,6 +1316,10 @@ async function saveOrder() {
     // Agent = prenumele userului curent din dashboard
     const agentName = window._currentAgentFirstName || currentUserEmail?.split('@')[0] || null;
 
+    // Plata directă dacă e completată
+    const plataSuma = parseFloat(document.getElementById('no-plata-suma')?.value || '0') || 0;
+    const plataMetoda = document.getElementById('no-plata-metoda')?.value || 'cash';
+
     const [comanda] = await api('comenzi', { method:'POST', body:JSON.stringify({
       client_id:     clientId,
       tip_plata:     document.getElementById('no-tip-plata').value,
@@ -1303,6 +1343,19 @@ async function saveOrder() {
       };
     });
     await api('produse_comandate',{method:'POST',body:JSON.stringify(produse)});
+
+    // Salvează plata dacă există
+    if(plataSuma > 0) {
+      try {
+        await api('plati', { method:'POST', body: JSON.stringify({
+          comanda_id: comanda.id,
+          suma:       plataSuma,
+          metoda:     plataMetoda,
+          nota:       'La plasare comandă',
+          user_email: currentUserEmail,
+        })});
+      } catch(e) { console.warn('Plata la creare:', e.message); }
+    }
 
     toast(`✅ Comanda ${fmtNr(comanda.nr_comanda)} creată!`,'success');
     closeModal('modal-order');
@@ -2150,6 +2203,8 @@ async function fetchAndRenderProducts(extraQuery='') {
         <td><span class="badge b-${p.status_produs}">${p.status_produs}</span></td>
         <td><span class="nr-cmd" style="cursor:pointer" onclick="jumpToOrder('${ord.id||''}','')">${fmtNr(ord.nr_comanda)}</span></td>
         <td style="font-size:12px;font-weight:600">${escHtml(ord.client_nume||'—')}</td>
+        ${['administrator','gestionar'].includes(currentUserRole) ? `
+        <td><button class="icon-btn" style="color:var(--red)" title="Șterge" onclick="deleteProductRow('${p.id}','${escHtml(p.cod_aftermarket)}',event)">🗑</button></td>` : '<td></td>'}
 
       `;
       tbody.appendChild(tr);
@@ -2189,6 +2244,21 @@ async function saveSearchProduct(prodId, row) {
     await api(`produse_comandate?id=eq.${prodId}`,{method:'PATCH',body:JSON.stringify(patch)});
     toast('Produs salvat ✓','success');
   } catch(e){ toast('Eroare: '+e.message,'error'); }
+}
+
+async function deleteProductRow(prodId, cod, event) {
+  if(event) event.stopPropagation();
+  if(!confirm(`Ștergi produsul "${cod}"? Acțiunea este ireversibilă.`)) return;
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=minimal' }
+    });
+    await logAction('DELETE','produs',prodId,{ cod });
+    toast(`🗑 "${cod}" șters.`, 'info');
+    // Remove row from table
+    event?.target?.closest('tr')?.remove();
+  } catch(e) { toast('Eroare: '+e.message,'error'); }
 }
 
 async function jumpToOrder(id, nr) {
@@ -5336,6 +5406,154 @@ async function initPushOnLogin() {
   }
   await loadNotifSettings();
 }
+
+// ══════════════════════════════════════════════════════════
+// SEARCH
+// ══════════════════════════════════════════════════════════
+
+// search.js — CRM Piese Auto
+// ════════════════════════════════════════════════════════════
+// Căutare globală — comenzi, clienți, produse, facturi
+
+let _searchTimer = null;
+
+function globalSearchDebounce(q) {
+  clearTimeout(_searchTimer);
+  if(!q || q.length < 2) {
+    closeGlobalSearch();
+    return;
+  }
+  _searchTimer = setTimeout(() => runGlobalSearch(q), 300);
+}
+
+function openGlobalSearch() {
+  const q = document.getElementById('global-search-input')?.value?.trim();
+  if(q && q.length >= 2) runGlobalSearch(q);
+}
+
+function closeGlobalSearch() {
+  const el = document.getElementById('global-search-results');
+  if(el) el.style.display = 'none';
+}
+
+async function runGlobalSearch(q) {
+  const resultsEl = document.getElementById('global-search-results');
+  if(!resultsEl) return;
+  resultsEl.style.display = 'block';
+  resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px"><span class="spinner"></span> Se caută...</div>';
+
+  try {
+    const enc = encodeURIComponent(q);
+
+    // Parallel searches
+    const [comenzi, clienti, produse, facturi] = await Promise.all([
+      // Comenzi - după client sau cod unic
+      api(`dashboard_comenzi?or=(client_nume.ilike.*${enc}*,cod_comanda_unic.ilike.*${enc}*)&select=id,nr_comanda,cod_comanda_unic,client_nume,status_general,total_plata&limit=5`).catch(()=>[]),
+      // Clienți
+      api(`clienti?or=(nume.ilike.*${enc}*,telefon.ilike.*${enc}*,email.ilike.*${enc}*)&select=id,nume,telefon&limit=5`).catch(()=>[]),
+      // Produse - după cod sau descriere
+      api(`produse_comandate?or=(cod_aftermarket.ilike.*${enc}*,descriere.ilike.*${enc}*,sku.ilike.*${enc}*)&select=id,cod_aftermarket,descriere,sku,comanda_id,status_produs&limit=5`).catch(()=>[]),
+      // Facturi
+      api(`facturi?nr_factura=ilike.*${enc}*&select=id,nr_factura,furnizor,status&limit=3`).catch(()=>[]),
+    ]);
+
+    const sections = [];
+
+    if(comenzi.length) {
+      sections.push(`
+        <div class="gs-section">
+          <div class="gs-label">📋 Comenzi</div>
+          ${comenzi.map(o => `
+            <div class="gs-item" onclick="loadDetail('${o.id}', allOrders.find(x=>x.id==='${o.id}') || {}); closeGlobalSearch(); document.getElementById('global-search-input').value=''">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span class="gs-title">${escHtml(o.cod_comanda_unic||fmtNr(o.nr_comanda))}</span>
+                <span style="font-size:11px;color:var(--muted)">${fmtRON(o.total_plata)} RON</span>
+              </div>
+              <div class="gs-sub">${escHtml(o.client_nume||'—')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `);
+    }
+
+    if(clienti.length) {
+      sections.push(`
+        <div class="gs-section">
+          <div class="gs-label">👤 Clienți</div>
+          ${clienti.map(c => `
+            <div class="gs-item" onclick="navigate('clienti'); setTimeout(()=>loadClientDetail('${c.id}'),300); closeGlobalSearch(); document.getElementById('global-search-input').value=''">
+              <div class="gs-title">${escHtml(c.nume)}</div>
+              <div class="gs-sub">${escHtml(c.telefon||'—')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `);
+    }
+
+    if(produse.length) {
+      sections.push(`
+        <div class="gs-section">
+          <div class="gs-label">🔧 Produse</div>
+          ${produse.map(p => `
+            <div class="gs-item" onclick="${p.comanda_id ? `loadDetail('${p.comanda_id}', allOrders.find(x=>x.id==='${p.comanda_id}') || {}); closeGlobalSearch()` : `navigate('produse'); closeGlobalSearch()`}; document.getElementById('global-search-input').value=''">
+              <div style="display:flex;justify-content:space-between">
+                <span class="gs-title font-mono">${escHtml(p.cod_aftermarket)}</span>
+                <span class="badge b-${p.status_produs}" style="font-size:10px">${p.status_produs}</span>
+              </div>
+              <div class="gs-sub">${escHtml(p.descriere||'')} ${p.sku ? `· SKU: ${escHtml(p.sku)}` : ''}</div>
+            </div>
+          `).join('')}
+        </div>
+      `);
+    }
+
+    if(facturi.length) {
+      sections.push(`
+        <div class="gs-section">
+          <div class="gs-label">🧾 Facturi</div>
+          ${facturi.map(f => `
+            <div class="gs-item" onclick="navigate('facturi'); setTimeout(()=>openFacturaWorkspace('${escHtml(f.nr_factura)}'),400); closeGlobalSearch(); document.getElementById('global-search-input').value=''">
+              <div class="gs-title font-mono">${escHtml(f.nr_factura)}</div>
+              <div class="gs-sub">${escHtml(f.furnizor||'—')}</div>
+            </div>
+          `).join('')}
+        </div>
+      `);
+    }
+
+    if(!sections.length) {
+      resultsEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">
+        Niciun rezultat pentru "<strong>${escHtml(q)}</strong>"
+      </div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = `
+      <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600">
+        Rezultate pentru "<strong style="color:var(--text)">${escHtml(q)}</strong>"
+      </div>
+      ${sections.join('')}
+    `;
+
+  } catch(e) {
+    resultsEl.innerHTML = `<div style="padding:12px;color:var(--red);font-size:12px">Eroare: ${e.message}</div>`;
+  }
+}
+
+// Close on outside click
+document.addEventListener('click', e => {
+  if(!e.target.closest('#global-search-input') && !e.target.closest('#global-search-results')) {
+    closeGlobalSearch();
+  }
+});
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') {
+    closeGlobalSearch();
+    document.getElementById('global-search-input')?.blur();
+  }
+});
 
 // INIT
 // main.js — CRM Piese Auto

@@ -576,6 +576,13 @@ select.status-sel { background:transparent; border:none; color:inherit; font-siz
 .text-blue   { color:var(--blue) }
 .text-red    { color:var(--red) }
 .text-muted  { color:var(--muted) }
+.gs-section  { padding:4px 0; border-bottom:1px solid var(--border) }
+.gs-section:last-child { border-bottom:none }
+.gs-label    { padding:6px 14px 2px; font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.6px }
+.gs-item     { padding:8px 14px; cursor:pointer; transition:background .1s }
+.gs-item:hover { background:var(--s2) }
+.gs-title    { font-size:13px; font-weight:600; color:var(--text) }
+.gs-sub      { font-size:11px; color:var(--muted); margin-top:1px }
 .dsb-item { padding:10px 20px; border-right:1px solid var(--border); min-width:100px; flex-shrink:0 }
 .dsb-item:last-child { border-right:none }
 .dsb-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; font-weight:600; margin-bottom:3px }
@@ -693,11 +700,25 @@ tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
   <div class="topbar-stat"><span class="ts-label">Active</span><span class="ts-val amber" id="tb-active">—</span></div>
   <div class="topbar-stat"><span class="ts-label">Rest total</span><span class="ts-val red" id="tb-rest">—</span></div>
   <div class="topbar-stat"><span class="ts-label">Vânzări</span><span class="ts-val green" id="tb-vanzari">—</span></div>
-  <button onclick="openNotifSettings()" title="Setări notificări"
-    style="background:none;border:none;cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;color:var(--muted);margin-left:auto"
-    onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--muted)'">
-    🔔
-  </button>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+    <div style="position:relative">
+      <input id="global-search-input" placeholder="🔍 Caută oriunde..." autocomplete="off"
+        style="background:var(--s2);border:1px solid var(--border);border-radius:20px;color:var(--text);padding:6px 16px;font-size:13px;outline:none;width:220px;transition:width .2s"
+        onfocus="this.style.width='300px';openGlobalSearch()"
+        onblur="setTimeout(()=>{this.style.width='220px';},200)"
+        oninput="globalSearchDebounce(this.value)"/>
+      <div id="global-search-results" style="
+        display:none;position:absolute;top:calc(100% + 6px);right:0;width:420px;
+        background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);
+        box-shadow:var(--shadow-lg);z-index:1000;max-height:480px;overflow-y:auto;
+      "></div>
+    </div>
+    <button onclick="openNotifSettings()" title="Setări notificări"
+      style="background:none;border:none;cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;color:var(--muted)"
+      onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--muted)'">
+      🔔
+    </button>
+  </div>
   <div class="topbar-right" id="tb-time" style="margin-left:auto;font-size:11px;color:var(--muted)">—</div>
 </div>
 
