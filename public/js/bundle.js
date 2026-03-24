@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T08:59:55.157490
+// Bundle generat: 2026-03-24T13:56:18.137565
 
 
 // ══════════════════════════════════════════════════════════
@@ -4252,10 +4252,16 @@ async function analyzeFacturaPdf(nrFactura, file) {
 
     // Extrage tot textul din toate paginile
     let fullText = '';
+    let rawText  = ''; // text brut fără sortare (pentru AutoTotal)
+
     for(let i = 1; i <= pdf.numPages; i++) {
       const page  = await pdf.getPage(i);
       const tc    = await page.getTextContent();
-      // Reconstruiește liniile după poziție Y
+
+      // Text brut (ordinea originală din PDF) — pentru AutoTotal
+      rawText += tc.items.map(it => it.str).join(' ') + '\n';
+
+      // Text sortat după Y (pentru Intercars)
       const items = tc.items.sort((a,b) => {
         const dy = Math.round(b.transform[5]) - Math.round(a.transform[5]);
         return dy !== 0 ? dy : a.transform[4] - b.transform[4];
@@ -4268,13 +4274,16 @@ async function analyzeFacturaPdf(nrFactura, file) {
         lastY = y;
       }
       fullText += '\n\n';
-
     }
 
-    console.log('PDF text extras:', fullText.substring(0, 500));
+    const textContent = fullText + '\n' + rawText;
+    console.log('PDF text extras:', fullText.substring(0, 300));
 
-    // Parsează factura
-    const result = parseFacturaText(fullText, nrFactura);
+    // Parsează factura — AutoTotal folosește rawText
+    const isAutoTotal = /AD AUTO TOTAL|RO6844726/i.test(rawText);
+    const result = isAutoTotal
+      ? parseAutoTotal(rawText, nrFactura)
+      : parseFacturaText(fullText, nrFactura);
     renderAnalyzeResults(nrFactura, result);
 
   } catch(e) {
