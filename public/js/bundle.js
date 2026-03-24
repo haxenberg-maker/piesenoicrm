@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T14:08:39.338903
+// Bundle generat: 2026-03-24T14:12:31.938244
 
 
 // ══════════════════════════════════════════════════════════
@@ -4283,9 +4283,14 @@ async function analyzeFacturaPdf(nrFactura, file) {
 
     // Parsează factura — AutoTotal folosește rawText
     const isAutoTotal = /AD AUTO TOTAL|RO6844726/i.test(rawText);
-    const result = isAutoTotal
+    let result = isAutoTotal
       ? parseAutoTotal(rawText, nrFactura)
       : parseFacturaText(fullText, nrFactura);
+
+    // Normalizează — parseAutoTotal returnează array, parseFacturaText returnează obiect cu .produse
+    if(Array.isArray(result)) {
+      result = { produse: result, nr_factura: nrFactura, furnizor: 'AD AUTO TOTAL' };
+    }
     renderAnalyzeResults(nrFactura, result);
 
   } catch(e) {
