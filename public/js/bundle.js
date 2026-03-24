@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T08:21:45.060790
+// Bundle generat: 2026-03-24T08:24:12.978429
 
 
 // ══════════════════════════════════════════════════════════
@@ -3301,15 +3301,45 @@ async function showFacturiTab(tab) {
   if(tab === 'pdf-list') await renderPdfList();
 }
 
+async function recalcFacturiStatus() {
+  // Recalculează statusul pentru toate facturile bazat pe produse reale
+  try {
+    const facturi = await api('facturi?select=id,nr_factura,status');
+    for(const f of facturi) {
+      const prods = await api(
+        `produse_comenzi?cod_factura_furnizor=eq.${encodeURIComponent(f.nr_factura)}&select=sku,comanda_id`
+          .replace('produse_comenzi','produse_comandate')
+      );
+      if(!prods.length) continue;
+      const toateAuSku  = prods.every(p => !!p.sku);
+      const nrNealocate = prods.filter(p => !p.comanda_id).length;
+      let newStatus = f.status;
+      if(toateAuSku && nrNealocate > 0)  newStatus = `nealocate_${nrNealocate}`;
+      if(toateAuSku && nrNealocate === 0) newStatus = 'procesat';
+      if(!toateAuSku) newStatus = newStatus === 'procesat' || newStatus?.startsWith('nealocate_') ? 'in_procesare' : newStatus;
+      if(newStatus !== f.status) {
+        await fetch(`${SB}/rest/v1/facturi?id=eq.${f.id}`, {
+          method: 'PATCH',
+          headers: getHeaders({ 'Prefer': 'return=minimal' }),
+          body: JSON.stringify({ status: newStatus })
+        });
+      }
+    }
+  } catch(e) { console.warn('recalcFacturiStatus:', e.message); }
+}
+
 async function renderPdfList() {
   document.getElementById('pdf-list-count').textContent = '⏳ Se încarcă...';
-  // Always fetch fresh from Supabase
+  // Recalc status before rendering
+  await recalcFacturiStatus();
   try {
     _facturiDb = await api('facturi?select=*&order=creat_la.desc');
     // Sortează: neprocessate primele, procesate la urmă
     _facturiDb.sort((a, b) => {
       const order = { nou: 0, in_procesare: 1, procesat: 2 };
-      return (order[a.status] ?? 1) - (order[b.status] ?? 1);
+      const sa = a.status?.startsWith('nealocate_') ? 0.5 : (order[a.status] ?? 1);
+      const sb = b.status?.startsWith('nealocate_') ? 0.5 : (order[b.status] ?? 1);
+      return sa - sb;
     });
   } catch(e) {
     document.getElementById('pdf-list-count').textContent = '❌ Eroare: ' + e.message;
