@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T08:24:12.978429
+// Bundle generat: 2026-03-24T08:28:37.064395
 
 
 // ══════════════════════════════════════════════════════════
@@ -3302,29 +3302,41 @@ async function showFacturiTab(tab) {
 }
 
 async function recalcFacturiStatus() {
-  // Recalculează statusul pentru toate facturile bazat pe produse reale
+  // UN SINGUR request pentru toate produsele cu factură alocată
   try {
-    const facturi = await api('facturi?select=id,nr_factura,status');
+    const [facturi, toateProdusele] = await Promise.all([
+      api('facturi?select=id,nr_factura,status'),
+      api('produse_comandate?cod_factura_furnizor=not.is.null&select=cod_factura_furnizor,sku,comanda_id')
+    ]);
+
+    // Grupează produsele după nr_factura
+    const byFactura = {};
+    toateProdusele.forEach(p => {
+      const nr = p.cod_factura_furnizor;
+      if(!byFactura[nr]) byFactura[nr] = [];
+      byFactura[nr].push(p);
+    });
+
+    // Calculează și PATCH-uiește în paralel (doar cele care s-au schimbat)
+    const patches = [];
     for(const f of facturi) {
-      const prods = await api(
-        `produse_comenzi?cod_factura_furnizor=eq.${encodeURIComponent(f.nr_factura)}&select=sku,comanda_id`
-          .replace('produse_comenzi','produse_comandate')
-      );
+      const prods = byFactura[f.nr_factura] || [];
       if(!prods.length) continue;
       const toateAuSku  = prods.every(p => !!p.sku);
       const nrNealocate = prods.filter(p => !p.comanda_id).length;
       let newStatus = f.status;
       if(toateAuSku && nrNealocate > 0)  newStatus = `nealocate_${nrNealocate}`;
       if(toateAuSku && nrNealocate === 0) newStatus = 'procesat';
-      if(!toateAuSku) newStatus = newStatus === 'procesat' || newStatus?.startsWith('nealocate_') ? 'in_procesare' : newStatus;
-      if(newStatus !== f.status) {
-        await fetch(`${SB}/rest/v1/facturi?id=eq.${f.id}`, {
+      if(!toateAuSku && (f.status === 'procesat' || f.status?.startsWith('nealocate_')))
+        newStatus = 'in_procesare';
+      if(newStatus !== f.status)
+        patches.push(fetch(`${SB}/rest/v1/facturi?id=eq.${f.id}`, {
           method: 'PATCH',
           headers: getHeaders({ 'Prefer': 'return=minimal' }),
           body: JSON.stringify({ status: newStatus })
-        });
-      }
+        }));
     }
+    if(patches.length) await Promise.all(patches);
   } catch(e) { console.warn('recalcFacturiStatus:', e.message); }
 }
 
