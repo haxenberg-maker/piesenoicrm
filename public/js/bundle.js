@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T14:06:20.440899
+// Bundle generat: 2026-03-24T14:08:39.338903
 
 
 // ══════════════════════════════════════════════════════════
@@ -4321,45 +4321,51 @@ function parseRoPrice(str) {
 
 function parseAutoTotal(text, nrFactura) {
   const produse = [];
-  const tvaMatch = text.match(/T\.V\.A\.\:\s*(\d+)%/i);
+  const tvaMatch = text.match(/T\.V\.A\.\:?\s*(\d+)%/i);
   const tva = tvaMatch ? parseInt(tvaMatch[1]) : 21;
 
-  // Normalizează: unește liniile fragmentate de PDF.js într-un singur string
-  const normalized = text.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ');
+  // În PDF-ul AutoTotal, coloanele sunt extrase în ordine greșită:
+  // "1   BUC   1   47.96   47.96   10.07  4010092 FLANSA LICHID RACIRE METZGER"
+  // Adică: NR BUC CANT PRET_UNIT VALOARE TVA_VAL  COD DESCRIERE
+  // Găsim rândurile cu numerele, apoi codul+descrierea care urmează imediat după
 
-  // Pattern: NR COD DESCRIERE BUC CANT PRET_UNIT VALOARE TVA_VAL
-  const pat = /(\d{1,3})\s+([A-Z0-9][A-Z0-9\-\/\.]{2,25})\s+([A-Z][^\d]{3,80}?)\s+(BUC\.?|PCS|SET|KIT)\s+(\d{1,4})\s+([\d]+[,\.][\d]{2})\s+[\d]+[,\.][\d]{2}\s+[\d]+[,\.][\d]{2}/gi;
-
+  const numPat = /(\d{1,3})\s+BUC\.?\s+(\d{1,4})\s+([\d]+\.[\d]{2})\s+[\d]+\.[\d]{2}\s+[\d]+\.[\d]{2}/g;
   let m;
-  while((m = pat.exec(normalized)) !== null) {
-    const cod  = m[2].trim().toUpperCase();
-    const desc = m[3].trim();
-    const cant = parseInt(m[5]) || 1;
-    const pretUnit = parseRoPrice(m[6]);
+  while((m = numPat.exec(text)) !== null) {
+    const cant     = parseInt(m[2]) || 1;
+    const pretUnit = parseFloat(m[3]) || 0;
     const pretAch  = parseFloat((pretUnit * (1 + tva / 100)).toFixed(2));
-    if(/total|semnatura|factura|cumparator|furnizor|tva|valoare/i.test(cod)) continue;
+
+    // Codul și descrierea vin DUPĂ numerele de pe linie
+    const afterIdx  = m.index + m[0].length;
+    const afterText = text.slice(afterIdx).trim();
+
+    // Cod = primul token alfanumeric cu min 4 chars
+    const codeMatch = afterText.match(/^([A-Z0-9][A-Z0-9\-\/\.]{3,25})\s+(.{5,80}?)(?=\s+(?:NC=|[A-Z0-9]{5,}|\d{1,3}\s+BUC|Aceasta|Total|Data sc|@|$))/i);
+    if(!codeMatch) continue;
+
+    const cod  = codeMatch[1].trim().toUpperCase();
+    const desc = codeMatch[2].trim()
+      .replace(/\s+/g, ' ')
+      .replace(/[-\s]+$/, '')
+      .trim();
+
     if(pretUnit <= 0) continue;
-    produse.push({ cod_aftermarket: cod, descriere: desc, cantitate: cant, pret_achizitie: pretAch, cod_factura_furnizor: nrFactura });
+    if(/total|semnatura|factura|cumparator/i.test(cod)) continue;
+
+    produse.push({
+      cod_aftermarket:      cod,
+      descriere:            desc,
+      cantitate:            cant,
+      pret_achizitie:       pretAch,
+      cod_factura_furnizor: nrFactura,
+    });
   }
 
-  // Fallback linie cu linie dacă normalized nu a prins nimic
-  if(!produse.length) {
-    for(const line of text.split('\n')) {
-      const t = line.trim();
-      const lm = t.match(/^(\d{1,3})\s+([A-Z0-9][A-Z0-9\-\/\.]{2,20})\s+(.+?)\s+(BUC\.?|PCS|SET|KIT)\s+(\d{1,4})\s+([\d,\.]+)\s+[\d,\.]+\s+[\d,\.]+/i);
-      if(!lm) continue;
-      const cod  = lm[2].trim().toUpperCase();
-      const desc = lm[3].trim();
-      const cant = parseInt(lm[5]) || 1;
-      const pretUnit = parseRoPrice(lm[6]);
-      const pretAch  = parseFloat((pretUnit * (1 + tva / 100)).toFixed(2));
-      if(/total|semnatura|factura/i.test(cod) || pretUnit <= 0) continue;
-      produse.push({ cod_aftermarket: cod, descriere: desc, cantitate: cant, pret_achizitie: pretAch, cod_factura_furnizor: nrFactura });
-    }
-  }
-
+  console.log('AutoTotal produse extrase:', produse.length, produse.map(p=>p.cod_aftermarket));
   return produse;
 }
+
 
 function parseFacturaText(text, nrFactura) {
   // Detectare furnizor
