@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T14:14:17.046583
+// Bundle generat: 2026-03-24T14:18:51.689093
 
 
 // ══════════════════════════════════════════════════════════
@@ -3792,22 +3792,44 @@ async function loadWorkspaceProducts(nrFactura) {
         const cmd = p.comenzi || {};
         const hasSku = !!p.sku;
         const card = document.createElement('div');
-        card.style.cssText = `padding:10px 12px;border-radius:var(--r-md);margin-bottom:8px;border:1px solid ${hasSku?'var(--green)':'var(--border)'};background:var(--s1)`;
+        card.style.cssText = `border-radius:var(--r-md);margin-bottom:10px;border:1px solid ${hasSku?'var(--green)':'var(--border)'};background:var(--s1);overflow:hidden`;
         card.innerHTML = `
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-            <div style="min-width:0">
-              <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHtml(p.descriere||'')}</div>
-              <div style="font-size:10px;color:var(--muted2);margin-top:2px">${escHtml(cmd.cod_comanda_unic||'')} · ${escHtml(cmd.clienti?.nume||'—')}</div>
+          <!-- Header -->
+          <div style="padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-family:monospace;font-weight:700;color:var(--accent);font-size:13px">${escHtml(p.cod_aftermarket)}</span>
+              <span class="badge b-${p.status_produs}" style="font-size:10px">${p.status_produs}</span>
             </div>
-            <span class="badge b-${p.status_produs}" style="flex-shrink:0">${p.status_produs}</span>
+            ${cmd.cod_comanda_unic ? `<span style="font-size:10px;color:var(--muted)">📋 ${escHtml(cmd.cod_comanda_unic)} · ${escHtml(cmd.clienti?.nume||'')}</span>` : '<span style="font-size:10px;color:var(--yellow)">⚠ Nealocată</span>'}
           </div>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
-            <input id="sku-${p.id}" value="${escHtml(p.sku||'')}"
-              placeholder="${hasSku ? '' : '⚠ SKU lipsă'}"
-              style="flex:1;background:var(--s2);border:1px solid ${hasSku?'var(--green)':'var(--accent)'};border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;font-family:monospace;outline:none"/>
-            <button class="btn btn-primary btn-xs" onclick="saveWorkspaceSku('${p.id}','${escHtml(p.cod_aftermarket)}')">💾</button>
-          </div>`;
+          <!-- Câmpuri editabile -->
+          <div style="padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="grid-column:1/-1">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Descriere</div>
+              <input id="ws-desc-${p.id}" value="${escHtml(p.descriere||'')}"
+                style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;outline:none"/>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:3px">SKU</div>
+              <input id="sku-${p.id}" value="${escHtml(p.sku||'')}"
+                placeholder="⚠ SKU lipsă"
+                style="width:100%;background:var(--s2);border:1px solid ${hasSku?'var(--green)':'var(--accent)'};border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;font-family:monospace;outline:none"/>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Preț acq. (RON)</div>
+              <input id="ws-pret-${p.id}" type="number" value="${p.pret_achizitie||0}" step="0.01"
+                style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;outline:none"/>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--muted);margin-bottom:3px">Cantitate</div>
+              <input id="ws-cant-${p.id}" type="number" value="${p.cantitate||1}" min="1"
+                style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;outline:none"/>
+            </div>
+          </div>
+          <div style="padding:6px 12px 10px;display:flex;justify-content:flex-end">
+            <button class="btn btn-primary btn-sm" onclick="saveWorkspaceProduct('${p.id}','${escHtml(p.cod_aftermarket)}')">💾 Salvează</button>
+          </div>
+        `;
         listEl.appendChild(card);
       });
     }
@@ -4166,6 +4188,47 @@ async function confirmAllocate() {
   closeModal('modal-allocate-prods');
   await loadWorkspaceProducts(nrFactura);
   loadOrders();
+}
+
+async function saveWorkspaceProduct(prodId, cod) {
+  const sku   = document.getElementById(`sku-${prodId}`)?.value?.trim() || null;
+  const desc  = document.getElementById(`ws-desc-${prodId}`)?.value?.trim() || null;
+  const pret  = parseFloat(document.getElementById(`ws-pret-${prodId}`)?.value) || 0;
+  const cant  = parseInt(document.getElementById(`ws-cant-${prodId}`)?.value) || 1;
+
+  try {
+    await api(`produse_comandate?id=eq.${prodId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ sku: sku||null, descriere: desc, pret_achizitie: pret, cantitate: cant })
+    });
+    const nrFact = document.getElementById('fw-nr').textContent;
+
+    // Verifică dacă toate produsele au SKU
+    const prodsFactura = await api(
+      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFact)}&select=sku,comanda_id`
+    );
+    const toateAuSku  = prodsFactura.length > 0 && prodsFactura.every(p => !!p.sku);
+    const nrNealocate = prodsFactura.filter(p => !p.comanda_id).length;
+    let newStatus = 'in_procesare';
+    if(toateAuSku && nrNealocate > 0)  newStatus = `nealocate_${nrNealocate}`;
+    if(toateAuSku && nrNealocate === 0) newStatus = 'procesat';
+    await upsertFactura(nrFact, { status: newStatus });
+
+    if(toateAuSku && !nrNealocate) {
+      toast('✅ Toate SKU-urile completate — factură Procesată!', 'success');
+      setTimeout(() => { closeModal('modal-factura-workspace'); renderPdfList(); }, 1500);
+    } else {
+      toast(`✅ Salvat!`, 'success');
+    }
+
+    // Notificare push SKU adăugat
+    if(sku && typeof sendPushNotification === 'function') {
+      const emails = await getSubscribedEmails('notif_sku_adaugat');
+      if(emails.length) sendPushNotification('sku_adaugat', 'SKU adăugat', `${sku} → ${cod}`, emails);
+    }
+
+    await loadWorkspaceProducts(nrFact);
+  } catch(e) { toast('Eroare: '+e.message, 'error'); }
 }
 
 async function saveWorkspaceSku(prodId, cod) {
