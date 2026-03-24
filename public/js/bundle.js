@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T08:19:43.567704
+// Bundle generat: 2026-03-24T08:21:45.060790
 
 
 // ══════════════════════════════════════════════════════════
@@ -4119,13 +4119,15 @@ async function saveWorkspaceSku(prodId, cod) {
     });
     const nrFact = document.getElementById('fw-nr').textContent;
 
-    // Verifică dacă toate produsele din factură au SKU acum
+    // Verifică dacă toate produsele din factură au SKU + sunt alocate
+    // Include și produsele cu comanda_id=NULL (nealocate în Supabase)
     const prodsFactura = await api(
       `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFact)}&select=sku,comanda_id`
     );
-    const toateAuSku     = prodsFactura.length > 0 && prodsFactura.every(p => !!p.sku);
-    const auNealocate    = prodsFactura.some(p => !p.comanda_id);
-    const nrNealocate    = prodsFactura.filter(p => !p.comanda_id).length;
+    const toateAuSku  = prodsFactura.length > 0 && prodsFactura.every(p => !!p.sku);
+    // Nealocate = comanda_id IS NULL (atât din localStorage cât și din Supabase)
+    const nrNealocate = prodsFactura.filter(p => !p.comanda_id).length;
+    const auNealocate = nrNealocate > 0;
 
     let newStatus = 'in_procesare';
     if(toateAuSku && auNealocate)  newStatus = `nealocate_${nrNealocate}`;
