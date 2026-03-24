@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T08:49:36.375216
+// Bundle generat: 2026-03-24T08:59:55.157490
 
 
 // ══════════════════════════════════════════════════════════
@@ -1583,46 +1583,63 @@ function atoSwitchTab(tab) {
 let _nealocateList = [];
 async function loadNealocateForAto(q = '') {
   const listEl = document.getElementById('ato-nealocate-list');
-  listEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px"><span class="spinner"></span> Se încarcă...</div>';
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:12px;text-align:center"><span class="spinner"></span></div>';
 
   try {
-    let url = `produse_comenzi?comanda_id=is.null&select=*&order=cod_factura_furnizor&limit=100`;
-    if(q) url += `&or=(cod_aftermarket.ilike.*${encodeURIComponent(q)}*,descriere.ilike.*${encodeURIComponent(q)}*,cod_factura_furnizor.ilike.*${encodeURIComponent(q)}*)`;
-    url = url.replace('produse_comenzi', 'produse_comandate');
+    let url = 'produse_comandate?comanda_id=is.null&select=*&order=cod_factura_furnizor&limit=150';
+    if(q?.trim()) {
+      const enc = encodeURIComponent(q.trim());
+      url = `produse_comandate?comanda_id=is.null&or=(cod_aftermarket.ilike.*${enc}*,descriere.ilike.*${enc}*,sku.ilike.*${enc}*,cod_factura_furnizor.ilike.*${enc}*)&select=*&order=cod_aftermarket&limit=50`;
+    }
     _nealocateList = await api(url);
 
     listEl.innerHTML = '';
+
     if(!_nealocateList.length) {
-      listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">Niciun produs nealocate găsit.</div>';
+      listEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted)">
+        <div style="font-size:28px;margin-bottom:8px">📦</div>
+        <div style="font-size:13px">${q ? `Niciun rezultat pentru "<strong>${escHtml(q)}</strong>"` : 'Niciun produs în stoc'}</div>
+      </div>`;
       return;
     }
 
-    _nealocateList.forEach((p, i) => {
+    // Header
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:11px;color:var(--muted);padding:4px 8px 8px;font-weight:600';
+    header.textContent = `${_nealocateList.length} produs${_nealocateList.length !== 1 ? 'e' : ''} disponibile`;
+    listEl.appendChild(header);
+
+    _nealocateList.forEach(p => {
+      const hasSku = !!p.sku;
       const div = document.createElement('div');
-      div.style.cssText = 'padding:8px 12px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--s1);cursor:pointer;transition:all .15s;margin-bottom:6px';
+      div.style.cssText = `
+        padding:10px 12px;border-radius:var(--r-md);border:2px solid var(--border);
+        background:var(--s1);cursor:pointer;transition:all .12s;margin-bottom:6px;
+      `;
       div.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div>
-            <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
-            <div style="font-size:11px;color:var(--muted)">${escHtml(p.descriere||'')}</div>
-            <div style="font-size:10px;color:var(--muted2);margin-top:2px">
-              Factură: ${escHtml(p.cod_factura_furnizor||'—')}
-              ${p.sku ? `· SKU: <strong>${escHtml(p.sku)}</strong>` : ''}
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <span style="font-family:monospace;font-weight:700;color:var(--accent);font-size:13px">${escHtml(p.cod_aftermarket)}</span>
+              ${hasSku ? `<span style="font-size:10px;background:rgba(16,185,129,.15);color:var(--green);padding:1px 6px;border-radius:8px;font-weight:600">${escHtml(p.sku)}</span>` : '<span style="font-size:10px;background:rgba(245,158,11,.15);color:var(--yellow);padding:1px 6px;border-radius:8px">fără SKU</span>'}
             </div>
+            <div style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${escHtml(p.descriere||'—')}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">🧾 ${escHtml(p.cod_factura_furnizor||'—')}</div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:12px;font-weight:600">${fmtRON(p.pret_achizitie)} RON</div>
-            <div style="font-size:10px;color:var(--muted)">Cant: ${p.cantitate||1}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${fmtRON(p.pret_achizitie)} <span style="font-size:10px;color:var(--muted)">RON</span></div>
+            <div style="font-size:11px;color:var(--muted);margin-top:1px">x${p.cantitate||1} buc</div>
           </div>
         </div>
       `;
-      div.addEventListener('mouseenter', () => div.style.borderColor = 'var(--accent)');
-      div.addEventListener('mouseleave', () => div.style.borderColor = 'var(--border)');
+      div.addEventListener('mouseenter', () => { div.style.borderColor='var(--accent)'; div.style.background='var(--s2)'; });
+      div.addEventListener('mouseleave', () => { div.style.borderColor='var(--border)'; div.style.background='var(--s1)'; });
       div.addEventListener('click', () => selectNealocatForAto(p));
       listEl.appendChild(div);
     });
+
   } catch(e) {
-    listEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px">Eroare: ${e.message}</div>`;
+    listEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:12px">Eroare: ${e.message}</div>`;
   }
 }
 
@@ -4293,36 +4310,43 @@ function parseRoPrice(str) {
 
 function parseAutoTotal(text, nrFactura) {
   const produse = [];
-
-  // TVA din antet
-  const tvaMatch = text.match(/T\.V\.A\.:\s*(\d+)%/i);
+  const tvaMatch = text.match(/T\.V\.A\.\:\s*(\d+)%/i);
   const tva = tvaMatch ? parseInt(tvaMatch[1]) : 21;
 
-  const lines = text.split('\n');
-  for(const line of lines) {
-    const t = line.trim();
-    // Format: NR COD DESCRIERE BUC CANTITATE PRET_UNIT VALOARE TVA_VAL
-    const m = t.match(
-      /^(\d{1,3})\s+([A-Z0-9][A-Z0-9\-/\.]{2,20})\s+(.+?)\s+(BUC|PCS|SET|KIT|L|ML|KG|M|BUC\.)\s+(\d{1,4})\s+([\d,\.]+)\s+[\d,\.]+\s+[\d,\.]+/i
-    );
-    if(!m) continue;
-    const cod  = m[2].trim();
+  // Normalizează: unește liniile fragmentate de PDF.js într-un singur string
+  const normalized = text.replace(/\n+/g, ' ').replace(/\s{2,}/g, ' ');
+
+  // Pattern: NR COD DESCRIERE BUC CANT PRET_UNIT VALOARE TVA_VAL
+  const pat = /(\d{1,3})\s+([A-Z0-9][A-Z0-9\-\/\.]{2,25})\s+([A-Z][^\d]{3,80}?)\s+(BUC\.?|PCS|SET|KIT)\s+(\d{1,4})\s+([\d]+[,\.][\d]{2})\s+[\d]+[,\.][\d]{2}\s+[\d]+[,\.][\d]{2}/gi;
+
+  let m;
+  while((m = pat.exec(normalized)) !== null) {
+    const cod  = m[2].trim().toUpperCase();
     const desc = m[3].trim();
     const cant = parseInt(m[5]) || 1;
-    const pretUnit = parseFloat(m[6].replace(',', '.')) || 0;
+    const pretUnit = parseRoPrice(m[6]);
     const pretAch  = parseFloat((pretUnit * (1 + tva / 100)).toFixed(2));
-
-    // Skip header/footer lines
-    if(/total|semnatura|factura|cumparator|furnizor/i.test(cod)) continue;
-
-    produse.push({
-      cod_aftermarket:      cod,
-      descriere:            desc,
-      cantitate:            cant,
-      pret_achizitie:       pretAch,
-      cod_factura_furnizor: nrFactura,
-    });
+    if(/total|semnatura|factura|cumparator|furnizor|tva|valoare/i.test(cod)) continue;
+    if(pretUnit <= 0) continue;
+    produse.push({ cod_aftermarket: cod, descriere: desc, cantitate: cant, pret_achizitie: pretAch, cod_factura_furnizor: nrFactura });
   }
+
+  // Fallback linie cu linie dacă normalized nu a prins nimic
+  if(!produse.length) {
+    for(const line of text.split('\n')) {
+      const t = line.trim();
+      const lm = t.match(/^(\d{1,3})\s+([A-Z0-9][A-Z0-9\-\/\.]{2,20})\s+(.+?)\s+(BUC\.?|PCS|SET|KIT)\s+(\d{1,4})\s+([\d,\.]+)\s+[\d,\.]+\s+[\d,\.]+/i);
+      if(!lm) continue;
+      const cod  = lm[2].trim().toUpperCase();
+      const desc = lm[3].trim();
+      const cant = parseInt(lm[5]) || 1;
+      const pretUnit = parseRoPrice(lm[6]);
+      const pretAch  = parseFloat((pretUnit * (1 + tva / 100)).toFixed(2));
+      if(/total|semnatura|factura/i.test(cod) || pretUnit <= 0) continue;
+      produse.push({ cod_aftermarket: cod, descriere: desc, cantitate: cant, pret_achizitie: pretAch, cod_factura_furnizor: nrFactura });
+    }
+  }
+
   return produse;
 }
 
