@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T14:04:10.434642
+// Bundle generat: 2026-03-24T14:06:20.440899
 
 
 // ══════════════════════════════════════════════════════════
@@ -4278,7 +4278,7 @@ async function analyzeFacturaPdf(nrFactura, file) {
 
     const textContent = fullText + '\n' + rawText;
     console.log('PDF text extras (sorted):', fullText.substring(0, 200));
-    console.log('PDF raw text:', rawText.substring(0, 500));
+    console.log('PDF raw text (full):', rawText.substring(0, 2000));
     console.log('isAutoTotal detected:', /AD AUTO TOTAL|RO6844726/i.test(rawText));
 
     // Parsează factura — AutoTotal folosește rawText
