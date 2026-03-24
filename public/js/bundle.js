@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-23T12:10:04.235388
+// Bundle generat: 2026-03-24T08:19:43.567704
 
 
 // ══════════════════════════════════════════════════════════
@@ -299,7 +299,11 @@ async function showApp(email, userId, mustChangePass=false) {
   }
 
   // 5. Încarcă datele
-  loadOrders();
+  // Restore last page after refresh
+  const lastPage = localStorage.getItem('crm_last_page');
+  loadOrders().then(() => {
+    if(lastPage && lastPage !== 'comenzi') navigate(lastPage);
+  });
   logAction('LOGIN', 'user', currentUserId, { email });
   if(typeof initPushOnLogin === 'function') initPushOnLogin();
 }
@@ -441,6 +445,7 @@ function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`page-${page}`)?.classList.add('active');
+  try { localStorage.setItem('crm_last_page', page); } catch(e) {}
   document.getElementById(`nav-${page}`)?.classList.add('active');
   if (page==='comenzi' && allOrders.length===0) loadOrders();
   if (page==='clienti') loadClients();
@@ -3324,8 +3329,19 @@ async function renderPdfList() {
     return;
   }
 
-  const statusLabel = { nou:'🆕 Nouă', in_procesare:'⏳ În procesare', procesat:'✅ Procesat' };
-  const statusColor = { nou:'var(--accent)', in_procesare:'var(--yellow)', procesat:'var(--green)' };
+  const getStatusLabel = (s) => {
+    if(s === 'nou')          return '🆕 Nouă';
+    if(s === 'in_procesare') return '⏳ În procesare';
+    if(s === 'procesat')     return '✅ Procesat';
+    if(s?.startsWith('nealocate_')) return `📦 Nealocate (${s.split('_')[1]})`;
+    return s || '—';
+  };
+  const getStatusColor = (s) => {
+    if(s === 'procesat')          return 'var(--green)';
+    if(s === 'in_procesare')      return 'var(--yellow)';
+    if(s?.startsWith('nealocate_')) return 'var(--accent)';
+    return 'var(--muted)';
+  };
 
   // Fetch produse fără SKU pentru a marca facturile
   let faraSku = new Set();
@@ -3372,8 +3388,8 @@ async function renderPdfList() {
         ${f.pdf_filename ? `📎 ${escHtml(f.pdf_filename)}` : '<span style="color:var(--muted)">Fără PDF</span>'}
       </td>
       <td>
-        <span style="color:${statusColor[f.status]||'var(--muted)'};font-size:12px;font-weight:600">
-          ${statusLabel[f.status]||f.status}
+        <span style="color:${getStatusColor(f.status)};font-size:12px;font-weight:600">
+          ${getStatusLabel(f.status)}
         </span>
       </td>
       <td style="font-size:11px;color:var(--muted)">${fmtDate(f.creat_la)}</td>
@@ -3500,7 +3516,12 @@ async function openFacturaWorkspace(nrFactura) {
         </div>
       </div>
     `;
-    overlay.addEventListener('click', e => { if(e.target===overlay) closeModal('modal-factura-workspace'); });
+    overlay.addEventListener('click', e => {
+      if(e.target===overlay) {
+        closeModal('modal-factura-workspace');
+        renderPdfList(); // refresh lista când se închide
+      }
+    });
     document.body.appendChild(overlay);
   }
 
@@ -4100,14 +4121,27 @@ async function saveWorkspaceSku(prodId, cod) {
 
     // Verifică dacă toate produsele din factură au SKU acum
     const prodsFactura = await api(
-      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFact)}&select=sku`
+      `produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFact)}&select=sku,comanda_id`
     );
-    const toateAuSku = prodsFactura.length > 0 && prodsFactura.every(p => !!p.sku);
-    const newStatus  = toateAuSku ? 'procesat' : 'in_procesare';
+    const toateAuSku     = prodsFactura.length > 0 && prodsFactura.every(p => !!p.sku);
+    const auNealocate    = prodsFactura.some(p => !p.comanda_id);
+    const nrNealocate    = prodsFactura.filter(p => !p.comanda_id).length;
+
+    let newStatus = 'in_procesare';
+    if(toateAuSku && auNealocate)  newStatus = `nealocate_${nrNealocate}`;
+    if(toateAuSku && !auNealocate) newStatus = 'procesat';
+
     await upsertFactura(nrFact, { status: newStatus });
 
-    if(toateAuSku) {
-      toast(`✅ Toate produsele au SKU — factura marcată Procesată!`, 'success');
+    if(toateAuSku && !auNealocate) {
+      toast(`✅ Toate produsele au SKU — factura Procesată!`, 'success');
+      // Auto-close workspace modal after 1.5s
+      setTimeout(() => {
+        closeModal('modal-factura-workspace');
+        renderPdfList();
+      }, 1500);
+    } else if(toateAuSku && auNealocate) {
+      toast(`✅ SKU completat! ${nrNealocate} produs(e) nealocate.`, 'success');
     } else {
       toast(`SKU ${sku} salvat pentru ${cod}!`, 'success');
     }
