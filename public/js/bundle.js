@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T08:28:37.064395
+// Bundle generat: 2026-03-24T08:49:36.375216
 
 
 // ══════════════════════════════════════════════════════════
@@ -4291,7 +4291,45 @@ function parseRoPrice(str) {
   return parseFloat(s);
 }
 
+function parseAutoTotal(text, nrFactura) {
+  const produse = [];
+
+  // TVA din antet
+  const tvaMatch = text.match(/T\.V\.A\.:\s*(\d+)%/i);
+  const tva = tvaMatch ? parseInt(tvaMatch[1]) : 21;
+
+  const lines = text.split('\n');
+  for(const line of lines) {
+    const t = line.trim();
+    // Format: NR COD DESCRIERE BUC CANTITATE PRET_UNIT VALOARE TVA_VAL
+    const m = t.match(
+      /^(\d{1,3})\s+([A-Z0-9][A-Z0-9\-/\.]{2,20})\s+(.+?)\s+(BUC|PCS|SET|KIT|L|ML|KG|M|BUC\.)\s+(\d{1,4})\s+([\d,\.]+)\s+[\d,\.]+\s+[\d,\.]+/i
+    );
+    if(!m) continue;
+    const cod  = m[2].trim();
+    const desc = m[3].trim();
+    const cant = parseInt(m[5]) || 1;
+    const pretUnit = parseFloat(m[6].replace(',', '.')) || 0;
+    const pretAch  = parseFloat((pretUnit * (1 + tva / 100)).toFixed(2));
+
+    // Skip header/footer lines
+    if(/total|semnatura|factura|cumparator|furnizor/i.test(cod)) continue;
+
+    produse.push({
+      cod_aftermarket:      cod,
+      descriere:            desc,
+      cantitate:            cant,
+      pret_achizitie:       pretAch,
+      cod_factura_furnizor: nrFactura,
+    });
+  }
+  return produse;
+}
+
 function parseFacturaText(text, nrFactura) {
+  // Detectare furnizor
+  if(/AD AUTO TOTAL|autototal|RO6844726/i.test(text)) return parseAutoTotal(text, nrFactura);
+
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const result = { nr_factura: nrFactura, furnizor: null, data: null, produse: [] };
 
