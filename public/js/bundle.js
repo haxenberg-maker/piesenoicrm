@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-24T14:18:51.689093
+// Bundle generat: 2026-03-25T09:45:50.431774
 
 
 // ══════════════════════════════════════════════════════════
@@ -2220,7 +2220,10 @@ async function fetchAndRenderProducts(extraQuery='') {
         <td><span class="nr-cmd" style="cursor:pointer" onclick="jumpToOrder('${ord.id||''}','')">${fmtNr(ord.nr_comanda)}</span></td>
         <td style="font-size:12px;font-weight:600">${escHtml(ord.client_nume||'—')}</td>
         ${['administrator','gestionar'].includes(currentUserRole) ? `
-        <td><button class="icon-btn" style="color:var(--red)" title="Șterge" onclick="deleteProductRow('${p.id}','${escHtml(p.cod_aftermarket)}',event)">🗑</button></td>` : '<td></td>'}
+        <td style="white-space:nowrap">
+          <button class="icon-btn" title="Alocă la produs comandat" onclick="openMatchModal('${p.id}','${escHtml(p.cod_aftermarket)}','${escHtml(p.descriere||'')}',event)" style="color:var(--accent)">🔗</button>
+          <button class="icon-btn" style="color:var(--red)" title="Șterge" onclick="deleteProductRow('${p.id}','${escHtml(p.cod_aftermarket)}',event)">🗑</button>
+        </td>` : '<td></td>'}
 
       `;
       tbody.appendChild(tr);
@@ -3826,7 +3829,10 @@ async function loadWorkspaceProducts(nrFactura) {
                 style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:5px 9px;font-size:12px;outline:none"/>
             </div>
           </div>
-          <div style="padding:6px 12px 10px;display:flex;justify-content:flex-end">
+          <div style="padding:6px 12px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="openMatchModal('${p.id}','${escHtml(p.cod_aftermarket)}','${escHtml(p.descriere||'')}')">
+              🔗 Alocă la comandat
+            </button>
             <button class="btn btn-primary btn-sm" onclick="saveWorkspaceProduct('${p.id}','${escHtml(p.cod_aftermarket)}')">💾 Salvează</button>
           </div>
         `;
@@ -4886,6 +4892,199 @@ async function renderFaraSku() {
   } catch(e) {
     listEl.innerHTML = `<div style="color:var(--red);padding:12px">Eroare: ${e.message}</div>`;
   }
+}
+
+// ════════════════════════════════════════════════════════════
+// MATCH MODAL — Alocă produs la unul comandat
+// ════════════════════════════════════════════════════════════
+let _matchProdId   = null;
+let _matchCod      = null;
+let _matchSearchTimer = null;
+
+async function openMatchModal(prodId, cod, descriere, event) {
+  if(event) event.stopPropagation();
+  _matchProdId = prodId;
+  _matchCod    = cod;
+
+  // Creează modalul dacă nu există
+  let modal = document.getElementById('modal-match-prod');
+  if(!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-match-prod';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '10000';
+    modal.innerHTML = `
+      <div class="modal" style="max-width:580px;max-height:85vh;display:flex;flex-direction:column">
+        <div class="modal-head">
+          <div>
+            <h3>🔗 Alocă la produs comandat</h3>
+            <div id="match-source-label" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+          </div>
+          <button class="icon-btn" onclick="closeModal('modal-match-prod')">✕</button>
+        </div>
+        <div style="padding:12px 20px;border-bottom:1px solid var(--border)">
+          <input id="match-search" placeholder="🔍 Caută după cod, descriere, SKU, client, comandă..."
+            style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 14px;font-size:13px;outline:none"
+            oninput="matchSearchDebounce(this.value)"/>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:var(--muted)">
+              <input type="checkbox" id="match-filter-comandat" checked onchange="matchRunSearch()"/> Comandate
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:var(--muted)">
+              <input type="checkbox" id="match-filter-fara-sku" checked onchange="matchRunSearch()"/> Fără SKU
+            </label>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:var(--muted)">
+              <input type="checkbox" id="match-filter-ajuns" onchange="matchRunSearch()"/> Ajunse
+            </label>
+          </div>
+        </div>
+        <div id="match-list" style="flex:1;overflow-y:auto;padding:12px 16px"></div>
+      </div>
+    `;
+    modal.addEventListener('click', e => { if(e.target===modal) closeModal('modal-match-prod'); });
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('match-source-label').textContent =
+    `Produs sursă: ${cod}${descriere ? ' — ' + descriere : ''}`;
+  document.getElementById('match-search').value = '';
+
+  openModal('modal-match-prod');
+  matchRunSearch();
+}
+
+function matchSearchDebounce(q) {
+  clearTimeout(_matchSearchTimer);
+  _matchSearchTimer = setTimeout(() => matchRunSearch(q), 300);
+}
+
+async function matchRunSearch(q = '') {
+  q = q || document.getElementById('match-search')?.value?.trim() || '';
+  const filterComandat = document.getElementById('match-filter-comandat')?.checked;
+  const filterFaraSku  = document.getElementById('match-filter-fara-sku')?.checked;
+  const filterAjuns    = document.getElementById('match-filter-ajuns')?.checked;
+
+  const listEl = document.getElementById('match-list');
+  listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted)"><span class="spinner"></span></div>';
+
+  try {
+    // Build status filter
+    const statuses = [];
+    if(filterComandat) statuses.push('comandat');
+    if(filterAjuns)    statuses.push('ajuns');
+    if(!statuses.length) statuses.push('comandat','ajuns');
+
+    let url = `produse_comenzi?comanda_id=not.is.null&status_produs=in.(${statuses.join(',')})&select=*,comenzi(nr_comanda,cod_comanda_unic,clienti(nume))&limit=80`
+      .replace('produse_comenzi','produse_comandate');
+
+    if(filterFaraSku) {
+      url = url.replace('comanda_id=not.is.null', 'comanda_id=not.is.null&sku=is.null');
+    }
+    if(q) {
+      const enc = encodeURIComponent(q);
+      url += `&or=(cod_aftermarket.ilike.*${enc}*,descriere.ilike.*${enc}*,sku.ilike.*${enc}*)`;
+    }
+
+    const prods = await api(url);
+    listEl.innerHTML = '';
+
+    if(!prods.length) {
+      listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted)">
+        <div style="font-size:28px">🔍</div>
+        <div style="margin-top:8px">Niciun produs găsit</div>
+      </div>`;
+      return;
+    }
+
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:11px;color:var(--muted);padding:0 4px 8px;font-weight:600';
+    header.textContent = `${prods.length} produse găsite`;
+    listEl.appendChild(header);
+
+    prods.forEach(p => {
+      const cmd = p.comenzi || {};
+      const hasSku = !!p.sku;
+      const card = document.createElement('div');
+      card.style.cssText = `
+        padding:10px 12px;border-radius:var(--r-md);border:2px solid var(--border);
+        background:var(--s1);cursor:pointer;transition:all .12s;margin-bottom:6px;
+      `;
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">
+              <span style="font-family:monospace;font-weight:700;color:var(--accent);font-size:13px">${escHtml(p.cod_aftermarket)}</span>
+              <span class="badge b-${p.status_produs}" style="font-size:10px">${p.status_produs}</span>
+              ${hasSku ? `<span style="font-size:10px;background:rgba(16,185,129,.15);color:var(--green);padding:1px 6px;border-radius:8px">SKU: ${escHtml(p.sku)}</span>` : '<span style="font-size:10px;background:rgba(245,158,11,.15);color:var(--yellow);padding:1px 6px;border-radius:8px">fără SKU</span>'}
+            </div>
+            <div style="font-size:12px;color:var(--text)">${escHtml(p.descriere||'—')}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">
+              📋 ${escHtml(cmd.cod_comanda_unic||fmtNr(cmd.nr_comanda)||'—')} · ${escHtml(cmd.clienti?.nume||'—')}
+              · Cant: ${p.cantitate||1} · ${fmtRON(p.pret_achizitie)} RON
+            </div>
+          </div>
+          <button class="btn btn-primary btn-xs" style="flex-shrink:0" onclick="confirmMatchProduct('${_matchProdId}','${p.id}','${escHtml(p.cod_aftermarket)}',event)">
+            🔗 Alocă
+          </button>
+        </div>
+      `;
+      card.addEventListener('mouseenter', () => { card.style.borderColor='var(--accent)'; card.style.background='var(--s2)'; });
+      card.addEventListener('mouseleave', () => { card.style.borderColor='var(--border)'; card.style.background='var(--s1)'; });
+      listEl.appendChild(card);
+    });
+
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:var(--red);padding:12px">Eroare: ${e.message}</div>`;
+  }
+}
+
+async function confirmMatchProduct(srcId, targetId, targetCod, event) {
+  if(event) event.stopPropagation();
+
+  // Aduce datele sursei (produsul din factură/pagina produse)
+  const srcProds = await api(`produse_comenzi?id=eq.${srcId}&select=*`.replace('produse_comenzi','produse_comandate'));
+  const src = srcProds?.[0];
+  if(!src) { toast('Produs sursă negăsit!', 'error'); return; }
+
+  // Merge: actualizează produsul TARGET cu datele din sursă (cod factură, preț, cantitate)
+  // Păstrează: comanda_id, client, status, sku existent
+  const patch = {
+    cod_factura_furnizor: src.cod_factura_furnizor || null,
+    pret_achizitie:       src.pret_achizitie || 0,
+    cantitate:            src.cantitate || 1,
+  };
+  // Actualizează cod dacă targetul e N/A
+  if((!src.cod_aftermarket || src.cod_aftermarket === 'N/A') && _matchCod) {
+    patch.cod_aftermarket = _matchCod;
+  }
+  // Adaugă SKU din sursă dacă targetul nu are
+  if(src.sku && !patch.sku) patch.sku = src.sku;
+
+  try {
+    await fetch(`${SB}/rest/v1/produse_comenzi?id=eq.${targetId}`.replace('produse_comenzi','produse_comandate'), {
+      method: 'PATCH',
+      headers: getHeaders({ 'Prefer': 'return=minimal' }),
+      body: JSON.stringify(patch)
+    });
+
+    // Șterge produsul sursă (era duplicat/nealocate)
+    await fetch(`${SB}/rest/v1/produse_comenzi?id=eq.${srcId}`.replace('produse_comenzi','produse_comandate'), {
+      method: 'DELETE',
+      headers: getHeaders({ 'Prefer': 'return=minimal' })
+    });
+
+    toast(`✅ Produsul alocat la ${targetCod}!`, 'success');
+    closeModal('modal-match-prod');
+
+    // Refresh workspace dacă e deschis
+    const nrFact = document.getElementById('fw-nr')?.textContent;
+    if(nrFact) await loadWorkspaceProducts(nrFact);
+    // Refresh products page dacă e deschis
+    if(document.getElementById('page-produse')?.classList.contains('active')) {
+      fetchAndRenderProducts();
+    }
+
+  } catch(e) { toast('Eroare: '+e.message, 'error'); }
 }
 
 // ══════════════════════════════════════════════════════════
