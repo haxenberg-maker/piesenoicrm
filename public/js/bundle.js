@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-04-06T10:58:27.200760
+// Bundle generat: 2026-04-06T11:05:27.054836
 
 
 // ══════════════════════════════════════════════════════════
@@ -3770,11 +3770,22 @@ async function loadWorkspaceProducts(nrFactura) {
       listEl.innerHTML = `<div style="text-align:center;padding:32px;color:var(--muted)">
         <div style="font-size:32px;margin-bottom:8px">📦</div>
         <div>Niciun produs legat de această factură.</div>
-        <button class="btn btn-primary btn-sm" style="margin-top:12px"
-          onclick="closeModal('modal-factura-workspace');openInvoiceWizard()">＋ Procesează factura</button>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="closeModal('modal-factura-workspace');openInvoiceWizard()">🔄 Reprocesează PDF</button>
+          <button class="btn btn-secondary btn-sm" onclick="openAddManualProductToFactura('${escHtml(nrFactura)}')">＋ Adaugă manual</button>
+        </div>
       </div>`;
       return;
     }
+
+    // Button to add missing products manually (always visible at bottom)
+    const addMissingBtn = document.createElement('div');
+    addMissingBtn.style.cssText = 'margin-top:12px;padding-top:12px;border-top:1px solid var(--border);text-align:center';
+    addMissingBtn.innerHTML = `
+      <button class="btn btn-secondary btn-sm" onclick="openAddManualProductToFactura('${escHtml(nrFactura)}')">
+        ＋ Adaugă produs lipsă manual
+      </button>
+    `;
 
     // ── Potrivire automată nealocate ↔ alocate ──────────────────────
     // Indexăm alocatele după cod aftermarket
@@ -3990,10 +4001,40 @@ async function loadWorkspaceProducts(nrFactura) {
       });
     }
 
+    listEl.appendChild(addMissingBtn);
+
   } catch(e) {
     document.getElementById('fw-products-loading').style.display = 'none';
     listEl.innerHTML = `<div style="color:var(--red);padding:12px">Eroare: ${e.message}</div>`;
   }
+}
+
+async function openAddManualProductToFactura(nrFactura) {
+  const cod  = prompt('Cod aftermarket:');
+  if(!cod?.trim()) return;
+  const desc = prompt('Descriere:') || '';
+  const pret = parseFloat(prompt('Preț achiziție (RON):') || '0') || 0;
+  const cant = parseInt(prompt('Cantitate:') || '1') || 1;
+  const sku  = prompt('SKU (opțional):') || null;
+
+  try {
+    await fetch(`${SB}/rest/v1/produse_comenzi`.replace('produse_comenzi','produse_comandate'), {
+      method: 'POST',
+      headers: getHeaders({ 'Prefer': 'return=minimal' }),
+      body: JSON.stringify({
+        cod_aftermarket:      cod.trim(),
+        descriere:            desc.trim(),
+        pret_achizitie:       pret,
+        cantitate:            cant,
+        sku:                  sku?.trim() || null,
+        cod_factura_furnizor: nrFactura,
+        status_produs:        'ajuns',
+        // comanda_id: null = nealocate
+      })
+    });
+    toast(`✅ ${cod} adăugat la factura ${nrFactura}!`, 'success');
+    await loadWorkspaceProducts(nrFactura);
+  } catch(e) { toast('Eroare: '+e.message, 'error'); }
 }
 
 async function syncFromFactura(prodId, pretAchizitie, cantitate) {
