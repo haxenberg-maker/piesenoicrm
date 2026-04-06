@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-04-06T10:51:47.582054
+// Bundle generat: 2026-04-06T10:58:27.200760
 
 
 // ══════════════════════════════════════════════════════════
@@ -3935,16 +3935,25 @@ async function loadWorkspaceProducts(nrFactura) {
       onlyDbProds.forEach(p => {
         const cmd = p.comenzi || {};
         const hasSku = !!p.sku;
+        // Detectează produs orfan: are comanda_id dar comanda a fost ștearsă
+        const isOrphan = p.comanda_id && !cmd.cod_comanda_unic && !cmd.nr_comanda;
+        const borderColor = isOrphan ? 'var(--red)' : (hasSku ? 'var(--green)' : 'var(--border)');
+
         const card = document.createElement('div');
-        card.style.cssText = `border-radius:var(--r-md);margin-bottom:10px;border:1px solid ${hasSku?'var(--green)':'var(--border)'};background:var(--s1);overflow:hidden`;
+        card.style.cssText = `border-radius:var(--r-md);margin-bottom:10px;border:1px solid ${borderColor};background:var(--s1);overflow:hidden`;
         card.innerHTML = `
           <!-- Header -->
           <div style="padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
             <div style="display:flex;align-items:center;gap:8px">
               <span style="font-family:monospace;font-weight:700;color:var(--accent);font-size:13px">${escHtml(p.cod_aftermarket)}</span>
               <span class="badge b-${p.status_produs}" style="font-size:10px">${p.status_produs}</span>
+              ${isOrphan ? '<span style="font-size:10px;background:rgba(239,68,68,.15);color:var(--red);padding:2px 8px;border-radius:8px;font-weight:700">⚠️ Comandă ștearsă</span>' : ''}
             </div>
-            ${cmd.cod_comanda_unic ? `<span style="font-size:10px;color:var(--muted)">📋 ${escHtml(cmd.cod_comanda_unic)} · ${escHtml(cmd.clienti?.nume||'')}</span>` : '<span style="font-size:10px;color:var(--yellow)">⚠ Nealocată</span>'}
+            ${cmd.cod_comanda_unic 
+              ? `<span style="font-size:10px;color:var(--muted)">📋 ${escHtml(cmd.cod_comanda_unic)} · ${escHtml(cmd.clienti?.nume||'')}</span>` 
+              : isOrphan 
+                ? `<button class="btn btn-danger btn-xs" onclick="resetOrphanProduct('${p.id}','${escHtml(nrFactura)}')">🔄 Resetează</button>`
+                : '<span style="font-size:10px;color:var(--yellow)">⚠ Nealocată</span>'}
           </div>
           <!-- Câmpuri editabile -->
           <div style="padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -4335,6 +4344,19 @@ async function confirmAllocate() {
   closeModal('modal-allocate-prods');
   await loadWorkspaceProducts(nrFactura);
   loadOrders();
+}
+
+async function resetOrphanProduct(prodId, nrFactura) {
+  if(!confirm('Resetezi alocarea acestui produs? Va deveni nealocate și poți să-l realoci.')) return;
+  try {
+    await fetch(`${SB}/rest/v1/produse_comenzi?id=eq.${prodId}`.replace('produse_comenzi','produse_comandate'), {
+      method: 'PATCH',
+      headers: getHeaders({ 'Prefer': 'return=minimal' }),
+      body: JSON.stringify({ comanda_id: null })
+    });
+    toast('✅ Produs resetat — acum e nealocate!', 'success');
+    await loadWorkspaceProducts(nrFactura);
+  } catch(e) { toast('Eroare: '+e.message, 'error'); }
 }
 
 async function saveWorkspaceProduct(prodId, cod) {
