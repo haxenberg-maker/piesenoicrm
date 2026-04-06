@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-04-06T11:05:27.054836
+// Bundle generat: 2026-04-06T11:09:48.906231
 
 
 // ══════════════════════════════════════════════════════════
@@ -5558,9 +5558,9 @@ async function loadLogs() {
     const data = await api('audit_log?select=*&order=creat_la.desc&limit=500');
     allLogs = data;
     renderLogs(applyLogFilters(data));
-    document.getElementById('logs-count').textContent = `(${data.length})`;
+    document.getElementById('logs-count').textContent = '(' + data.length + ')';
   } catch(e) {
-    document.getElementById('logs-loading').innerHTML = `<span class="text-red">❌ ${e.message}</span>`;
+    document.getElementById('logs-loading').innerHTML = '<span class="text-red">❌ ' + e.message + '</span>';
   }
 }
 
@@ -5582,31 +5582,92 @@ function renderLogs(logs) {
   tbody.innerHTML = '';
 
   if(!logs.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Niciun log găsit.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">Niciun log găsit.</td></tr>';
     return;
   }
 
   const actiuneIcon = { CREATE:'➕', UPDATE:'✏️', DELETE:'🗑', LOGIN:'🔑' };
+  const isAdminOrGest = ['administrator','gestionar'].includes(currentUserRole);
 
-  logs.forEach(l => {
+  logs.forEach(function(l) {
     const det    = l.detalii || {};
-    const detStr = JSON.stringify(det, null, 0).replace(/[{}"]/g,'').substring(0,120);
+    const detStr = Object.keys(det).map(function(k){ return k + ': ' + det[k]; }).join(' · ').substring(0, 120);
     const dt     = new Date(l.creat_la);
     const dtStr  = dt.toLocaleDateString('ro-RO') + ' ' + dt.toLocaleTimeString('ro-RO');
 
+    let undoBtn = '';
+    if(l.actiune === 'DELETE' && isAdminOrGest) {
+      const detEncoded = escHtml(JSON.stringify(det));
+      undoBtn = '<button class="btn btn-secondary btn-xs" style="white-space:nowrap" onclick="undoDelete(\'' +
+        escHtml(l.entitate) + '\',\'' + escHtml(l.entitate_id||'') + '\',' + detEncoded + ')">↩️ Undo</button>';
+    }
+
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="white-space:nowrap;font-size:12px">${dtStr}</td>
-      <td style="font-size:12px">${escHtml(l.user_email||'sistem')}</td>
-      <td><span class="role-${l.user_rol||'user'}">${(l.user_rol||'').toUpperCase()}</span></td>
-      <td class="log-${l.actiune}"><strong>${actiuneIcon[l.actiune]||'•'} ${l.actiune}</strong></td>
-      <td style="font-size:12px;color:var(--muted)">${l.entitate}</td>
-      <td class="log-details" title="${escHtml(JSON.stringify(det))}">${escHtml(detStr)}</td>
-    `;
+    tr.innerHTML =
+      '<td style="white-space:nowrap;font-size:12px">' + dtStr + '</td>' +
+      '<td style="font-size:12px">' + escHtml(l.user_email||'sistem') + '</td>' +
+      '<td><span class="role-' + (l.user_rol||'user') + '">' + (l.user_rol||'').toUpperCase() + '</span></td>' +
+      '<td class="log-' + l.actiune + '"><strong>' + (actiuneIcon[l.actiune]||'•') + ' ' + l.actiune + '</strong></td>' +
+      '<td style="font-size:12px;color:var(--muted)">' + l.entitate + '</td>' +
+      '<td class="log-details" title="' + escHtml(JSON.stringify(det)) + '">' + escHtml(detStr) + '</td>' +
+      '<td>' + undoBtn + '</td>';
     tbody.appendChild(tr);
   });
 }
 
+async function undoDelete(entitate, entitateId, detalii) {
+  const det = (typeof detalii === 'string') ? JSON.parse(detalii) : detalii;
+
+  if(entitate === 'produs') {
+    const codProd = det.cod || det.cod_aftermarket || entitateId || 'produs';
+    if(!confirm('Restaurezi produsul "' + codProd + '"?\nVa fi nealocate — trebuie realocate manual.')) return;
+    try {
+      await fetch(SB + '/rest/v1/produse_comandate', {
+        method: 'POST',
+        headers: getHeaders({ 'Prefer': 'return=minimal' }),
+        body: JSON.stringify({
+          cod_aftermarket:      det.cod || det.cod_aftermarket || 'N/A',
+          descriere:            det.descriere || '',
+          sku:                  det.sku || null,
+          pret_achizitie:       parseFloat(det.pret_achizitie || det.pret || 0),
+          pret_vanzare:         parseFloat(det.pret_vanzare || 0),
+          cantitate:            parseInt(det.cantitate || 1),
+          cod_factura_furnizor: det.cod_factura_furnizor || det.factura || null,
+          status_produs:        det.status_produs || 'ajuns',
+        })
+      });
+      await logAction('CREATE', 'produs', null, { restaurat_din: entitateId, cod: codProd });
+      toast('✅ Produsul "' + codProd + '" restaurat! Alocă-l la o comandă din Facturi sau Produse.', 'success');
+      if(typeof fetchAndRenderProducts === 'function') fetchAndRenderProducts();
+    } catch(e) { toast('Eroare restaurare: ' + e.message, 'error'); }
+
+  } else if(entitate === 'client') {
+    const numeClient = det.nume || entitateId;
+    if(!confirm('Restaurezi clientul "' + numeClient + '"?')) return;
+    try {
+      await api('clienti', {
+        method: 'POST',
+        body: JSON.stringify({
+          nume:    det.nume || 'Necunoscut',
+          telefon: det.telefon || null,
+          email:   det.email || null,
+          adresa:  det.adresa || null,
+        })
+      });
+      await logAction('CREATE', 'client', null, { restaurat_din: entitateId });
+      toast('✅ Clientul "' + numeClient + '" restaurat!', 'success');
+      if(typeof loadClients === 'function') loadClients();
+    } catch(e) { toast('Eroare: ' + e.message, 'error'); }
+
+  } else if(entitate === 'comanda') {
+    const info = Object.keys(det).map(function(k){ return k + ': ' + det[k]; }).join(', ');
+    alert('Restaurare automata a comenzii nu e posibila.\n\nDate disponibile:\n' + info + '\n\nCreeaza manual din pagina Comenzi.');
+
+  } else {
+    const info = Object.keys(det).map(function(k){ return k + ': ' + det[k]; }).join(', ');
+    alert('Undo pentru "' + entitate + '" nu e implementat automat.\nDate: ' + info);
+  }
+}
 
 // ══════════════════════════════════════════════════════════
 // USERS
