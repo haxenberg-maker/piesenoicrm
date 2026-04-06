@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-04-06T10:41:43.048270
+// Bundle generat: 2026-04-06T10:51:47.582054
 
 
 // ══════════════════════════════════════════════════════════
@@ -3340,7 +3340,7 @@ async function saveAddFactura() {
 
 async function loadFacturiDb() {
   try {
-    _facturiDb = await api('facturi?select=*&order=creat_la.desc');
+    _facturiDb = await api('facturi?select=*&order=data_document.desc.nullslast,creat_la.desc');
     // Sortează: neprocessate primele, procesate la urmă
     _facturiDb.sort((a, b) => {
       const order = { nou: 0, in_procesare: 1, procesat: 2 };
@@ -3502,7 +3502,7 @@ async function renderPdfList() {
   // Recalc status before rendering
   await recalcFacturiStatus();
   try {
-    _facturiDb = await api('facturi?select=*&order=creat_la.desc');
+    _facturiDb = await api('facturi?select=*&order=data_document.desc.nullslast,creat_la.desc');
     // Sortează: neprocessate primele, procesate la urmă
     _facturiDb.sort((a, b) => {
       const order = { nou: 0, in_procesare: 1, procesat: 2 };
@@ -3722,7 +3722,7 @@ async function openFacturaWorkspace(nrFactura) {
       if(e.target===overlay) {
         closeModal('modal-factura-workspace');
         if(window.location.hash.startsWith('#/facturi/')) history.pushState(null, '', '#/facturi');
-        renderPdfList();
+        // renderPdfList se apelează automat din router la popstate
       }
     });
     document.body.appendChild(overlay);
@@ -4493,10 +4493,11 @@ async function analyzeFacturaPdf(nrFactura, file) {
       ? parseAutoTotal(rawText, nrFactura)
       : parseFacturaText(fullText, nrFactura);
 
-    // Normalizează — parseAutoTotal returnează array, parseFacturaText returnează obiect cu .produse
+    // Normalizează — ambele returnează { produse, data, furnizor }
     if(Array.isArray(result)) {
-      result = { produse: result, nr_factura: nrFactura, furnizor: 'AD AUTO TOTAL' };
+      result = { produse: result, nr_factura: nrFactura, furnizor: 'AD AUTO TOTAL', data: null };
     }
+    window._analyzeParsedData = result.data || null;
     renderAnalyzeResults(nrFactura, result);
 
   } catch(e) {
@@ -4534,6 +4535,10 @@ function parseAutoTotal(text, nrFactura) {
   const produse = [];
   const tvaMatch = text.match(/T\.V\.A\.\:?\s*(\d+)%/i);
   const tva = tvaMatch ? parseInt(tvaMatch[1]) : 21;
+  // Extract date for AutoTotal: "Data(ziua, luna, anul)   20/02/2026" or "29/01/2026"
+  const dateMatch = text.match(/Data\(ziua.*?\)\s+(\d{2}\/\d{2}\/\d{4})/i)
+    || text.match(/(\d{2}\/\d{2}\/\d{4})/);
+  const dataDocument = dateMatch ? dateMatch[1].split('/').reverse().join('-') : null;
 
   // În PDF-ul AutoTotal, coloanele sunt extrase în ordine greșită:
   // "1   BUC   1   47.96   47.96   10.07  4010092 FLANSA LICHID RACIRE METZGER"
@@ -4574,7 +4579,7 @@ function parseAutoTotal(text, nrFactura) {
   }
 
   console.log('AutoTotal produse extrase:', produse.length, produse.map(p=>p.cod_aftermarket));
-  return produse;
+  return { produse, data: dataDocument, furnizor: 'AD AUTO TOTAL' };
 }
 
 
