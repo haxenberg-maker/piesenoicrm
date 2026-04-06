@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-04-06T10:32:59.510661
+// Bundle generat: 2026-04-06T10:41:43.048270
 
 
 // ══════════════════════════════════════════════════════════
@@ -1192,7 +1192,14 @@ async function editOrder() {
     toast('Comanda salvată!','success');
     await logAction('UPDATE', 'comanda', editOrderId, patch);
     closeModal('modal-order');
-    await loadOrders();
+    // Update in-place
+    const updatedEdit = await api(`dashboard_comenzi?id=eq.${editOrderId}&select=*`);
+    if(updatedEdit?.[0]) {
+      const eidx = allOrders.findIndex(x=>x.id===editOrderId);
+      if(eidx !== -1) allOrders[eidx] = updatedEdit[0];
+      renderOrdersTable(applyOrderFilters(allOrders));
+      renderStats(allOrders);
+    }
     if(currentOrderId===editOrderId) {
       const updated = allOrders.find(x=>x.id===editOrderId);
       if(updated) document.getElementById('detail-title').textContent=`${fmtNr(updated.nr_comanda)} — ${updated.client_nume} · ${fmtDate(updated.data_creare)}`;
@@ -1480,7 +1487,11 @@ async function saveOrder() {
 
     toast(`✅ Comanda ${fmtNr(comanda.nr_comanda)} creată!`,'success');
     closeModal('modal-order');
-    await loadOrders();
+    // Adaugă în allOrders fără full reload
+    const newOrder = await api(`dashboard_comenzi?id=eq.${comanda.id}&select=*`);
+    if(newOrder?.[0]) allOrders.unshift(newOrder[0]);
+    renderOrdersTable(applyOrderFilters(allOrders));
+    renderStats(allOrders);
   } catch(e){ toast('Eroare: '+e.message,'error'); }
 }
 
@@ -1820,9 +1831,13 @@ async function saveAddToOrder() {
     await logAction('CREATE','produs',_atoComandaId,{cod,comanda:_atoCodUnic});
     toast(`✅ Produs ${cod} adăugat la ${_atoCodUnic}!`,'success');
     closeModal('modal-add-to-order');
-    // Reîncarcă produsele din detail panel
     await loadDetailProducts(_atoComandaId);
-    await loadOrders();
+    // Update doar rândul din tabel, nu tot
+    const updatedRow = await api(`dashboard_comenzi?id=eq.${_atoComandaId}&select=*`);
+    if(updatedRow?.[0]) {
+      const idx = allOrders.findIndex(x=>x.id===_atoComandaId);
+      if(idx !== -1) { allOrders[idx] = updatedRow[0]; renderOrdersTable(applyOrderFilters(allOrders)); renderStats(allOrders); }
+    }
   } catch(e){ toast('Eroare: '+e.message,'error'); }
 }
 
@@ -3007,7 +3022,7 @@ async function preiaToateInFactura() {
     if(prodId) await preiaUnulInFactura(prodId, btn);
   }
   toast(`✅ ${btns.length} produs(e) preluate în factura ${nrFactura}!`,'success');
-  await loadOrders();
+  // Nu reîncărcăm comenzile — produsele sunt deja în allOrders
 }
 
 function showExistingFacturaProducts() {
@@ -3280,8 +3295,8 @@ async function invoiceConfirm() {
 
     toast(`✅ ${toProcess.length} produs(e) marcate ca Ajunse cu factura ${nrFactura}!`, 'success');
     closeModal('modal-invoice');
-    await loadOrders();
-    loadAllProducts();
+    // Refresh doar rândul modificat
+    if(typeof fetchAndRenderProducts === 'function') fetchAndRenderProducts();
   } catch(e) {
     toast('Eroare: '+e.message, 'error');
     btn.disabled = false; btn.textContent = '✅ Marchează ca Ajunse';
@@ -4348,7 +4363,7 @@ async function saveWorkspaceProduct(prodId, cod) {
 
     if(toateAuSku && !nrNealocate) {
       toast('✅ Toate SKU-urile completate — factură Procesată!', 'success');
-      setTimeout(() => { closeModal('modal-factura-workspace'); renderPdfList(); }, 1500);
+      await renderPdfList();
     } else {
       toast(`✅ Salvat!`, 'success');
     }
@@ -4391,11 +4406,7 @@ async function saveWorkspaceSku(prodId, cod) {
 
     if(toateAuSku && !auNealocate) {
       toast(`✅ Toate produsele au SKU — factura Procesată!`, 'success');
-      // Auto-close workspace modal after 1.5s
-      setTimeout(() => {
-        closeModal('modal-factura-workspace');
-        renderPdfList();
-      }, 1500);
+      // Nu auto-close — user închide manual
     } else if(toateAuSku && auNealocate) {
       toast(`✅ SKU completat! ${nrNealocate} produs(e) nealocate.`, 'success');
     } else {
