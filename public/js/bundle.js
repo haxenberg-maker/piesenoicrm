@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-03-25T09:45:50.431774
+// Bundle generat: 2026-04-06T10:32:59.510661
 
 
 // ══════════════════════════════════════════════════════════
@@ -299,10 +299,15 @@ async function showApp(email, userId, mustChangePass=false) {
   }
 
   // 5. Încarcă datele
-  // Restore last page after refresh
-  const lastPage = localStorage.getItem('crm_last_page');
+  // Restore page from URL hash or localStorage
   loadOrders().then(() => {
-    if(lastPage && lastPage !== 'comenzi') navigate(lastPage);
+    const hash = window.location.hash;
+    if(hash && hash.startsWith('#/')) {
+      if(typeof handleRoute === 'function') handleRoute();
+    } else {
+      const lastPage = localStorage.getItem('crm_last_page');
+      if(lastPage && lastPage !== 'comenzi') navigate(lastPage);
+    }
   });
   logAction('LOGIN', 'user', currentUserId, { email });
   if(typeof initPushOnLogin === 'function') initPushOnLogin();
@@ -441,12 +446,14 @@ function switchTab(btn, tabId) {
   }
 }
 
-function navigate(page) {
+function navigate(page, subPath = '') {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById(`page-${page}`)?.classList.add('active');
-  try { localStorage.setItem('crm_last_page', page); } catch(e) {}
   document.getElementById(`nav-${page}`)?.classList.add('active');
+  // Update URL hash
+  const hash = subPath ? `#/${page}/${subPath}` : `#/${page}`;
+  if(window.location.hash !== hash) history.pushState(null, '', hash);
   if (page==='comenzi' && allOrders.length===0) loadOrders();
   if (page==='clienti') loadClients();
   if (page==='produse') loadAllProducts();
@@ -621,6 +628,36 @@ async function saveInlineField(prodId, field, value) {
   }
 }
 
+
+// ════════════════════════════════════════════════════════════
+// ROUTER — Hash-based routing
+// ════════════════════════════════════════════════════════════
+const ROUTES = {
+  'comenzi':  (sub) => { navigate('comenzi');  if(sub) { const o = allOrders.find(x => x.cod_comanda_unic===sub || x.id===sub); if(o) setTimeout(()=>loadDetail(o.id,o),300); } },
+  'clienti':  (sub) => { navigate('clienti');  if(sub) setTimeout(()=>loadClientDetail(sub),300); },
+  'produse':  ()    => navigate('produse'),
+  'facturi':  (sub) => { navigate('facturi');  if(sub) setTimeout(()=>openFacturaWorkspace(sub),400); },
+  'predare':  ()    => navigate('predare'),
+  'retururi': ()    => navigate('retururi'),
+  'loguri':   ()    => navigate('loguri'),
+  'utilizatori': () => navigate('utilizatori'),
+};
+
+function parseHash() {
+  const hash = window.location.hash.replace('#/', '');
+  if(!hash) return { page: 'comenzi', sub: null };
+  const parts = hash.split('/');
+  return { page: parts[0] || 'comenzi', sub: parts.slice(1).join('/') || null };
+}
+
+function handleRoute() {
+  const { page, sub } = parseHash();
+  const handler = ROUTES[page];
+  if(handler) handler(decodeURIComponent(sub || ''));
+  else navigate('comenzi');
+}
+
+window.addEventListener('popstate', handleRoute);
 
 // ══════════════════════════════════════════════════════════
 // ORDERS
@@ -826,6 +863,10 @@ async function confirmDeleteOrder(id, clientNume) {
 
 async function loadDetail(id, o) {
   currentOrderId = id;
+  // Update URL
+  const cod = o?.cod_comanda_unic || (allOrders.find(x=>x.id===id)?.cod_comanda_unic) || id;
+  const hash = `#/comenzi/${encodeURIComponent(cod)}`;
+  if(window.location.hash !== hash) history.pushState(null, '', hash);
 
   // Show fullscreen modal
   const overlay = document.getElementById('detail-modal-overlay');
@@ -1037,6 +1078,7 @@ async function deleteDetailProduct(prodId, cod) {
 
 function closeDetail() {
   document.getElementById('detail-modal-overlay').style.display='none';
+  if(window.location.hash.startsWith('#/comenzi/')) history.pushState(null, '', '#/comenzi');
   document.getElementById('pdf-preview-wrap').style.display='none';
   document.body.style.overflow='';
   currentOrderId=null;
@@ -1218,6 +1260,13 @@ async function openNewOrder() {
     </div>
 
     <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">📦 Produse din stoc (nealocate)</div>
+      <input placeholder="🔍 Filtrează stoc..." style="width:100%;margin-bottom:8px;font-size:12px"
+        oninput="(()=>{const q=this.value.toLowerCase();document.querySelectorAll('#no-stoc-list>div[style*=padding]').forEach(d=>{d.style.display=d.textContent.toLowerCase().includes(q)?'':'none';})})()"/>
+      <div id="no-stoc-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-md);padding:6px;background:var(--s2)"></div>
+    </div>
+
+    <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:14px">
       <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px">💳 Plată la plasare (opțional)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div class="field">
@@ -1238,6 +1287,65 @@ async function openNewOrder() {
   renderNewOrderProducts();
   document.querySelector('#modal-order .modal-foot .btn-primary').onclick = saveOrder;
   openModal('modal-order');
+  // Load unallocated products in background
+  loadStocForNewOrder();
+}
+
+async function loadStocForNewOrder() {
+  const listEl = document.getElementById('no-stoc-list');
+  if(!listEl) return;
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px;text-align:center"><span class="spinner"></span></div>';
+  try {
+    const prods = await api('produse_comandate?comanda_id=is.null&select=*&order=cod_aftermarket&limit=100');
+    listEl.innerHTML = '';
+    if(!prods.length) {
+      listEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:12px;text-align:center">Niciun produs în stoc</div>';
+      return;
+    }
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:11px;color:var(--muted);padding:4px 0 8px;font-weight:600';
+    header.textContent = `${prods.length} produse disponibile`;
+    listEl.appendChild(header);
+    prods.forEach(p => {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:8px 10px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--s1);cursor:pointer;transition:all .12s;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center;gap:8px';
+      div.innerHTML = `
+        <div style="min-width:0">
+          <div style="font-family:monospace;font-weight:700;color:var(--accent);font-size:12px">${escHtml(p.cod_aftermarket)}</div>
+          <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${escHtml(p.descriere||'—')}</div>
+          ${p.sku ? `<div style="font-size:10px;color:var(--green)">SKU: ${escHtml(p.sku)}</div>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:12px;font-weight:700">${fmtRON(p.pret_achizitie)} RON</div>
+          <div style="font-size:10px;color:var(--muted)">x${p.cantitate||1}</div>
+        </div>
+      `;
+      div.addEventListener('mouseenter', ()=>{ div.style.borderColor='var(--accent)'; div.style.background='var(--s2)'; });
+      div.addEventListener('mouseleave', ()=>{ div.style.borderColor='var(--border)'; div.style.background='var(--s1)'; });
+      div.addEventListener('click', () => addStocProductToOrder(p));
+      listEl.appendChild(div);
+    });
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px">Eroare: ${e.message}</div>`;
+  }
+}
+
+function addStocProductToOrder(p) {
+  // Add to newOrderProducts list
+  newOrderProducts.push({
+    _stocId:         p.id,  // track original ID for PATCH later
+    cod_aftermarket: p.cod_aftermarket,
+    descriere:       p.descriere || '',
+    pret_achizitie:  p.pret_achizitie || 0,
+    pret_vanzare:    parseFloat(((p.pret_achizitie||0) * (1 + (parseFloat(document.getElementById('no-adaos')?.value)||0)/100)).toFixed(2)),
+    cantitate:       p.cantitate || 1,
+    sku:             p.sku || '',
+    status_produs:   'ajuns',
+    _fromStoc:       true,
+  });
+  renderNewOrderProducts();
+  updateNewOrderTotal();
+  toast(`✅ ${p.cod_aftermarket} adăugat la comandă!`, 'success');
 }
 
 function addNewOrderProduct() {
@@ -1341,7 +1449,21 @@ async function saveOrder() {
         cantitate:       p.cantitate||1,
       };
     });
-    await api('produse_comandate',{method:'POST',body:JSON.stringify(produse)});
+    // Separate stoc products (PATCH) from new products (POST)
+    const stocProds  = produse.filter(p => p._stocId);
+    const newProds   = produse.filter(p => !p._stocId);
+
+    for(const sp of stocProds) {
+      const { _stocId, _fromStoc, ...fields } = sp;
+      await fetch(`${SB}/rest/v1/produse_comenzi?id=eq.${_stocId}`.replace('produse_comenzi','produse_comandate'), {
+        method: 'PATCH',
+        headers: getHeaders({ 'Prefer': 'return=minimal' }),
+        body: JSON.stringify({ comanda_id: comanda.id, status_produs: 'ajuns' })
+      });
+    }
+    if(newProds.length) {
+      await api('produse_comandate',{method:'POST',body:JSON.stringify(newProds)});
+    }
 
     // Salvează plata dacă există
     if(plataSuma > 0) {
@@ -3522,6 +3644,9 @@ async function startUploadNewPdf() {
 }
 
 async function openFacturaWorkspace(nrFactura) {
+  // Update URL
+  const hash = `#/facturi/${encodeURIComponent(nrFactura)}`;
+  if(window.location.hash !== hash) history.pushState(null, '', hash);
   const f = getFacturaByNr(nrFactura);
 
   // Creează modal dinamic dacă nu există
@@ -3581,7 +3706,8 @@ async function openFacturaWorkspace(nrFactura) {
     overlay.addEventListener('click', e => {
       if(e.target===overlay) {
         closeModal('modal-factura-workspace');
-        renderPdfList(); // refresh lista când se închide
+        if(window.location.hash.startsWith('#/facturi/')) history.pushState(null, '', '#/facturi');
+        renderPdfList();
       }
     });
     document.body.appendChild(overlay);
@@ -5615,13 +5741,10 @@ async function subscribeToPush() {
 
     // Salvează în Supabase (direct fetch - api() nu suportă 204)
     const subJson = sub.toJSON();
-    const subRes = await fetch(`${SB}/rest/v1/push_subscriptions`, {
+    await fetch(`${SB}/rest/v1/push_subscriptions`, {
       method: 'POST',
       headers: {
-        ...getHeaders({
-          'Prefer': 'resolution=merge-duplicates,return=minimal',
-          'on-conflict': 'endpoint',
-        }),
+        ...getHeaders({ 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
       },
       body: JSON.stringify({
         user_email: currentUserEmail,
@@ -5630,7 +5753,6 @@ async function subscribeToPush() {
         auth:       subJson.keys.auth,
       })
     });
-    // 409 = duplicate = already saved, treat as success
 
     console.log('Push subscription saved ✓');
     return sub;
@@ -5824,154 +5946,6 @@ async function initPushOnLogin() {
   }
   await loadNotifSettings();
 }
-
-// ══════════════════════════════════════════════════════════
-// SEARCH
-// ══════════════════════════════════════════════════════════
-
-// search.js — CRM Piese Auto
-// ════════════════════════════════════════════════════════════
-// Căutare globală — comenzi, clienți, produse, facturi
-
-let _searchTimer = null;
-
-function globalSearchDebounce(q) {
-  clearTimeout(_searchTimer);
-  if(!q || q.length < 2) {
-    closeGlobalSearch();
-    return;
-  }
-  _searchTimer = setTimeout(() => runGlobalSearch(q), 300);
-}
-
-function openGlobalSearch() {
-  const q = document.getElementById('global-search-input')?.value?.trim();
-  if(q && q.length >= 2) runGlobalSearch(q);
-}
-
-function closeGlobalSearch() {
-  const el = document.getElementById('global-search-results');
-  if(el) el.style.display = 'none';
-}
-
-async function runGlobalSearch(q) {
-  const resultsEl = document.getElementById('global-search-results');
-  if(!resultsEl) return;
-  resultsEl.style.display = 'block';
-  resultsEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px"><span class="spinner"></span> Se caută...</div>';
-
-  try {
-    const enc = encodeURIComponent(q);
-
-    // Parallel searches
-    const [comenzi, clienti, produse, facturi] = await Promise.all([
-      // Comenzi - după client sau cod unic
-      api(`dashboard_comenzi?or=(client_nume.ilike.*${enc}*,cod_comanda_unic.ilike.*${enc}*)&select=id,nr_comanda,cod_comanda_unic,client_nume,status_general,total_plata&limit=5`).catch(()=>[]),
-      // Clienți
-      api(`clienti?or=(nume.ilike.*${enc}*,telefon.ilike.*${enc}*,email.ilike.*${enc}*)&select=id,nume,telefon&limit=5`).catch(()=>[]),
-      // Produse - după cod sau descriere
-      api(`produse_comandate?or=(cod_aftermarket.ilike.*${enc}*,descriere.ilike.*${enc}*,sku.ilike.*${enc}*)&select=id,cod_aftermarket,descriere,sku,comanda_id,status_produs&limit=5`).catch(()=>[]),
-      // Facturi
-      api(`facturi?nr_factura=ilike.*${enc}*&select=id,nr_factura,furnizor,status&limit=3`).catch(()=>[]),
-    ]);
-
-    const sections = [];
-
-    if(comenzi.length) {
-      sections.push(`
-        <div class="gs-section">
-          <div class="gs-label">📋 Comenzi</div>
-          ${comenzi.map(o => `
-            <div class="gs-item" onclick="loadDetail('${o.id}', allOrders.find(x=>x.id==='${o.id}') || {}); closeGlobalSearch(); document.getElementById('global-search-input').value=''">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <span class="gs-title">${escHtml(o.cod_comanda_unic||fmtNr(o.nr_comanda))}</span>
-                <span style="font-size:11px;color:var(--muted)">${fmtRON(o.total_plata)} RON</span>
-              </div>
-              <div class="gs-sub">${escHtml(o.client_nume||'—')}</div>
-            </div>
-          `).join('')}
-        </div>
-      `);
-    }
-
-    if(clienti.length) {
-      sections.push(`
-        <div class="gs-section">
-          <div class="gs-label">👤 Clienți</div>
-          ${clienti.map(c => `
-            <div class="gs-item" onclick="navigate('clienti'); setTimeout(()=>loadClientDetail('${c.id}'),300); closeGlobalSearch(); document.getElementById('global-search-input').value=''">
-              <div class="gs-title">${escHtml(c.nume)}</div>
-              <div class="gs-sub">${escHtml(c.telefon||'—')}</div>
-            </div>
-          `).join('')}
-        </div>
-      `);
-    }
-
-    if(produse.length) {
-      sections.push(`
-        <div class="gs-section">
-          <div class="gs-label">🔧 Produse</div>
-          ${produse.map(p => `
-            <div class="gs-item" onclick="${p.comanda_id ? `loadDetail('${p.comanda_id}', allOrders.find(x=>x.id==='${p.comanda_id}') || {}); closeGlobalSearch()` : `navigate('produse'); closeGlobalSearch()`}; document.getElementById('global-search-input').value=''">
-              <div style="display:flex;justify-content:space-between">
-                <span class="gs-title font-mono">${escHtml(p.cod_aftermarket)}</span>
-                <span class="badge b-${p.status_produs}" style="font-size:10px">${p.status_produs}</span>
-              </div>
-              <div class="gs-sub">${escHtml(p.descriere||'')} ${p.sku ? `· SKU: ${escHtml(p.sku)}` : ''}</div>
-            </div>
-          `).join('')}
-        </div>
-      `);
-    }
-
-    if(facturi.length) {
-      sections.push(`
-        <div class="gs-section">
-          <div class="gs-label">🧾 Facturi</div>
-          ${facturi.map(f => `
-            <div class="gs-item" onclick="navigate('facturi'); setTimeout(()=>openFacturaWorkspace('${escHtml(f.nr_factura)}'),400); closeGlobalSearch(); document.getElementById('global-search-input').value=''">
-              <div class="gs-title font-mono">${escHtml(f.nr_factura)}</div>
-              <div class="gs-sub">${escHtml(f.furnizor||'—')}</div>
-            </div>
-          `).join('')}
-        </div>
-      `);
-    }
-
-    if(!sections.length) {
-      resultsEl.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">
-        Niciun rezultat pentru "<strong>${escHtml(q)}</strong>"
-      </div>`;
-      return;
-    }
-
-    resultsEl.innerHTML = `
-      <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted);font-weight:600">
-        Rezultate pentru "<strong style="color:var(--text)">${escHtml(q)}</strong>"
-      </div>
-      ${sections.join('')}
-    `;
-
-  } catch(e) {
-    resultsEl.innerHTML = `<div style="padding:12px;color:var(--red);font-size:12px">Eroare: ${e.message}</div>`;
-  }
-}
-
-// Close on outside click
-document.addEventListener('click', e => {
-  if(!e.target.closest('#global-search-input') && !e.target.closest('#global-search-results')) {
-    closeGlobalSearch();
-  }
-});
-
-// Close on Escape
-document.addEventListener('keydown', e => {
-  if(e.key === 'Escape') {
-    closeGlobalSearch();
-    document.getElementById('global-search-input')?.blur();
-  }
-});
 
 // INIT
 // main.js — CRM Piese Auto
