@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-04-07T05:49:44.599367
+// Bundle generat: 2026-04-07T05:59:51.479291
 
 
 // ══════════════════════════════════════════════════════════
@@ -1503,33 +1503,35 @@ async function saveOrder() {
       agent_vanzari: agentName,
     })});
 
-    const produse = newOrderProducts.filter(p=>p.cod_aftermarket).map(p=>{
-      const a=(p.adaos!=null?p.adaos:adaosGlobal);
-      return {
-        comanda_id:      comanda.id,
-        cod_aftermarket: p.cod_aftermarket,
-        descriere:       p.descriere,
-        pret_achizitie:  p.pret_achizitie,
-        pret_vanzare:    parseFloat((p.pret_achizitie*(1+a/100)).toFixed(2)),
-        cantitate:       p.cantitate||1,
-      };
-    });
-    // Separate stoc products (PATCH) from new products (POST)
-    const stocProds  = produse.filter(p => p._stocId);
-    const newProds   = produse.filter(p => !p._stocId);
+    // Separate stoc products (PATCH) from new products (POST) BEFORE mapping
+    const stocRaw = newOrderProducts.filter(p => p.cod_aftermarket && p._stocId);
+    const newRaw  = newOrderProducts.filter(p => p.cod_aftermarket && !p._stocId);
 
-    for(const sp of stocProds) {
-      const { _stocId, _fromStoc, ...fields } = sp;
-      await fetch(`${SB}/rest/v1/produse_comenzi?id=eq.${_stocId}`.replace('produse_comenzi','produse_comandate'), {
+    // PATCH produsele din stoc - păstrăm SKU, factură, preț deja salvate
+    for(const p of stocRaw) {
+      await fetch(`${SB}/rest/v1/produse_comandate?id=eq.${p._stocId}`, {
         method: 'PATCH',
         headers: getHeaders({ 'Prefer': 'return=minimal' }),
         body: JSON.stringify({ comanda_id: comanda.id, status_produs: 'ajuns' })
       });
     }
-    if(newProds.length) {
-      await api('produse_comandate',{method:'POST',body:JSON.stringify(newProds)});
-    }
 
+    // POST produsele noi (adăugate manual)
+    if(newRaw.length) {
+      const newProds = newRaw.map(p => {
+        const a = (p.adaos != null ? p.adaos : adaosGlobal);
+        return {
+          comanda_id:      comanda.id,
+          cod_aftermarket: p.cod_aftermarket,
+          descriere:       p.descriere || '',
+          pret_achizitie:  parseFloat(p.pret_achizitie) || 0,
+          pret_vanzare:    parseFloat((p.pret_achizitie*(1+a/100)).toFixed(2)),
+          cantitate:       parseInt(p.cantitate) || 1,
+          status_produs:   'comandat',
+        };
+      });
+      await api('produse_comandate', { method:'POST', body: JSON.stringify(newProds) });
+    }
     // Salvează plata dacă există
     if(plataSuma > 0) {
       try {
