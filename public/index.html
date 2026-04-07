@@ -3,305 +3,1711 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>CRM Piese Auto — Login</title>
+<title>CRM Piese Auto</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root {
+  /* ── Sidebar (dark) ──────────────────────────────────── */
+  --sb-bg:      #0f1923;
+  --sb-s1:      #162030;
+  --sb-s2:      #1d2c3f;
+  --sb-border:  #243347;
+  --sb-text:    #e2eaf5;
+  --sb-muted:   #4e6580;
+  --sb-muted2:  #6b87a8;
 
-  :root {
-    --bg:     #0d1117;
-    --s1:     #111827;
-    --s2:     #1a2235;
-    --s3:     #1e293b;
-    --border: #1f2d45;
-    --b2:     #2d3f5e;
-    --accent: #3b82f6;
-    --text:   #e2e8f0;
-    --muted:  #64748b;
-    --green:  #10b981;
-    --red:    #ef4444;
-  }
+  /* ── Main area (light) ───────────────────────────────── */
+  --bg:         #f0f4f8;
+  --s1:         #ffffff;
+  --s2:         #f7f9fc;
+  --s3:         #eef2f7;
+  --border:     #e2e8f0;
+  --border2:    #cbd5e1;
+  --text:       #1a2535;
+  --muted:      #64748b;
+  --muted2:     #94a3b8;
 
-  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0 }
-  body {
-    font-family:'Inter',system-ui,sans-serif;
-    background:var(--bg); color:var(--text);
-    min-height:100vh; display:flex; align-items:center; justify-content:center;
-    padding:20px;
-    background-image: radial-gradient(ellipse at 20% 50%, rgba(59,130,246,.07) 0%, transparent 60%),
-                      radial-gradient(ellipse at 80% 20%, rgba(16,185,129,.05) 0%, transparent 50%);
-  }
+  /* ── Accent: Teal + Emerald ──────────────────────────── */
+  --accent:     #0d9488;
+  --accent2:    #14b8a6;
+  --accent-light: #ccfbf1;
+  --accent-glow:  rgba(13,148,136,.15);
+  --accent-bg:    rgba(13,148,136,.08);
 
-  .card {
-    background:var(--s1); border:1px solid var(--border);
-    border-radius:20px; padding:40px;
-    width:100%; max-width:420px;
-    box-shadow: 0 32px 80px rgba(0,0,0,.5);
-  }
+  /* ── Status ──────────────────────────────────────────── */
+  --green:      #059669;
+  --green-bg:   #d1fae5;
+  --green-text: #065f46;
+  --red:        #dc2626;
+  --red-bg:     #fee2e2;
+  --red-text:   #991b1b;
+  --blue:       #2563eb;
+  --blue-bg:    #dbeafe;
+  --blue-text:  #1e40af;
+  --yellow:     #d97706;
+  --yellow-bg:  #fef3c7;
+  --yellow-text:#92400e;
+  --purple:     #7c3aed;
+  --purple-bg:  #ede9fe;
 
-  .logo {
-    text-align:center; margin-bottom:32px;
-  }
-  .logo-icon { font-size:40px; display:block; margin-bottom:10px }
-  .logo h1 { font-size:22px; font-weight:700; letter-spacing:-.3px }
-  .logo h1 span { color:var(--accent) }
-  .logo p { font-size:13px; color:var(--muted); margin-top:4px }
+  /* ── Shadows ─────────────────────────────────────────── */
+  --shadow-xs: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.1), 0 2px 6px rgba(0,0,0,.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+  --shadow-accent: 0 4px 14px rgba(13,148,136,.25);
 
-  .tabs {
-    display:flex; background:var(--s2); border-radius:10px;
-    padding:4px; margin-bottom:28px; gap:4px;
-  }
-  .tab-btn {
-    flex:1; padding:8px; border:none; border-radius:7px;
-    font-size:13px; font-weight:600; cursor:pointer;
-    background:transparent; color:var(--muted);
-    transition:all .18s;
-  }
-  .tab-btn.active { background:var(--accent); color:#fff }
+  /* ── Radius ──────────────────────────────────────────── */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
 
-  .form { display:flex; flex-direction:column; gap:14px }
-  .field { display:flex; flex-direction:column; gap:5px }
-  .field label { font-size:12px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:.5px }
-  .field input {
-    background:var(--s3); border:1px solid var(--b2);
-    border-radius:10px; color:var(--text);
-    padding:11px 14px; font-size:14px; outline:none;
-    font-family:inherit; transition:border-color .15s;
-  }
-  .field input:focus { border-color:var(--accent) }
-  .field input::placeholder { color:var(--muted) }
+  /* ── Transitions ─────────────────────────────────────── */
+  --t-fast: .15s cubic-bezier(.4,0,.2,1);
+  --t-med:  .25s cubic-bezier(.4,0,.2,1);
+}
 
-  .btn-submit {
-    background:var(--accent); color:#fff; border:none;
-    border-radius:10px; padding:13px; font-size:14px;
-    font-weight:600; cursor:pointer; font-family:inherit;
-    transition:opacity .15s, transform .1s;
-    margin-top:4px;
-  }
-  .btn-submit:hover { opacity:.9 }
-  .btn-submit:active { transform:scale(.98) }
-  .btn-submit:disabled { opacity:.5; cursor:not-allowed }
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px !important;
+  line-height: 1.5;
+}
+/* Asigură că toate elementele au font-size moștenit */
+*, *::before, *::after {
+  font-size: inherit;
+}
+a { color:inherit; text-decoration:none }
+button { cursor:pointer; font-family:inherit }
 
-  #error-msg {
-    background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3);
-    border-radius:8px; padding:10px 14px; font-size:13px;
-    color:#fca5a5; display:none;
-  }
-  #success-msg {
-    background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.3);
-    border-radius:8px; padding:10px 14px; font-size:13px;
-    color:#6ee7b7; display:none; text-align:center;
-  }
+/* ════ SIDEBAR (DARK) ═════════════════════════════════════════ */
+#app { display:flex; height:100vh; overflow:hidden }
+#sidebar {
+  width: 240px;
+  background: var(--sb-bg);
+  border-right: 1px solid var(--sb-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+#sidebar::-webkit-scrollbar { display:none }
 
-  .divider {
-    display:flex; align-items:center; gap:12px;
-    color:var(--muted); font-size:12px; margin:4px 0;
-  }
-  .divider::before, .divider::after {
-    content:''; flex:1; height:1px; background:var(--border);
-  }
+.sidebar-logo {
+  padding: 22px 20px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--sb-border);
+}
+.sidebar-logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: var(--shadow-accent);
+}
+.sidebar-logo-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--sb-text);
+  letter-spacing: -.3px;
+}
+.sidebar-logo-text span { color: var(--accent2) }
 
-  .forgot {
-    text-align:center; font-size:12px; color:var(--muted);
-    margin-top:8px; cursor:pointer;
-  }
-  .forgot:hover { color:var(--blue) }
+.sidebar-nav { padding: 12px 10px; flex: 1 }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 13px;
+  border-radius: var(--r-md);
+  color: var(--sb-muted2);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--t-fast);
+  margin-bottom: 2px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  position: relative;
+}
+.nav-item:hover { background: var(--sb-s2); color: var(--sb-text) }
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(13,148,136,.25), rgba(20,184,166,.15));
+  color: var(--accent2);
+  border: 1px solid rgba(13,148,136,.3);
+}
+.nav-item.active::before {
+  content:'';
+  position:absolute;
+  left:0; top:20%; bottom:20%;
+  width:3px;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+  border-radius:2px;
+}
+.nav-item .icon { font-size:15px; width:20px; text-align:center }
+.nav-badge {
+  margin-left:auto;
+  background: var(--red);
+  color: #fff;
+  border-radius:99px;
+  font-size:10px;
+  font-weight:700;
+  min-width:18px;
+  height:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 5px;
+}
+.sidebar-footer {
+  padding: 14px 16px;
+  border-top: 1px solid var(--sb-border);
+  font-size: 11px;
+  color: var(--sb-muted);
+}
+.sidebar-user-info { display:flex; align-items:center; gap:8px; margin-bottom:8px }
+.sidebar-avatar {
+  width:30px; height:30px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; color:#fff;
+}
+.sidebar-user-email { font-size:11px; color:var(--sb-muted2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 
-  .loading-spinner {
-    display:inline-block; width:14px; height:14px;
-    border:2px solid rgba(255,255,255,.3); border-top-color:#fff;
-    border-radius:50%; animation:spin .6s linear infinite;
-    margin-right:6px; vertical-align:middle;
-  }
-  @keyframes spin { to { transform:rotate(360deg) } }
+/* ════ TOPBAR ═════════════════════════════════════════════════ */
+#topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(240,244,248,.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-xs);
+}
+#topbar.visible, #topbar[style*="flex"] { display:flex }
+.topbar-stat {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 14px;
+  background:var(--s1);
+  border:1px solid var(--border);
+  border-radius:var(--r-md);
+  font-size:12px;
+  box-shadow:var(--shadow-xs);
+  transition:all var(--t-fast);
+}
+.topbar-stat:hover { border-color:var(--accent); transform:translateY(-1px); box-shadow:var(--shadow-sm) }
+.ts-label { color:var(--muted); margin-right:4px }
+.ts-val { font-weight:700; font-size:13px }
+.ts-val.red   { color:var(--red) }
+.ts-val.green { color:var(--green) }
+.ts-val.amber { color:var(--yellow) }
+.topbar-right { margin-left:auto; font-size:11px; color:var(--muted) }
 
-  #register-form { display:none }
+/* ════ MAIN ═══════════════════════════════════════════════════ */
+#main { flex:1; overflow-x:hidden; overflow-y:auto; min-width:0; min-height:0 }
+.page { display:none; padding:24px 28px; box-sizing:border-box }
+.page.active { display:block; animation:pageIn var(--t-med) both; min-height:200px }
+@keyframes pageIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+/* ════ PAGE HEADER ════════════════════════════════════════════ */
+.page-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:24px; gap:12px; flex-wrap:wrap;
+}
+.page-title { font-size:22px; font-weight:700; letter-spacing:-.4px; color:var(--text) }
+.page-title small { font-size:13px; color:var(--muted); font-weight:400; margin-left:8px }
+
+/* ════ BUTTONS ════════════════════════════════════════════════ */
+.btn {
+  display:inline-flex; align-items:center; gap:6px;
+  border:none; border-radius:var(--r-md);
+  padding:9px 18px; font-size:13px; font-weight:600;
+  font-family:inherit; transition:all var(--t-fast);
+  cursor:pointer; position:relative; overflow:hidden;
+}
+.btn:active { transform:scale(.97) }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  box-shadow: var(--shadow-accent);
+}
+.btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(13,148,136,.35) }
+
+.btn-secondary {
+  background: var(--s1);
+  color: var(--text);
+  border: 1px solid var(--border2);
+  box-shadow: var(--shadow-xs);
+}
+.btn-secondary:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-light) }
+
+.btn-danger { background:var(--red-bg); color:var(--red-text); border:1px solid #fca5a5 }
+.btn-danger:hover { background:#fecaca }
+.btn-ghost { background:transparent; color:var(--muted); border:1px solid var(--border) }
+.btn-ghost:hover { background:var(--s3); color:var(--text) }
+.btn-sm { padding:6px 12px; font-size:12px; border-radius:var(--r-sm) }
+.btn-xs { padding:3px 8px; font-size:11px; border-radius:6px }
+.icon-btn {
+  background:none; border:none; color:var(--muted2);
+  padding:5px 7px; border-radius:var(--r-sm);
+  font-size:14px; transition:all var(--t-fast); cursor:pointer;
+}
+.icon-btn:hover { color:var(--text); background:var(--s3) }
+
+/* ════ STATS ══════════════════════════════════════════════════ */
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:24px }
+.stat-card {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:var(--r-lg); padding:18px 20px;
+  box-shadow:var(--shadow-xs); transition:all var(--t-med);
+  position:relative; overflow:hidden;
+}
+.stat-card::after {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg, var(--accent), var(--accent2));
+  opacity:0; transition:opacity var(--t-med);
+}
+.stat-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md) }
+.stat-card:hover::after { opacity:1 }
+.stat-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; font-weight:600 }
+.stat-val { font-size:28px; font-weight:700; line-height:1; color:var(--text) }
+
+/* ════ FILTERS ════════════════════════════════════════════════ */
+.filters { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; align-items:center }
+.filters input[type=text], .filters select {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:var(--r-md); color:var(--text);
+  padding:8px 13px; font-size:13px; font-family:inherit;
+  outline:none; min-width:0; box-shadow:var(--shadow-xs);
+  transition:border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.filters input[type=text]:focus, .filters select:focus {
+  border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow);
+}
+
+/* ════ TABLE ══════════════════════════════════════════════════ */
+.tbl-wrap {
+  overflow-x:auto; border-radius:var(--r-lg);
+  border:1px solid var(--border); background:var(--s1);
+  box-shadow:var(--shadow-sm);
+}
+table { width:100%; border-collapse:collapse; font-size:13px }
+thead th {
+  background:var(--s2); padding:11px 14px; text-align:left;
+  color:var(--muted); font-weight:600; font-size:11px;
+  text-transform:uppercase; letter-spacing:.7px;
+  border-bottom:1px solid var(--border); white-space:nowrap;
+}
+tbody tr { border-bottom:1px solid var(--border); transition:background var(--t-fast) }
+tbody tr:hover { background:var(--accent-bg) }
+tbody tr:last-child { border-bottom:none }
+tbody td { padding:11px 14px; vertical-align:middle; color:var(--text) }
+.clickable { cursor:pointer }
+tbody tr:nth-child(even) { background:rgba(247,249,252,.7) }
+tbody tr:nth-child(even):hover { background:var(--accent-bg) }
+
+/* ════ BADGES ═════════════════════════════════════════════════ */
+.badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 10px; border-radius:99px;
+  font-size:11px; font-weight:600; white-space:nowrap;
+}
+.b-in_lucru   { background:var(--blue-bg);   color:var(--blue-text);   border:1px solid #93c5fd }
+.b-finalizata { background:var(--green-bg);   color:var(--green-text);  border:1px solid #6ee7b7 }
+.b-anulata    { background:var(--red-bg);     color:var(--red-text);    border:1px solid #fca5a5 }
+.b-comandat   { background:var(--yellow-bg);  color:var(--yellow-text); border:1px solid #fcd34d }
+.b-ajuns      { background:var(--blue-bg);    color:var(--blue-text);   border:1px solid #93c5fd }
+.b-predat     { background:var(--green-bg);   color:var(--green-text);  border:1px solid #6ee7b7 }
+.b-returnat   { background:var(--red-bg);     color:var(--red-text);    border:1px solid #fca5a5 }
+
+.nr-cmd { font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--accent); font-size:12px }
+.arrived-badge { font-size:12px; font-weight:600; white-space:nowrap }
+
+/* ════ DETAIL PANEL ═══════════════════════════════════════════ */
+#detail-panel {
+  display:none; margin-top:20px; background:var(--s1);
+  border:1px solid var(--border); border-radius:var(--r-xl);
+  overflow:hidden; box-shadow:var(--shadow-md);
+  animation:pageIn var(--t-med) both;
+}
+.detail-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 22px; border-bottom:1px solid var(--border);
+  background:linear-gradient(135deg, #f0fdfa, var(--s1));
+}
+.detail-head h3 { font-size:15px; font-weight:700; color:var(--text) }
+.tabs { display:flex; border-bottom:1px solid var(--border); background:var(--s2) }
+.tab {
+  padding:11px 20px; font-size:13px; font-weight:500;
+  color:var(--muted); border:none; background:none;
+  border-bottom:2px solid transparent; cursor:pointer;
+  transition:all var(--t-fast); font-family:inherit;
+}
+.tab:hover { color:var(--text); background:var(--accent-bg) }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); background:var(--accent-light) }
+.tab-body { padding:20px 22px; display:none }
+.tab-body.active { display:block; animation:pageIn var(--t-fast) both }
+
+/* ════ FORM FIELDS ════════════════════════════════════════════ */
+.field { display:flex; flex-direction:column; gap:5px }
+.field label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.7px; font-weight:600 }
+.field input, .field select, .field textarea {
+  background:var(--s1); border:1px solid var(--border2);
+  border-radius:var(--r-md); color:var(--text);
+  padding:9px 13px; font-size:13px; font-family:inherit;
+  outline:none; box-shadow:var(--shadow-xs);
+  transition:border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow);
+}
+.field textarea { resize:vertical; min-height:65px }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px }
+.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px }
+.grid4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px }
+@media(max-width:700px) { .grid2,.grid3,.grid4 { grid-template-columns:1fr } }
+
+/* ════ MODAL ══════════════════════════════════════════════════ */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(15,25,35,.6);
+  z-index:500; align-items:center; justify-content:center;
+  backdrop-filter:blur(8px); padding:16px;
+}
+.modal-overlay.open { display:flex; animation:fadeIn .2s both }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.modal {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:var(--r-xl); width:100%; max-width:640px;
+  max-height:92vh; overflow-y:auto;
+  box-shadow:var(--shadow-lg);
+  display:flex; flex-direction:column;
+  animation:modalIn .25s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes modalIn { from{opacity:0;transform:scale(.94) translateY(10px)} to{opacity:1;transform:none} }
+.modal.modal-lg { max-width:860px }
+.modal-head {
+  padding:18px 24px; border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center;
+  position:sticky; top:0; background:var(--s1); z-index:1;
+}
+.modal-head h3 { font-size:16px; font-weight:700; color:var(--text) }
+.modal-body { padding:22px 24px; display:flex; flex-direction:column; gap:14px; flex:1 }
+.modal-foot {
+  padding:16px 24px; border-top:1px solid var(--border);
+  display:flex; justify-content:flex-end; gap:10px;
+  position:sticky; bottom:0; background:rgba(247,249,252,.95);
+  backdrop-filter:blur(8px);
+}
+
+/* ════ PROD TABLE ══════════════════════════════════════════════ */
+.prod-tbl { width:100%; border-collapse:collapse; font-size:12px }
+.prod-tbl th {
+  background:var(--s2); padding:8px 11px; text-align:left;
+  color:var(--muted); font-size:10px; text-transform:uppercase;
+  letter-spacing:.7px; font-weight:600; border-bottom:1px solid var(--border);
+}
+.prod-tbl td { padding:7px 9px; border-bottom:1px solid var(--border); vertical-align:middle }
+.prod-tbl tr:last-child td { border-bottom:none }
+.prod-tbl tr:hover td { background:var(--accent-bg) }
+.prod-tbl input, .prod-tbl select {
+  background:var(--s1); border:1px solid var(--border2);
+  border-radius:6px; color:var(--text);
+  padding:4px 8px; font-size:12px; font-family:inherit;
+  outline:none; width:100%; transition:border-color var(--t-fast);
+}
+.prod-tbl input:focus, .prod-tbl select:focus { border-color:var(--accent) }
+
+/* ════ STATUS SELECT INLINE ═══════════════════════════════════ */
+select.status-sel { background:transparent; border:none; color:inherit; font-size:12px; font-family:inherit; outline:none; padding:2px 4px; cursor:pointer }
+
+/* ════ PDF ════════════════════════════════════════════════════ */
+.pdf-drop {
+  border:2px dashed var(--border2); border-radius:var(--r-lg);
+  padding:32px; text-align:center; cursor:pointer;
+  transition:all var(--t-med); position:relative;
+  background:var(--s2);
+}
+.pdf-drop:hover, .pdf-drop.drag-over { border-color:var(--accent); background:var(--accent-light) }
+.pdf-drop input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer }
+.pdf-current {
+  display:flex; align-items:center; gap:10px; padding:12px 16px;
+  background:var(--s2); border-radius:var(--r-md); border:1px solid var(--border);
+}
+.pdf-current span { flex:1; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.pdf-preview-wrap { border-radius:var(--r-md); overflow:hidden; border:1px solid var(--border); margin-top:12px }
+.pdf-preview-wrap iframe { width:100%; height:480px; border:none; display:block }
+
+/* ════ TOAST ══════════════════════════════════════════════════ */
+.toast {
+  position:fixed; bottom:24px; right:24px; z-index:9999;
+  padding:12px 18px; border-radius:var(--r-md);
+  font-size:13px; font-weight:500;
+  opacity:0; transform:translateY(12px) scale(.96);
+  transition:all .25s cubic-bezier(.34,1.56,.64,1);
+  pointer-events:none; max-width:340px;
+  box-shadow:var(--shadow-md);
+}
+.toast.show { opacity:1; transform:none }
+.t-success { background:var(--green-bg); color:var(--green-text); border:1px solid #6ee7b7 }
+.t-error   { background:var(--red-bg);   color:var(--red-text);   border:1px solid #fca5a5 }
+.t-warn    { background:var(--yellow-bg);color:var(--yellow-text); border:1px solid #fcd34d }
+.t-info    { background:var(--blue-bg);  color:var(--blue-text);   border:1px solid #93c5fd }
+
+/* ════ LOGIN ══════════════════════════════════════════════════ */
+#login-page {
+  display:none; position:fixed; inset:0;
+  background:linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 50%, #f0fdf4 100%);
+  align-items:center; justify-content:center;
+  z-index:9999; flex-direction:column;
+}
+#login-page.visible { display:flex }
+.login-box {
+  background:var(--s1); border:1px solid var(--border);
+  border-radius:var(--r-xl); padding:42px 40px;
+  width:100%; max-width:420px;
+  box-shadow:var(--shadow-lg);
+  animation:modalIn .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+.login-logo { text-align:center; font-size:42px; margin-bottom:10px }
+.login-title { text-align:center; font-size:24px; font-weight:700; letter-spacing:-.4px; color:var(--text); margin-bottom:4px }
+.login-sub { text-align:center; font-size:13px; color:var(--muted); margin-bottom:30px }
+.login-field { display:flex; flex-direction:column; gap:5px; margin-bottom:14px }
+.login-field label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.7px; font-weight:600 }
+.login-field input {
+  background:var(--s1); border:1px solid var(--border2);
+  border-radius:var(--r-md); color:var(--text);
+  padding:12px 14px; font-size:14px; font-family:inherit;
+  outline:none; box-shadow:var(--shadow-xs);
+  transition:border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.login-field input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow) }
+.login-btn {
+  width:100%; background:linear-gradient(135deg, var(--accent), var(--accent2));
+  border:none; border-radius:var(--r-md); color:#fff;
+  padding:13px; font-size:15px; font-weight:700;
+  font-family:inherit; cursor:pointer; margin-top:8px;
+  transition:all var(--t-fast); box-shadow:var(--shadow-accent);
+}
+.login-btn:hover { transform:translateY(-1px); box-shadow:0 6px 24px rgba(13,148,136,.4) }
+.login-btn:disabled { opacity:.5; cursor:not-allowed; transform:none }
+.login-error {
+  background:var(--red-bg); border:1px solid #fca5a5;
+  border-radius:var(--r-md); padding:10px 14px;
+  font-size:13px; color:var(--red-text); margin-bottom:14px; display:none;
+}
+
+/* ════ ROLES ══════════════════════════════════════════════════ */
+.role-administrator { background:var(--accent-light); color:var(--accent); border:1px solid rgba(13,148,136,.3); border-radius:6px; padding:2px 9px; font-size:11px; font-weight:600 }
+.role-gestionar     { background:var(--blue-bg); color:var(--blue); border:1px solid #93c5fd; border-radius:6px; padding:2px 9px; font-size:11px; font-weight:600 }
+.role-user          { background:var(--green-bg); color:var(--green); border:1px solid #6ee7b7; border-radius:6px; padding:2px 9px; font-size:11px; font-weight:600 }
+
+/* ════ LOGS ═══════════════════════════════════════════════════ */
+.log-CREATE { color:var(--green) }
+.log-UPDATE { color:var(--blue) }
+.log-DELETE { color:var(--red) }
+.log-LOGIN  { color:var(--accent) }
+.log-details { font-size:11px; color:var(--muted); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; font-family:'JetBrains Mono',monospace }
+.log-details:hover { white-space:normal; color:var(--text) }
+
+/* ════ INLINE EDIT ════════════════════════════════════════════ */
+.ie-cell { cursor:pointer; padding:8px 10px !important; transition:background var(--t-fast) }
+.ie-cell:hover { background:var(--accent-bg) !important }
+.ie-cell.editing { padding:3px 5px !important }
+.ie-cell input.ie-input {
+  background:var(--s1); border:1px solid var(--accent);
+  border-radius:6px; color:var(--text);
+  padding:4px 8px; font-size:12px; font-family:inherit;
+  outline:none; width:100%; min-width:60px;
+  box-shadow:0 0 0 3px var(--accent-glow);
+}
+.sku-empty-cell { background:var(--red-bg) !important }
+
+/* ════ SF INPUT ═══════════════════════════════════════════════ */
+.sf-input {
+  background:var(--s1) !important; border:1px solid var(--border2) !important;
+  border-radius:6px !important; color:var(--text) !important;
+  padding:4px 8px !important; font-size:12px !important;
+  font-family:inherit !important; outline:none !important; width:100%;
+  transition:border-color var(--t-fast) !important;
+}
+.sf-input:focus { border-color:var(--accent) !important }
+.sku-empty { border-color:var(--red) !important; background:var(--red-bg) !important }
+.sku-empty::placeholder { color:var(--red-text) !important }
+
+/* ════ MISC ═══════════════════════════════════════════════════ */
+.divider { height:1px; background:var(--border); margin:16px 0 }
+.empty-state { text-align:center; padding:48px 20px; color:var(--muted); font-size:14px }
+.spinner {
+  display:inline-block; width:18px; height:18px;
+  border:2px solid var(--border2); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .7s linear infinite;
+  margin-right:8px; vertical-align:middle;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+.chip { display:inline-block; background:var(--s3); border:1px solid var(--border); border-radius:6px; padding:2px 8px; font-size:11px; color:var(--muted) }
+.text-yellow { color:var(--yellow) }
+.text-green  { color:var(--green) }
+.text-blue   { color:var(--blue) }
+.text-red    { color:var(--red) }
+.text-muted  { color:var(--muted) }
+.gs-section  { padding:4px 0; border-bottom:1px solid var(--border) }
+.gs-section:last-child { border-bottom:none }
+.gs-label    { padding:6px 14px 2px; font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.6px }
+.gs-item     { padding:8px 14px; cursor:pointer; transition:background .1s }
+.gs-item:hover { background:var(--s2) }
+.gs-title    { font-size:13px; font-weight:600; color:var(--text) }
+.gs-sub      { font-size:11px; color:var(--muted); margin-top:1px }
+.dsb-item { padding:10px 20px; border-right:1px solid var(--border); min-width:100px; flex-shrink:0 }
+.dsb-item:last-child { border-right:none }
+.dsb-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; font-weight:600; margin-bottom:3px }
+.dsb-val { font-size:14px; font-weight:700; color:var(--text) }
+.fw-bold { font-weight:700 }
+.font-mono { font-family:'JetBrains Mono',monospace }
+
+/* ════ ROW DEBT ════════════════════════════════════════════════ */
+tbody tr.row-debt { background:rgba(220,38,38,.04) !important }
+tbody tr.row-debt:hover { background:rgba(220,38,38,.08) !important }
+
+/* ════ ANIMATIONS ═════════════════════════════════════════════ */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes slideUp { from{transform:translateY(40px);opacity:0} to{transform:translateY(0);opacity:1} }
+.saving { opacity:.5 }
+.saved-flash { animation:savedFlash .7s ease }
+@keyframes savedFlash { 0%{background:rgba(13,148,136,.15)} 100%{background:transparent} }
+.autosave-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--green); margin-left:4px; opacity:0; transition:opacity .3s }
+.autosave-dot.visible { opacity:1 }
+
+/* ════ PROGRESS BAR ════════════════════════════════════════════ */
+.progress-bar-wrap { background:var(--s3); border-radius:99px; height:6px; overflow:hidden; width:100%; min-width:80px }
+.progress-bar-fill { height:100%; border-radius:99px; transition:width .5s cubic-bezier(.4,0,.2,1); background:linear-gradient(90deg,var(--accent),var(--green)) }
 </style>
 </head>
 <body>
+<!-- ════ LOGIN PAGE ════ -->
+<div id="login-page" class="visible">
+  <div class="login-box">
+    <div class="login-logo">🔧</div>
+    <div class="login-title">CRM Piese Auto</div>
+    <div class="login-sub">Autentifică-te pentru a continua</div>
 
-<div class="card">
-  <div class="logo">
-    <span class="logo-icon">🔧</span>
-    <h1>CRM <span>Piese Auto</span></h1>
-    <p>Gestionează comenzile, clienții și stocul</p>
-  </div>
+    <!-- Google Login -->
+    <button class="login-btn" id="login-google-btn" onclick="doLoginGoogle()"
+      style="background:white;color:#1f1f1f;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #dadce0;margin-bottom:16px">
+      <svg width="18" height="18" viewBox="0 0 18 18">
+        <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
+        <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/>
+        <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
+        <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
+      </svg>
+      Intră cu Google
+    </button>
 
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('login')"    id="tab-login">Autentificare</button>
-    <button class="tab-btn"        onclick="switchTab('register')" id="tab-register">Cont nou</button>
-  </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      <span style="font-size:12px;color:var(--muted)">sau</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
 
-  <div id="error-msg"></div>
-  <div id="success-msg"></div>
-
-  <!-- LOGIN -->
-  <form class="form" id="login-form" onsubmit="handleLogin(event)">
-    <div class="field">
+    <div class="login-error" id="login-error">Email sau parolă incorectă.</div>
+    <div class="login-field">
       <label>Email</label>
-      <input type="email" id="login-email" placeholder="adresa@email.com" required autocomplete="email"/>
+      <input type="email" id="login-email" placeholder="email@exemplu.ro" autocomplete="username"
+        onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
     </div>
-    <div class="field">
+    <div class="login-field">
       <label>Parolă</label>
-      <input type="password" id="login-pass" placeholder="••••••••" required autocomplete="current-password"/>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
-    <button type="submit" class="btn-submit" id="btn-login">Intră în cont →</button>
-    <p class="forgot" onclick="handleForgot()">Am uitat parola</p>
-  </form>
-
-  <!-- REGISTER -->
-  <form class="form" id="register-form" onsubmit="handleRegister(event)">
-    <div class="field">
-      <label>Nume complet</label>
-      <input type="text" id="reg-name" placeholder="Ion Popescu" required autocomplete="name"/>
-    </div>
-    <div class="field">
-      <label>Email</label>
-      <input type="email" id="reg-email" placeholder="adresa@email.com" required autocomplete="email"/>
-    </div>
-    <div class="field">
-      <label>Parolă</label>
-      <input type="password" id="reg-pass" placeholder="Min. 8 caractere" required minlength="8" autocomplete="new-password"/>
-    </div>
-    <div class="field">
-      <label>Confirmă parola</label>
-      <input type="password" id="reg-pass2" placeholder="Repetă parola" required autocomplete="new-password"/>
-    </div>
-    <button type="submit" class="btn-submit" id="btn-register">Creează cont →</button>
-  </form>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Intră în cont</button>
+  </div>
 </div>
 
-<script>
-const SB  = 'https://ddieqobpxejocfnbmfck.supabase.co';
-const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
+<div id="app" style="display:none">
 
-// ── Redirect dacă deja logat ──────────────────────────────────
-const saved = localStorage.getItem('crm_session');
-if (saved) {
-  try {
-    const sess = JSON.parse(saved);
-    if (sess?.access_token && new Date(sess.expires_at * 1000) > new Date()) {
-      window.location.href = '/dashboard.html';
-    }
-  } catch {}
-}
+<!-- ════ SIDEBAR ════ -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">🔧</div>
+    <div class="sidebar-logo-text">CRM <span>Auto</span></div>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" onclick="navigate('comenzi')"    id="nav-comenzi">
+      <span class="icon">📋</span> Comenzi
+    </button>
+    <button class="nav-item" onclick="navigate('clienti')"   id="nav-clienti">
+      <span class="icon">👥</span> Clienți
+    </button>
+    <button class="nav-item" onclick="navigate('produse')"   id="nav-produse">
+      <span class="icon">📦</span> Produse
+    </button>
+    <button class="nav-item" onclick="navigate('facturi')" id="nav-facturi">
+      <span class="icon">🧾</span> Facturi
+    </button>
+    <button class="nav-item" onclick="navigate('predare')" id="nav-predare">
+      <span class="icon">🚗</span> Predare
+      <span class="nav-badge" id="badge-predare" style="display:none">0</span>
+    </button>
+    <button class="nav-item" onclick="navigate('retururi')" id="nav-retururi">
+      <span class="icon">↩️</span> Retururi
+      <span class="nav-badge" id="badge-retururi" style="display:none">0</span>
+    </button>
+    <button class="nav-item" onclick="navigate('loguri')"   id="nav-loguri" style="display:none">
+      <span class="icon">📜</span> Loguri
+    </button>
+    <button class="nav-item" onclick="navigate('utilizatori')" id="nav-utilizatori" style="display:none">
+      <span class="icon">👤</span> Utilizatori
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div id="sidebar-time">—</div>
+<div id="autosave-status" style="font-size:10px;color:var(--green);margin-top:3px;min-height:14px"></div>
+    <div id="sidebar-user" style="font-size:11px;color:var(--muted);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <button onclick="doLogout()" style="margin-top:6px;width:100%;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);padding:5px;font-size:11px;cursor:pointer">Deconectare</button>
+  </div>
+</aside>
 
-// ── Tab switching ─────────────────────────────────────────────
-function switchTab(tab) {
-  document.getElementById('login-form').style.display    = tab==='login'    ? 'flex' : 'none';
-  document.getElementById('register-form').style.display = tab==='register' ? 'flex' : 'none';
-  document.getElementById('tab-login').classList.toggle('active',    tab==='login');
-  document.getElementById('tab-register').classList.toggle('active', tab==='register');
-  clearMessages();
-}
+<!-- ════ MAIN ════ -->
+<main id="main">
+<!-- ════ TOPBAR ════ -->
+<div id="topbar" style="display:none;position:sticky;top:0;z-index:50;background:rgba(9,9,15,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:10px 28px;align-items:center;gap:12px;flex-wrap:wrap">
+  <div class="topbar-stat"><span class="ts-label">Active</span><span class="ts-val amber" id="tb-active">—</span></div>
+  <div class="topbar-stat"><span class="ts-label">Rest total</span><span class="ts-val red" id="tb-rest">—</span></div>
+  <div class="topbar-stat"><span class="ts-label">Vânzări</span><span class="ts-val green" id="tb-vanzari">—</span></div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+    <div style="position:relative">
+      <input id="global-search-input" placeholder="🔍 Caută oriunde..." autocomplete="off"
+        style="background:var(--s2);border:1px solid var(--border);border-radius:20px;color:var(--text);padding:6px 16px;font-size:13px;outline:none;width:220px;transition:width .2s"
+        onfocus="this.style.width='300px';openGlobalSearch()"
+        onblur="setTimeout(()=>{this.style.width='220px';},200)"
+        oninput="globalSearchDebounce(this.value)"/>
+      <div id="global-search-results" style="
+        display:none;position:absolute;top:calc(100% + 6px);right:0;width:420px;
+        background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);
+        box-shadow:var(--shadow-lg);z-index:1000;max-height:480px;overflow-y:auto;
+      "></div>
+    </div>
+    <button onclick="openNotifSettings()" title="Setări notificări"
+      style="background:none;border:none;cursor:pointer;font-size:20px;padding:4px 8px;border-radius:8px;color:var(--muted)"
+      onmouseenter="this.style.color='var(--text)'" onmouseleave="this.style.color='var(--muted)'">
+      🔔
+    </button>
+  </div>
+  <div class="topbar-right" id="tb-time" style="margin-left:auto;font-size:11px;color:var(--muted)">—</div>
+</div>
 
-function showError(msg) {
-  const el=document.getElementById('error-msg');
-  el.textContent=msg; el.style.display='block';
-  document.getElementById('success-msg').style.display='none';
-}
-function showSuccess(msg) {
-  const el=document.getElementById('success-msg');
-  el.textContent=msg; el.style.display='block';
-  document.getElementById('error-msg').style.display='none';
-}
-function clearMessages() {
-  document.getElementById('error-msg').style.display='none';
-  document.getElementById('success-msg').style.display='none';
-}
-function setLoading(btnId, loading) {
-  const btn=document.getElementById(btnId);
-  btn.disabled=loading;
-  btn.innerHTML = loading
-    ? '<span class="loading-spinner"></span>Se procesează...'
-    : btnId==='btn-login' ? 'Intră în cont →' : 'Creează cont →';
-}
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: COMENZI
+═══════════════════════════════════════════════════════════ -->
+<div class="page active" id="page-comenzi">
+  <div class="page-header">
+    <div class="page-title">Comenzi <small id="orders-count"></small></div>
+    <button class="btn btn-primary" onclick="openNewOrder()">＋ Comandă nouă</button>
+  </div>
 
-// ── LOGIN ─────────────────────────────────────────────────────
-async function handleLogin(e) {
-  e.preventDefault();
-  clearMessages();
-  const email = document.getElementById('login-email').value.trim();
-  const pass  = document.getElementById('login-pass').value;
-  setLoading('btn-login', true);
+  <div class="stats">
+    <div class="stat-card"><div class="stat-label">Total</div>      <div class="stat-val text-blue"   id="s-total">—</div></div>
+    <div class="stat-card"><div class="stat-label">În Lucru</div>   <div class="stat-val text-yellow" id="s-lucru">—</div></div>
+    <div class="stat-card"><div class="stat-label">Finalizate</div> <div class="stat-val text-green"  id="s-final">—</div></div>
+    <div class="stat-card"><div class="stat-label">Rest plată</div> <div class="stat-val text-red"    id="s-rest">—</div></div>
+    <div class="stat-card"><div class="stat-label">Total vânzări</div><div class="stat-val text-blue" id="s-vanzari">—</div></div>
+    <div class="stat-card"><div class="stat-label">Profit estimat</div><div class="stat-val text-green" id="s-profit">—</div></div>
+  </div>
 
-  try {
-    const res = await fetch(`${SB}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: { 'apikey':KEY, 'Content-Type':'application/json' },
-      body: JSON.stringify({ email, password:pass }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error_description || data.msg || 'Eroare autentificare');
+  <div class="filters">
+    <input type="text" id="f-client"   placeholder="🔍 Client sau telefon..."/>
+    <input type="text" id="f-produs"   placeholder="🔍 Cod produs / SKU..." style="min-width:160px"/>
+    <select id="f-status">
+      <option value="">Toate statusurile</option>
+      <option value="in_lucru">În Lucru</option>
+      <option value="finalizata">Finalizate</option>
+      <option value="anulata">Anulate</option>
+    </select>
+    <select id="f-furnizor"><option value="">Toți furnizorii</option></select>
+    <select id="f-plata">
+      <option value="">Toate plățile</option>
+      <option value="avans">Avans</option>
+      <option value="achitat_integral">Integral</option>
+    </select>
+    <button class="btn btn-secondary btn-sm" onclick="loadOrders()">↻</button>
+  </div>
 
-    // Salvează sesiunea
-    localStorage.setItem('crm_session', JSON.stringify(data));
-    localStorage.setItem('crm_user', JSON.stringify({
-      id:    data.user?.id,
-      email: data.user?.email,
-      name:  data.user?.user_metadata?.name || email,
-    }));
+  <div class="tbl-wrap">
+    <div id="orders-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="orders-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Nr.</th><th>Cod Unic</th><th>Data</th><th>Client</th><th>Furnizor</th>
+          <th>Produse</th><th>Total</th><th>Avans</th><th>Rest</th>
+          <th>Plată</th><th>Status</th><th>Agent</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="orders-body"></tbody>
+    </table>
+  </div>
 
-    showSuccess('✅ Autentificat! Redirecționare...');
-    setTimeout(()=>{ window.location.href='/dashboard.html'; }, 800);
-  } catch(err) {
-    showError(err.message);
-    setLoading('btn-login', false);
-  }
-}
+  <!-- DETAIL MODAL FULLSCREEN -->
+  <!-- Triggerred via loadDetail() -->
+</div>
 
-// ── REGISTER ──────────────────────────────────────────────────
-async function handleRegister(e) {
-  e.preventDefault();
-  clearMessages();
-  const name  = document.getElementById('reg-name').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
-  const pass  = document.getElementById('reg-pass').value;
-  const pass2 = document.getElementById('reg-pass2').value;
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: CLIENȚI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-clienti">
+  <div class="page-header">
+    <div class="page-title">Clienți <small id="clients-count"></small></div>
+    <button class="btn btn-primary" onclick="openNewClient()">＋ Client nou</button>
+  </div>
 
-  if (pass !== pass2) { showError('Parolele nu coincid!'); return; }
-  if (pass.length < 8) { showError('Parola trebuie să aibă minim 8 caractere!'); return; }
+  <div class="filters">
+    <input type="text" id="f-client-search" placeholder="🔍 Caută după nume, telefon, VIN..."/>
+  </div>
 
-  setLoading('btn-register', true);
+  <div class="tbl-wrap">
+    <div id="clients-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="clients-table" style="display:none">
+      <thead>
+        <tr><th>Nume</th><th>Telefon</th><th>Email</th><th>VIN</th><th>Adaos %</th><th>Comenzi</th><th>Valoare totală</th><th></th></tr>
+      </thead>
+      <tbody id="clients-body"></tbody>
+    </table>
+  </div>
 
-  try {
-    const res = await fetch(`${SB}/auth/v1/signup`, {
-      method: 'POST',
-      headers: { 'apikey':KEY, 'Content-Type':'application/json' },
-      body: JSON.stringify({ email, password:pass, data:{ name } }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error_description || data.msg || 'Eroare înregistrare');
+  <!-- CLIENT DETAIL -->
+  <div id="client-detail" style="display:none;margin-top:20px">
+    <div class="detail-head">
+      <h3 id="client-detail-title">—</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="openEditClient(currentClientId)">✏️ Editează</button>
+        <button class="icon-btn" onclick="closeClientDetail()">✕</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab(this,'ctab-info')">ℹ️ Info</button>
+      <button class="tab"        onclick="switchTab(this,'ctab-istoric')">📋 Istoric comenzi</button>
+    </div>
+    <div class="tab-body active" id="ctab-info">
+      <div id="client-info-body" style="padding:4px 0"></div>
+    </div>
+    <div class="tab-body" id="ctab-istoric">
+      <div class="tbl-wrap">
+        <table class="prod-tbl">
+          <thead><tr><th>Nr.</th><th>Data</th><th>Furnizor</th><th>Produse</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody id="client-orders-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
-    if (data.session) {
-      // Auto-login dacă email confirmation e dezactivat
-      localStorage.setItem('crm_session', JSON.stringify(data.session));
-      localStorage.setItem('crm_user', JSON.stringify({ id:data.user?.id, email, name }));
-      showSuccess('✅ Cont creat! Redirecționare...');
-      setTimeout(()=>{ window.location.href='/dashboard.html'; }, 800);
-    } else {
-      showSuccess('✅ Cont creat! Verifică email-ul pentru confirmare, apoi loghează-te.');
-      switchTab('login');
-    }
-  } catch(err) {
-    showError(err.message);
-  } finally {
-    setLoading('btn-register', false);
-  }
-}
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: CĂUTARE PRODUSE
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-produse">
+  <div class="page-header">
+    <div class="page-title">Produse</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary" onclick="openAddProduct()">＋ Produs individual</button>
+      <button class="btn btn-primary"   onclick="openInvoiceWizard()">🧾 Procesează factură furnizor</button>
+    </div>
+  </div>
 
-// ── FORGOT PASSWORD ───────────────────────────────────────────
-async function handleForgot() {
-  const email = document.getElementById('login-email').value.trim();
-  if (!email) { showError('Introdu email-ul în câmpul de mai sus.'); return; }
-  try {
-    await fetch(`${SB}/auth/v1/recover`, {
-      method:'POST',
-      headers:{'apikey':KEY,'Content-Type':'application/json'},
-      body:JSON.stringify({ email }),
-    });
-    showSuccess('📧 Email de resetare trimis! Verifică inbox-ul.');
-  } catch(e) { showError('Eroare trimitere email.'); }
-}
-</script>
+  <div class="filters" style="margin-bottom:12px">
+    <input type="text" id="search-prod-cod"     placeholder="Cod aftermarket..." style="flex:1;min-width:140px"/>
+    <input type="text" id="search-prod-factura" placeholder="Cod factură furnizor..." style="flex:1;min-width:140px"/>
+    <input type="text" id="search-prod-sku"     placeholder="SKU..." style="flex:1;min-width:110px"/>
+    <input type="text" id="search-prod-desc"    placeholder="Descriere..." style="flex:1;min-width:140px"/>
+    <button class="btn btn-primary" onclick="searchProducts()">🔍 Caută</button>
+    <button class="btn btn-secondary" onclick="loadAllProducts()">📦 Toate produsele</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <div id="search-loading" style="display:none;padding:20px;text-align:center"><span class="spinner"></span>Se caută...</div>
+    <table id="search-table">
+      <thead>
+        <tr>
+          <th>Cod Unic Comandă</th><th>Cod aftermarket</th><th>Descriere</th><th>SKU</th>
+          <th>Cod fact. furnizor</th><th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th>
+          <th>Cant.</th><th>Status</th><th>Nr. Comandă</th><th>Client</th>
+        </tr>
+      </thead>
+      <tbody id="search-body">
+        <tr><td colspan="13" class="empty-state">Apasă "Toate produsele" sau caută după un criteriu.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: FACTURI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-facturi">
+  <div class="page-header">
+    <div class="page-title">Facturi furnizori <small id="facturi-count"></small></div>
+  </div>
+
+  <!-- Sub-tabs: Produse / PDF-uri -->
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:18px">
+    <button class="ftab active" id="ftab-pdf-list" onclick="showFacturiTab('pdf-list')"
+      style="padding:9px 20px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer;margin-bottom:-2px">
+      🧾 Intrări
+    </button>
+
+
+  </div>
+
+  <!-- Tab 1: Din produse -->
+  <div id="ftab-content-produse" style="display:none">
+    <div class="filters">
+      <input type="text" id="f-factura-nr" placeholder="🔍 Caută număr factură..."/>
+      <select id="f-factura-furnizor"><option value="">Toți furnizorii</option></select>
+      <button class="btn btn-secondary btn-sm" onclick="loadFacturi()">↻</button>
+    </div>
+
+  <div class="tbl-wrap">
+    <div id="facturi-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="facturi-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Nr. Factură</th>
+          <th>Furnizor</th>
+          <th>Produse</th>
+          <th>Total achiziție</th>
+          <th>Achitat %</th>
+          <th>Data primire</th>
+          <th>Comenzi</th>
+          <th>PDF</th>
+        </tr>
+      </thead>
+      <tbody id="facturi-body"></tbody>
+    </table>
+  </div><!-- /tbl-wrap -->
+  </div><!-- /ftab-content-produse -->
+
+  <!-- Tab 3: Fără SKU -->
+  <div id="ftab-content-fara-sku" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600">Produse cu factură alocată dar fără SKU</div>
+      <button class="btn btn-secondary btn-sm" onclick="renderFaraSku()">↻ Reîncarcă</button>
+    </div>
+    <div id="fara-sku-list"></div>
+  </div>
+
+  <!-- Tab 2: PDF-uri urcate -->
+  <div id="ftab-content-pdf-list" style="min-height:200px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600" id="pdf-list-count">0 facturi</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="renderPdfList()">↻</button>
+        <button class="btn btn-secondary" onclick="openAddFacturaModal()">
+          📎 Adaugă link Drive
+        </button>
+        <button class="btn btn-primary" onclick="startUploadNewPdf()">
+          📤 Upload PDF
+        </button>
+      </div>
+    </div>
+
+    <div class="tbl-wrap" style="min-height:100px">
+      <div id="pdf-list-loading" style="display:none"><span class="spinner"></span>Se încarcă...</div>
+      <table id="pdf-list-table" style="width:100%;min-height:50px">
+        <thead>
+          <tr>
+            <th>Nr. Factură</th>
+            <th>Furnizor</th>
+            <th>Fișier PDF</th>
+            <th>Status</th>
+            <th>Data</th>
+            <th>Acțiuni</th>
+          </tr>
+        </thead>
+        <tbody id="pdf-list-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: PREDARE CLIENT
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-predare">
+  <div class="page-header">
+    <div class="page-title">Predare client <small id="predare-count"></small></div>
+  </div>
+
+  <div class="filters">
+    <input type="text" id="f-predare-client" placeholder="🔍 Caută client..."/>
+    <button class="btn btn-secondary btn-sm" onclick="loadPredare()">↻</button>
+  </div>
+
+  <!-- Grupat pe clienti -->
+  <div id="predare-list">
+    <div id="predare-loading" style="display:none"><span class="spinner"></span>Se încarcă...</div>
+    <div id="predare-empty" style="display:none" class="empty-state">
+      Nu există produse ajunse de predat momentan.
+    </div>
+    <div id="predare-groups"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: RETURURI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-retururi">
+  <div class="page-header">
+    <div class="page-title">Retururi <small id="retururi-count"></small></div>
+  </div>
+
+  <div class="filters">
+    <select id="f-retur-motiv">
+      <option value="">Toate motivele</option>
+      <option value="nu_se_potriveste">Nu se potrivește</option>
+      <option value="client_renunta">Client renunță</option>
+    </select>
+    <input type="text" id="f-retur-search" placeholder="🔍 Cod / client..."/>
+    <button class="btn btn-secondary btn-sm" onclick="loadRetururi()">↻</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <div id="retururi-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="retururi-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Cod comandă</th><th>Cod aftermarket</th><th>Descriere</th>
+          <th>SKU</th><th>Client</th><th>Motiv</th><th>Data retur</th><th>Preț</th>
+        </tr>
+      </thead>
+      <tbody id="retururi-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: LOGURI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-loguri">
+  <div class="page-header">
+    <div class="page-title">Loguri activitate <small id="logs-count"></small></div>
+    <button class="btn btn-secondary btn-sm" onclick="loadLogs()">↻ Reîncarcă</button>
+  </div>
+  <div class="filters">
+    <select id="log-filter-actiune">
+      <option value="">Toate acțiunile</option>
+      <option value="CREATE">➕ Creare</option>
+      <option value="UPDATE">✏️ Modificare</option>
+      <option value="DELETE">🗑 Ștergere</option>
+      <option value="LOGIN">🔑 Login</option>
+    </select>
+    <select id="log-filter-entitate">
+      <option value="">Toate entitățile</option>
+      <option value="comanda">Comenzi</option>
+      <option value="produs">Produse</option>
+      <option value="client">Clienți</option>
+      <option value="user">Utilizatori</option>
+    </select>
+    <input type="text" id="log-filter-user" placeholder="Filtrează după utilizator..."/>
+  </div>
+  <div class="tbl-wrap">
+    <div id="logs-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="logs-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Data & Ora</th><th>Utilizator</th><th>Rol</th>
+          <th>Acțiune</th><th>Entitate</th><th>Detalii</th>
+        </tr>
+      </thead>
+      <tbody id="logs-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PAGE: UTILIZATORI
+═══════════════════════════════════════════════════════════ -->
+<div class="page" id="page-utilizatori">
+  <div class="page-header">
+    <div class="page-title">Utilizatori</div>
+    <button class="btn btn-primary" onclick="openAddUser()">＋ Utilizator nou</button>
+  </div>
+  <div class="tbl-wrap">
+    <div id="users-loading"><span class="spinner"></span>Se încarcă...</div>
+    <table id="users-table" style="display:none">
+      <thead>
+        <tr><th>Nume</th><th>Email</th><th>Rol</th><th>Status</th><th>Creat la</th><th></th></tr>
+      </thead>
+      <tbody id="users-body"></tbody>
+    </table>
+  </div>
+</div>
+
+</main><!-- /main -->
+</div><!-- /app -->
+
+<!-- ════════════════════════════════════════════════════════════
+     MODAL: COMANDĂ NOUĂ / EDITARE
+════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-order">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3 id="modal-order-title">Comandă nouă</h3>
+      <button class="icon-btn" onclick="closeModal('modal-order')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-order-body">
+      <!-- injected -->
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-order')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveOrder()" id="btn-save-order">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     MODAL: CLIENT NOU / EDITARE
+════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-client">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-client-title">Client nou</h3>
+      <button class="icon-btn" onclick="closeModal('modal-client')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-client-body">
+      <!-- injected -->
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-client')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveClient()">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL FULLSCREEN: DETALII COMANDĂ ════ -->
+<div id="detail-modal-overlay" style="
+  display:none; position:fixed; inset:0; z-index:400;
+  background:rgba(15,25,35,.5); backdrop-filter:blur(6px);
+  align-items:flex-end; justify-content:center;
+" onclick="if(event.target===this) closeDetail()">
+  <div id="detail-modal" style="
+    background:var(--bg); width:100%; max-width:1400px; height:92vh;
+    border-radius:var(--r-xl) var(--r-xl) 0 0;
+    display:flex; flex-direction:column;
+    box-shadow:0 -8px 40px rgba(0,0,0,.2);
+    animation:slideUp .3s cubic-bezier(.34,1.2,.64,1) both;
+    overflow:hidden;
+  ">
+    <!-- Header -->
+    <div style="
+      display:flex; align-items:center; justify-content:space-between;
+      padding:16px 28px; border-bottom:1px solid var(--border);
+      background:var(--s1); flex-shrink:0; gap:12px; flex-wrap:wrap;
+    ">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0">
+        <div style="min-width:0">
+          <h2 id="detail-title" style="font-size:16px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</h2>
+          <div id="detail-subtitle" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        <button class="btn btn-secondary btn-sm" id="btn-edit-order">✏️ Editează</button>
+        <button class="btn btn-primary btn-sm"   id="btn-add-prod-to-order">＋ Produs</button>
+        <button class="btn btn-secondary btn-sm" id="btn-copy-order">📋 WA</button>
+        <select id="detail-status-sel" onchange="updateOrderStatusFromDetail(this)"
+          style="background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:12px;cursor:pointer">
+          <option value="in_lucru">🔄 În lucru</option>
+          <option value="finalizata">✅ Finalizată</option>
+          <option value="anulata">❌ Anulată</option>
+        </select>
+        <button class="btn btn-danger btn-sm"    id="btn-delete-order">🗑</button>
+        <button class="icon-btn" onclick="closeDetail()" style="font-size:18px">✕</button>
+      </div>
+    </div>
+
+    <!-- Summary bar -->
+    <div id="detail-summary-bar" style="
+      display:flex; gap:0; border-bottom:1px solid var(--border);
+      background:var(--s2); flex-shrink:0; overflow-x:auto;
+    ">
+      <div class="dsb-item"><div class="dsb-label">Total</div><div class="dsb-val" id="dsb-total">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Achitat</div><div class="dsb-val text-green" id="dsb-achitat">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Rest</div><div class="dsb-val" id="dsb-rest">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Produse</div><div class="dsb-val" id="dsb-produse">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Furnizor</div><div class="dsb-val" id="dsb-furnizor">—</div></div>
+      <div class="dsb-item"><div class="dsb-label">Agent</div><div class="dsb-val" id="dsb-agent">—</div></div>
+      <div class="dsb-item" style="margin-left:auto">
+        <button class="btn btn-primary btn-sm" id="dsb-add-plata">💳 Adaugă plată</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs" style="background:var(--s1);flex-shrink:0" id="detail-tabs">
+      <button class="tab active" onclick="switchTab(this,'tab-produse')">📦 Produse</button>
+      <button class="tab"        onclick="switchTab(this,'tab-plati')">💳 Plăți</button>
+      <button class="tab"        onclick="switchTab(this,'tab-factura')">🧾 Factură</button>
+    </div>
+
+    <!-- Content (scrollable) -->
+    <div style="flex:1;overflow-y:auto;background:var(--bg)">
+
+      <!-- Tab: Produse -->
+      <div class="tab-body active" id="tab-produse" style="padding:20px 28px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--muted)">Adaos global:</span>
+          <div style="display:flex;align-items:center;gap:5px">
+            <input type="number" id="detail-adaos" value="0" min="0" step="0.5"
+              style="background:var(--s1);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:5px 8px;font-size:13px;width:70px;outline:none;text-align:center"/>
+            <span style="color:var(--muted);font-size:13px">%</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="applyDetailAdaos()">Aplică</button>
+          <span style="font-size:12px;color:var(--muted);margin-left:auto">
+            Total vânzare: <strong class="text-green" id="detail-total-vanz">—</strong> RON
+            &nbsp;|&nbsp; Profit: <strong style="color:var(--accent)" id="detail-profit">—</strong> RON
+          </span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="prod-tbl">
+            <thead>
+              <tr>
+                <th>Cod aftermarket</th><th>Descriere</th>
+                <th>Preț acq.</th><th>Adaos %</th><th>Preț vânz.</th><th>Cant.</th>
+                <th>SKU</th><th>Cod fact. furnizor</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="detail-products-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab: Plăți -->
+      <div class="tab-body" id="tab-plati" style="padding:20px 28px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <strong style="font-size:13px">Istoric plăți</strong>
+          <button class="btn btn-primary btn-sm" id="btn-add-plata-detail">💳 Adaugă plată</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="prod-tbl">
+            <thead><tr><th>Data</th><th>Sumă</th><th>Metodă</th><th>Notă</th><th>User</th><th>🗑</th></tr></thead>
+            <tbody id="plati-body"></tbody>
+          </table>
+        </div>
+        <div id="plati-summary" style="margin-top:12px"></div>
+      </div>
+
+      <!-- Tab: Factură -->
+      <div class="tab-body" id="tab-factura" style="padding:20px 28px">
+        <div id="pdf-no-file">
+          <div class="pdf-drop" id="pdf-drop-zone">
+            <input type="file" id="pdf-file-input" accept=".pdf" onchange="handlePdfUpload(event)"/>
+            <div style="font-size:36px;margin-bottom:8px">🧾</div>
+            <p style="font-weight:600">Click sau trage PDF-ul facturii</p>
+            <p style="color:var(--muted);font-size:12px;margin-top:4px">Din folderul Facturi</p>
+          </div>
+        </div>
+        <div id="pdf-has-file" style="display:none">
+          <div class="pdf-current">
+            <span>🧾 <span id="pdf-filename">—</span></span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" onclick="togglePdfPreview()">👁 Preview</button>
+              <button class="btn btn-danger btn-sm"    onclick="removePdf()">🗑</button>
+            </div>
+          </div>
+          <div id="pdf-preview-wrap" class="pdf-preview-wrap" style="display:none">
+            <iframe id="pdf-iframe" src=""></iframe>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /scrollable content -->
+  </div><!-- /detail-modal -->
+</div><!-- /detail-modal-overlay -->
+
+<!-- ════ MODAL: ADAUGĂ PLATĂ ════ -->
+<div class="modal-overlay" id="modal-plata">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-head">
+      <div>
+        <h3>💳 Adaugă plată</h3>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="plata-comanda-label">—</div>
+      </div>
+      <button class="icon-btn" onclick="closeModal('modal-plata')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;padding:12px;background:var(--s2);border-radius:var(--r-md);margin-bottom:4px">
+        <div style="flex:1;text-align:center">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Total</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text)" id="plata-total">0.00 RON</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Achitat</div>
+          <div style="font-size:18px;font-weight:700;color:var(--green)" id="plata-achitat">0.00 RON</div>
+        </div>
+        <div style="flex:1;text-align:center">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px">Rest</div>
+          <div style="font-size:18px;font-weight:700;color:var(--red)" id="plata-rest">0.00 RON</div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Sumă (RON) *</label>
+          <input type="number" id="plata-suma" placeholder="0.00" min="0" step="0.01"/>
+        </div>
+        <div class="field">
+          <label>Metodă</label>
+          <select id="plata-metoda">
+            <option value="cash">💵 Cash</option>
+            <option value="card">💳 Card / POS</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Notă (opțional)</label>
+        <input id="plata-nota" placeholder="Ex: avans, rest, etc."/>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="setPlataRest()">Completează restul</button>
+        <button class="btn btn-secondary btn-sm" onclick="setPlataTota()">Achită integral</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-plata')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveNewPlata()">💾 Salvează plata</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: MARCHEAZĂ RETUR ════ -->
+<div class="modal-overlay" id="modal-retur">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-head">
+      <h3>↩️ Marchează retur</h3>
+      <button class="icon-btn" onclick="closeModal('modal-retur')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="padding:12px 14px;background:var(--s2);border-radius:var(--r-md);margin-bottom:4px">
+        <div style="font-size:12px;color:var(--muted)">Produs</div>
+        <div style="font-weight:700;color:var(--accent)" id="retur-produs-info">—</div>
+      </div>
+      <div class="field">
+        <label>Motiv retur *</label>
+        <select id="retur-motiv">
+          <option value="nu_se_potriveste">🔧 Nu se potrivește pe mașină</option>
+          <option value="client_renunta">❌ Clientul nu mai vrea piesa</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Notă suplimentară</label>
+        <textarea id="retur-nota" placeholder="Detalii opționale..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-retur')">Anulează</button>
+      <button class="btn btn-danger" onclick="saveRetur()">↩️ Confirmă retur</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: ADAUGĂ FACTURĂ ════ -->
+<div class="modal-overlay" id="modal-add-factura">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head">
+      <h3>🧾 Adaugă factură</h3>
+      <button class="icon-btn" onclick="closeModal('modal-add-factura')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid2">
+        <div class="field">
+          <label>Număr factură *</label>
+          <input id="af-nr" placeholder="Ex: RO8726005676"/>
+        </div>
+        <div class="field">
+          <label>Furnizor</label>
+          <input id="af-furnizor" placeholder="Ex: Intercars"/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Link Google Drive (opțional)</label>
+        <input id="af-link" placeholder="Lipește link-ul de share din Drive..."/>
+        <small style="color:var(--muted);font-size:11px">
+          Drive → Click dreapta pe PDF → Share → Anyone with link → Copy link
+        </small>
+      </div>
+      <div style="background:var(--s2);border-radius:var(--r-md);padding:12px;font-size:12px;color:var(--muted)">
+        💡 Sau lasă link-ul gol și adaugă-l mai târziu din workspace-ul facturii.
+        Poți urca și direct cu butonul <strong>📤 Upload PDF</strong>.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-factura')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveAddFactura()">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: PREVIEW PDF FACTURĂ ════ -->
+<div class="modal-overlay" id="modal-pdf-factura">
+  <div class="modal modal-lg" style="max-width:900px;height:90vh">
+    <div class="modal-head">
+      <div>
+        <h3>🧾 Factură <span id="pdf-fact-nr" style="color:var(--accent)"></span></h3>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Preview Google Drive</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-secondary btn-sm" onclick="promptFacturaPdfUrl(document.getElementById('pdf-fact-nr').textContent)">✏️ Schimbă link</button>
+        <button class="icon-btn" onclick="closeModal('modal-pdf-factura')">✕</button>
+      </div>
+    </div>
+    <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+      <iframe id="pdf-fact-iframe" src="" style="flex:1;border:none;width:100%;min-height:500px"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: UTILIZATOR ════ -->
+<div class="modal-overlay" id="modal-user">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-user-title">Utilizator nou</h3>
+      <button class="icon-btn" onclick="closeModal('modal-user')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-user-body"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-user')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveUser()">💾 Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: PROCESEAZĂ FACTURĂ ════ -->
+<div class="modal-overlay" id="modal-invoice">
+  <div class="modal modal-lg" style="max-width:1000px">
+    <div class="modal-head">
+      <div>
+        <h3 id="invoice-title">🧾 Procesează factură furnizor</h3>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="invoice-subtitle">Pas 1 din 2 — Identificare factură</div>
+      </div>
+      <button class="icon-btn" onclick="closeModal('modal-invoice')">✕</button>
+    </div>
+
+    <!-- PAS 1: Identificare -->
+    <div class="modal-body" id="invoice-step1">
+      <!-- Rând 1: Nr factură + Furnizor -->
+      <div class="grid2">
+        <div class="field">
+          <label>Număr factură furnizor *</label>
+          <input id="inv-nr" placeholder="Ex: RO8726006176" oninput="debounceInvoiceSearch()"/>
+        </div>
+        <div class="field">
+          <label>Furnizor</label>
+          <select id="inv-furnizor">
+            <option value="">— toți furnizorii —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Rând 2: Cod Unic Comandă cu sugestii live -->
+      <div class="field" style="margin-top:12px">
+        <label>Cod Unic Comandă</label>
+        <div style="position:relative">
+          <input id="inv-cod-unic"
+            placeholder="Ex: INT-0004-1803 — tastează pentru sugestii"
+            oninput="debounceInvoiceCodUnic()"
+            autocomplete="off" style="width:100%"/>
+          <ul id="inv-cod-unic-suggestions" style="
+            display:none; position:absolute; top:100%; left:0; right:0; z-index:20;
+            background:var(--s2); border:1px solid var(--border); border-radius:8px;
+            list-style:none; overflow:hidden; margin-top:4px; max-height:200px; overflow-y:auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,.4);
+          "></ul>
+        </div>
+      </div>
+
+      <!-- Produse găsite după cod unic -->
+      <div id="inv-quick-products" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600;color:var(--text)">
+            Produse din comanda <span id="inv-quick-cod" style="color:var(--yellow)">—</span>
+          </span>
+          <button class="btn btn-primary btn-sm" onclick="preiaToateInFactura()">
+            ✅ Preia toate în factură
+          </button>
+        </div>
+        <div style="overflow-x:auto;max-height:280px;overflow-y:auto;border-radius:8px;border:1px solid var(--border)">
+          <table class="prod-tbl">
+            <thead>
+              <tr>
+                <th>Cod aftermarket</th>
+                <th>Descriere</th>
+                <th>Status</th>
+                <th>SKU <span style="color:var(--muted);font-weight:400">(editează)</span></th>
+                <th>În factură</th>
+                <th>Preia</th>
+              </tr>
+            </thead>
+            <tbody id="inv-quick-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="inv-existing-warning" style="display:none;padding:10px 14px;background:#78350f22;border:1px solid var(--yellow);border-radius:8px;font-size:13px;color:var(--yellow);margin-top:10px">
+        ⚠️ Există deja produse cu această factură în sistem.
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:var(--muted)">
+        Tastează codul unic al comenzii pentru a vedea produsele și a le prelua în factură rapid.
+      </div>
+    </div>
+
+    <!-- PAS 2: Produse -->
+    <div id="invoice-step2" style="display:none">
+      <div style="padding:14px 22px;border-bottom:1px solid var(--border);background:#08101a;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--muted)">Factură: <strong style="color:var(--yellow)" id="inv-nr-display">—</strong></span>
+        <span style="font-size:13px;color:var(--muted)">Furnizor: <strong style="color:var(--text)" id="inv-furn-display">—</strong></span>
+        <span style="font-size:13px;color:var(--muted)" id="inv-count-display">0 produse</span>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="invSelectAll()">✓ Selectează toate</button>
+          <button class="btn btn-secondary btn-sm" onclick="invDeselectAll()">✗ Deselectează</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;max-height:420px;overflow-y:auto">
+        <table class="prod-tbl" style="min-width:900px">
+          <thead style="position:sticky;top:0;z-index:1">
+            <tr>
+              <th style="width:36px"><input type="checkbox" id="inv-check-all" onchange="invToggleAll(this.checked)"/></th>
+              <th>SKU</th>
+              <th>Cod aftermarket</th>
+              <th>Descriere</th>
+              <th>Comandă</th>
+              <th>Client</th>
+              <th>Cod furnizor <span style="color:var(--accent)">*nou*</span></th>
+              <th>Preț acq. real</th>
+              <th>Cant.</th>
+            </tr>
+          </thead>
+          <tbody id="invoice-products-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-foot" id="invoice-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-invoice')">Anulează</button>
+      <button class="btn btn-primary" id="inv-next-btn" onclick="invoiceNext()" disabled>
+        Continuă →
+      </button>
+    </div>
+    <div class="modal-foot" id="invoice-foot2" style="display:none">
+      <button class="btn btn-ghost" onclick="invoiceBack()">← Înapoi</button>
+      <span style="font-size:13px;color:var(--muted)" id="inv-selected-count">0 produse selectate</span>
+      <button class="btn btn-primary" id="inv-confirm-btn" onclick="invoiceConfirm()">
+        ✅ Marchează ca Ajunse
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: ADAUGĂ PRODUS INDIVIDUAL ════ -->
+<div class="modal-overlay" id="modal-add-product">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>＋ Adaugă produs individual</h3>
+      <button class="icon-btn" onclick="closeModal('modal-add-product')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Comandă *</label>
+        <select id="ap-comanda">
+          <option value="">— selectează comanda —</option>
+        </select>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Cod aftermarket *</label>
+          <input id="ap-cod" placeholder="Ex: D7B006TT"/>
+        </div>
+        <div class="field">
+          <label>SKU</label>
+          <input id="ap-sku" placeholder="Se generează automat" style="opacity:.6" readonly/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Descriere</label>
+        <input id="ap-desc" placeholder="Ex: Radiator racire motor"/>
+      </div>
+      <div class="grid3">
+        <div class="field">
+          <label>Preț achiziție (RON)</label>
+          <input type="number" id="ap-pret" value="0" min="0" step="0.01" oninput="apRecalc()"/>
+        </div>
+        <div class="field">
+          <label>Adaos (%)</label>
+          <input type="number" id="ap-adaos" value="0" min="0" step="0.5" oninput="apRecalc()"/>
+        </div>
+        <div class="field">
+          <label>Preț vânzare (RON)</label>
+          <input type="number" id="ap-vanz" value="0" min="0" step="0.01"/>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Cantitate</label>
+          <input type="number" id="ap-cant" value="1" min="1"/>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="ap-status">
+            <option value="comandat">📦 Comandat</option>
+            <option value="ajuns">🏠 Ajuns</option>
+            <option value="predat">✅ Predat</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-product')">Anulează</button>
+      <button class="btn btn-primary" onclick="saveAddProduct()">💾 Adaugă produs</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: SCHIMBĂ PAROLA ════ -->
+<div class="modal-overlay" id="modal-change-pass">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <h3>🔐 Schimbă parola</h3>
+    </div>
+    <div class="modal-body">
+      <div style="padding:10px 14px;background:#78350f22;border:1px solid var(--yellow);border-radius:8px;font-size:13px;color:var(--yellow);margin-bottom:12px">
+        ⚠️ Acesta este primul tău login. Trebuie să îți setezi o parolă proprie.
+      </div>
+      <div class="field">
+        <label>Parolă nouă</label>
+        <input type="password" id="cp-new" placeholder="Minim 8 caractere"/>
+      </div>
+      <div class="field">
+        <label>Confirmă parola</label>
+        <input type="password" id="cp-confirm" placeholder="Repetă parola"/>
+      </div>
+      <div id="cp-error" style="color:var(--red);font-size:13px;display:none;margin-top:6px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="doChangePassword()">💾 Salvează parola</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL: ADAUGĂ PRODUS LA COMANDĂ EXISTENTĂ ════ -->
+<div class="modal-overlay" id="modal-add-to-order">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3>＋ Adaugă produs la comandă</h3>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px" id="ato-comanda-label">—</div>
+      </div>
+      <button class="icon-btn" onclick="closeModal('modal-add-to-order')">✕</button>
+    </div>
+    <!-- Tab buttons -->
+    <div style="display:flex;border-bottom:2px solid var(--border);padding:0 20px;background:var(--s1)">
+      <button id="ato-tab-btn-manual" onclick="atoSwitchTab('manual')"
+        style="padding:8px 16px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--accent);cursor:pointer;margin-bottom:-2px">
+        ✏️ Manual
+      </button>
+      <button id="ato-tab-btn-facturi" onclick="atoSwitchTab('facturi')"
+        style="padding:8px 16px;font-size:13px;font-weight:600;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;margin-bottom:-2px">
+        🧾 Din facturi
+      </button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <!-- Tab: Manual -->
+      <div id="ato-tab-manual" style="padding:20px;display:block">
+      <div class="grid2">
+        <div class="field">
+          <label>Cod aftermarket *</label>
+          <input id="ato-cod" placeholder="Ex: D7B006TT" oninput="atoUpdateRefIntern()"/>
+        </div>
+        <div class="field">
+          <label>SKU</label>
+          <input id="ato-ref" placeholder="Se generează automat" style="opacity:.6;font-family:monospace" readonly/>
+        </div>
+      </div>
+      <div class="field">
+        <label>Descriere</label>
+        <input id="ato-desc" placeholder="Ex: Radiator racire motor"/>
+      </div>
+      <div class="grid3">
+        <div class="field">
+          <label>Preț achiziție (RON)</label>
+          <input type="number" id="ato-pret" value="0" min="0" step="0.01" oninput="atoRecalc()"/>
+        </div>
+        <div class="field">
+          <label>Adaos (%)</label>
+          <input type="number" id="ato-adaos" value="0" min="0" step="0.5" oninput="atoRecalc()"/>
+        </div>
+        <div class="field">
+          <label>Preț vânzare (RON)</label>
+          <input type="number" id="ato-vanz" value="0" min="0" step="0.01"/>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Cantitate</label>
+          <input type="number" id="ato-cant" value="1" min="1"/>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="ato-status">
+            <option value="comandat">📦 Comandat</option>
+            <option value="ajuns">🏠 Ajuns</option>
+            <option value="predat">✅ Predat</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>SKU (opțional, introdus de firmă)</label>
+        <input id="ato-ref-manual" placeholder="Codul intern al firmei tale"/>
+        <small style="color:var(--muted);font-size:11px">Dacă lași gol, se generează automat din codul comenzii</small>
+      </div>
+    </div>
+      </div><!-- /ato-tab-manual -->
+      <!-- Tab: Din facturi nealocate -->
+      <div id="ato-tab-facturi" style="padding:16px;display:none">
+        <input id="ato-nealocate-search" placeholder="🔍 Caută cod, descriere, nr. factură..."
+          style="width:100%;margin-bottom:12px"
+          oninput="loadNealocateForAto(this.value)"/>
+        <div id="ato-nealocate-list" style="max-height:320px;overflow-y:auto"></div>
+      </div>
+    </div><!-- /modal-body -->
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-to-order')">Anulează</button>
+      <button class="btn btn-primary" id="ato-save-btn" onclick="saveAddToOrder()">＋ Adaugă produs</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/bundle.js?v=1774361656"></script>
 </body>
 </html>

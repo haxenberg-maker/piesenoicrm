@@ -9,6 +9,12 @@
 const SUPABASE_URL  = 'https://ddieqobpxejocfnbmfck.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkaWVxb2JweGVqb2NmbmJtZmNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTMyOTksImV4cCI6MjA4OTMyOTI5OX0.YYEf7zJ_nbuq19FVhbPcZ377KJAY8slNL6JneHmNqYA';
 const STORAGE_KEY   = 'crm_cart';
+const AUTH_KEY      = 'crm_auth';
+
+// ─── AUTH STATE ───────────────────────────────────────────────
+let currentAccessToken = null;
+let currentAgentName   = null;
+let currentAgentEmail  = null;
 
 // ─── MAPARE FURNIZORI ─────────────────────────────────────────
 const FURNIZORI_MAP = {
@@ -28,11 +34,12 @@ let clientCart = [];
 // ─── SUPABASE HELPERS ─────────────────────────────────────────
 const supabase = {
   async req(path, opts = {}) {
+    const token = currentAccessToken || SUPABASE_ANON;
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
       ...opts,
       headers: {
         'apikey':        SUPABASE_ANON,
-        'Authorization': `Bearer ${SUPABASE_ANON}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type':  'application/json',
         'Prefer':        opts.prefer || 'return=representation',
         ...opts.headers,
@@ -87,16 +94,19 @@ function buildWidget() {
       <span id="crm-badge">0</span>
     </div>
     <div id="crm-widget-supplier">📦 ${furnizor}</div>
+    <div id="crm-agent-name" style="padding:5px 14px;font-size:11px;border-bottom:1px solid rgba(255,255,255,.08)">⚠️ Neautentificat</div>
     <div id="crm-widget-body">
       <button id="crm-btn-scan">📋 Scanează coșul</button>
       <button id="crm-btn-open" disabled>✅ Finalizează comanda</button>
       <button id="crm-btn-clear">🗑️ Golește</button>
+      <button id="crm-btn-login">🔑 Login agent</button>
     </div>
   `;
   document.body.appendChild(w);
   document.getElementById('crm-btn-scan').addEventListener('click', handleScan);
   document.getElementById('crm-btn-open').addEventListener('click', openModal);
   document.getElementById('crm-btn-clear').addEventListener('click', clearCart);
+  document.getElementById('crm-btn-login').addEventListener('click', openLoginWidget);
 }
 
 function updateBadge() {
@@ -104,6 +114,7 @@ function updateBadge() {
   if (b) b.textContent = clientCart.length;
   const btn = document.getElementById('crm-btn-open');
   if (btn) btn.disabled = clientCart.length === 0;
+  updateWidgetAgent();
 }
 
 function handleScan() {
@@ -147,9 +158,12 @@ function openModal() {
   overlay.innerHTML = `
     <div id="crm-modal">
       <header id="crm-modal-header">
-        <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <h2>🛒 Finalizare Comandă</h2>
           <span class="crm-supplier-tag">📦 ${furnizor}</span>
+          <span id="crm-cod-unic-preview" class="crm-supplier-tag" style="background:#1a2e1a;color:#6ee7b7;border-color:#064e3b">
+            🔑 Se calculează...
+          </span>
         </div>
         <button id="crm-modal-close">✕</button>
       </header>
@@ -237,6 +251,9 @@ function openModal() {
   renderModalProducts();
   updateTotals();
 
+  // Preview cod unic comandă
+  fetchNextCodUnic(furnizor);
+
   // Timestamp live
   const tsEl = document.getElementById('crm-timestamp');
   const tick = () => { tsEl.textContent = new Date().toLocaleString('ro-RO'); };
@@ -260,6 +277,7 @@ function openModal() {
   );
 
   document.getElementById('crm-client-search').addEventListener('input', debounce(searchClient, 300));
+  document.getElementById('crm-client-search').addEventListener('focus', searchClient);
 
   document.getElementById('crm-modal-close').addEventListener('click', () => {
     clearInterval(tsInterval);
@@ -355,9 +373,12 @@ async function searchClient(e) {
   const ul = document.getElementById('crm-client-suggestions');
   ul.innerHTML = '';
   document.getElementById('crm-new-client-row').style.display = 'none';
-  if (q.length < 2) return;
   try {
-    const results = await supabase.get('clienti', `select=id,nume,telefon&nume=ilike.*${encodeURIComponent(q)}*&limit=8`);
+    // Dacă e gol sau < 2 chars — arată toți clienții (max 10)
+    const query = q.length < 2
+      ? 'select=id,nume,telefon&order=nume.asc&limit=10'
+      : `select=id,nume,telefon&nume=ilike.*${encodeURIComponent(q)}*&limit=8`;
+    const results = await supabase.get('clienti', query);
     if (results.length === 0) {
       const li = document.createElement('li');
       li.className = 'crm-suggestion-new';
@@ -422,6 +443,7 @@ async function submitOrder() {
       adaos_procent: adaosGlobal,
       furnizor:      detectFurnizor(),
       furnizor_url:  window.location.href,
+      agent_vanzari: currentAgentName || currentAgentEmail || null,
     });
 
     const produse = clientCart.map(p => ({
@@ -432,11 +454,13 @@ async function submitOrder() {
       pret_achizitie:  p.pret_achizitie,
       pret_vanzare:    parseFloat(calcVanzare(p.pret_achizitie, p.adaos_procent ?? adaosGlobal).toFixed(2)),
       cantitate:       p.cantitate,
+      // sku generat automat prin trigger SQL
     }));
     await supabase.post('produse_comandate', produse);
 
-    const nr = comanda.nr_comanda ? `CMD-${String(comanda.nr_comanda).padStart(4, '0')}` : '';
-    showToast(`✅ Comanda ${nr} plasată! Total: ${totalVanzare.toFixed(2)} RON`, 'success');
+    const nr      = comanda.nr_comanda ? `CMD-${String(comanda.nr_comanda).padStart(4, '0')}` : '';
+    const codUnic = comanda.cod_comanda_unic || nr;
+    showToast(`✅ Comanda ${codUnic} plasată! Total: ${totalVanzare.toFixed(2)} RON`, 'success');
     clearCart();
     document.getElementById('crm-modal-overlay')?.remove();
     selectedClientId = null;
@@ -465,9 +489,138 @@ function debounce(fn, ms) {
   return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
+// ─── PREVIEW COD UNIC COMANDĂ ────────────────────────────────
+async function fetchNextCodUnic(furnizor) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/comenzi?select=nr_comanda&order=nr_comanda.desc&limit=1`,
+      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${SUPABASE_ANON}` } }
+    );
+    const data = await res.json();
+    const nextNr = ((data[0]?.nr_comanda || 0) + 1);
+    const prefix = furnizor.substring(0, 3).toUpperCase();
+    const nrPad  = String(nextNr).padStart(4, '0');
+    const today  = new Date();
+    const ddmm   = String(today.getDate()).padStart(2,'0') + String(today.getMonth()+1).padStart(2,'0');
+    const cod    = `${prefix}-${nrPad}-${ddmm}`;
+
+    const el = document.getElementById('crm-cod-unic-preview');
+    if(el) el.textContent = `🔑 ${cod}`;
+  } catch(e) {
+    const el = document.getElementById('crm-cod-unic-preview');
+    if(el) el.textContent = '🔑 —';
+  }
+}
+
+// ─── AUTH FUNCTIONS ──────────────────────────────────────────
+async function loginAgent(email, password) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_ANON, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error_description || 'Autentificare eșuată');
+
+  currentAccessToken = data.access_token;
+  currentAgentEmail  = data.user?.email || email;
+
+  // Fetch prenumele din user_profiles
+  try {
+    const profiles = await fetch(
+      `${SUPABASE_URL}/rest/v1/user_profiles?id=eq.${data.user.id}&select=name`,
+      { headers: { 'apikey': SUPABASE_ANON, 'Authorization': `Bearer ${data.access_token}` } }
+    ).then(r => r.json());
+    const fullName = profiles?.[0]?.name || '';
+    currentAgentName = fullName.split(' ')[0] || fullName; // Doar prenumele
+  } catch(e) {
+    currentAgentName = email.split('@')[0];
+  }
+
+  // Salvează în chrome.storage cu expiry 7 zile
+  const expiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  chrome.storage.local.set({
+    [AUTH_KEY]: {
+      token:      data.access_token,
+      refresh:    data.refresh_token,
+      email:      currentAgentEmail,
+      agentName:  currentAgentName,
+      userId:     data.user?.id,
+      expiry,
+    }
+  });
+
+  return currentAgentName;
+}
+
+async function loadAuth() {
+  return new Promise(resolve => {
+    chrome.storage.local.get(AUTH_KEY, async data => {
+      const auth = data[AUTH_KEY];
+      if (!auth) { resolve(false); return; }
+
+      // Verifică expiry
+      if (auth.expiry && Date.now() > auth.expiry) {
+        chrome.storage.local.remove(AUTH_KEY);
+        resolve(false); return;
+      }
+
+      currentAccessToken = auth.token;
+      currentAgentEmail  = auth.email;
+      currentAgentName   = auth.agentName;
+
+      // Refresh token dacă mai sunt < 1 zi
+      if (auth.expiry - Date.now() < 24 * 60 * 60 * 1000) {
+        try {
+          const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+            method: 'POST',
+            headers: { 'apikey': SUPABASE_ANON, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: auth.refresh }),
+          });
+          const newData = await res.json();
+          if (res.ok) {
+            currentAccessToken = newData.access_token;
+            chrome.storage.local.set({
+              [AUTH_KEY]: { ...auth, token: newData.access_token, refresh: newData.refresh_token, expiry: Date.now() + 7*24*60*60*1000 }
+            });
+          }
+        } catch(e) { /* silent */ }
+      }
+      resolve(true);
+    });
+  });
+}
+
+function logoutAgent() {
+  currentAccessToken = null;
+  currentAgentName   = null;
+  currentAgentEmail  = null;
+  chrome.storage.local.remove(AUTH_KEY);
+  updateWidgetAgent();
+  showToast('Deconectat.', 'info');
+}
+
+function updateWidgetAgent() {
+  const agentEl = document.getElementById('crm-agent-name');
+  if (!agentEl) return;
+  if (currentAgentName) {
+    agentEl.textContent = `👤 ${currentAgentName}`;
+    agentEl.style.color = 'var(--green, #10b981)';
+  } else {
+    agentEl.textContent = '⚠️ Neautentificat';
+    agentEl.style.color = '#f59e0b';
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────
 loadCart();
-buildWidget();
+loadAuth().then(isLoggedIn => {
+  buildWidget();
+  updateWidgetAgent();
+  if (!isLoggedIn) {
+    showToast('⚠️ Nu ești autentificat. Apasă "Login" din widget.', 'warn');
+  }
+});
 
 if (window.location.pathname.includes('/cart') || window.location.pathname.includes('/cos')) {
   setTimeout(() => {

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"/>
+<title>CRM Piese Auto</title>
+<style>
+  :root {
+    --bg:#0d1117;--s1:#111827;--s2:#1a2235;--s3:#1e293b;
+    --border:#1f2d45;--b2:#2d3f5e;
+    --accent:#3b82f6;--text:#e2e8f0;--muted:#64748b;
+    --green:#10b981;--red:#ef4444;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);width:300px}
+  .header{background:var(--s1);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:8px}
+  .header h1{font-size:14px;font-weight:700}
+  #screen-login{padding:18px}
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-bottom:14px;line-height:1.5}
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:11px}
+  .field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .field input{background:var(--s3);border:1px solid var(--b2);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;outline:none;font-family:inherit}
+  .field input:focus{border-color:var(--accent)}
+  .btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .15s}
+  .btn:hover{opacity:.88}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn-outline{background:var(--s2);border:1px solid var(--border);color:var(--text);margin-bottom:10px}
+  .btn-outline:hover{background:var(--border);opacity:1}
+  .err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:7px;padding:8px 11px;font-size:12px;color:#fca5a5;margin-bottom:10px;display:none}
+  .divider{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;margin:10px 0}
+  .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+  #screen-app{display:none}
+  .user-bar{background:var(--s1);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
+  .u-info{display:flex;align-items:center;gap:8px}
+  .avatar{width:26px;height:26px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+  .u-name{font-size:12px;font-weight:600}
+  .u-role{font-size:10px;color:var(--muted)}
+  .btn-sm{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);padding:4px 8px;font-size:11px;cursor:pointer;font-family:inherit;transition:all .13s;width:auto}
+  .btn-sm:hover{color:var(--red);border-color:var(--red)}
+  .cart-row{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .cart-num{font-size:28px;font-weight:700;color:var(--accent)}
+  .cart-label{font-size:12px;color:var(--muted)}
+  .actions{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+  .btn-secondary{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;width:100%;transition:background .13s}
+  .btn-secondary:hover{background:var(--border)}
+  .btn-clear{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px;font-size:12px;cursor:pointer;font-family:inherit;width:100%;transition:all .13s}
+  .btn-clear:hover{border-color:var(--red);color:var(--red)}
+  .footer-bar{padding:8px 14px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);text-align:center;min-height:28px}
+  .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:5px;vertical-align:middle}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header"><span>🔧</span><h1>CRM Piese Auto</h1></div>
+
+<div id="screen-login">
+  <div style="padding:18px">
+    <p class="hint">Loghează-te pe dashboard și sesiunea se preia automat.</p>
+    <button class="btn btn-outline" id="btn-open-dashboard">🌐 Deschide Dashboard → Login</button>
+    <div class="divider">sau loghează-te direct</div>
+    <div class="err" id="err-msg"></div>
+    <div class="field"><label>Email</label><input type="email" id="inp-email" placeholder="adresa@email.com" autocomplete="email"/></div>
+    <div class="field"><label>Parolă</label><input type="password" id="inp-pass" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn" id="btn-login">Intră în cont</button>
+  </div>
+</div>
+
+<div id="screen-app">
+  <div class="user-bar">
+    <div class="u-info">
+      <div class="avatar" id="av">?</div>
+      <div><div class="u-name" id="u-name">—</div><div class="u-role" id="u-role">—</div></div>
+    </div>
+    <button class="btn-sm" id="btn-logout">⏻ Ieși</button>
+  </div>
+  <div class="cart-row">
+    <div class="cart-num" id="cart-count">0</div>
+    <div><div style="font-weight:600;font-size:13px">Produse în coș</div><div class="cart-label">gata de comandat</div></div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-secondary" id="btn-dashboard">📊 Deschide Dashboard</button>
+    <button class="btn-clear" id="btn-clear-cart">🗑️ Golește coșul CRM</button>
+  </div>
+  <div class="footer-bar" id="status-bar">Activ pe e-cat.intercars.eu</div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
