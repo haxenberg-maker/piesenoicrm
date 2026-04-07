@@ -1,5 +1,5 @@
 'use strict';
-// Bundle generat: 2026-04-06T11:09:48.906231
+// Bundle generat: 2026-04-07T05:49:44.599367
 
 
 // ══════════════════════════════════════════════════════════
@@ -810,7 +810,12 @@ function renderOrdersTable(orders) {
     tr.innerHTML = `
       <td><span class="nr-cmd">${fmtNr(o.nr_comanda)}</span></td>
       <td><span class="font-mono" style="font-size:11px;color:var(--yellow)">${escHtml(o.cod_comanda_unic||'—')}</span></td>
-      <td style="white-space:nowrap">${fmtDate(o.data_creare)}</td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
+          <input type="date" value="${o.data_creare ? o.data_creare.substring(0,10) : ''}"
+            style="background:none;border:none;border-bottom:1px dashed var(--border);color:var(--text);font-size:12px;cursor:pointer;padding:2px 4px;width:110px;outline:none"
+            onblur="updateOrderDate('${o.id}',this.value)"
+            onchange="updateOrderDate('${o.id}',this.value)"/>
+        </td>
       <td>
         <div class="fw-bold">${escHtml(o.client_nume)}</div>
         <div class="text-muted" style="font-size:11px">${escHtml(o.client_telefon||'')}</div>
@@ -1074,6 +1079,20 @@ async function deleteDetailProduct(prodId, cod) {
     await loadDetailProducts(currentOrderId);
     await refreshOrderTotal(currentOrderId);
   } catch(e) { toast('Eroare: '+e.message,'error'); }
+}
+
+async function updateOrderDate(orderId, newDate) {
+  if(!newDate) return;
+  try {
+    await fetch(`${SB}/rest/v1/comenzi?id=eq.${orderId}`, {
+      method: 'PATCH',
+      headers: getHeaders({ 'Prefer': 'return=minimal' }),
+      body: JSON.stringify({ data_creare: new Date(newDate).toISOString() })
+    });
+    const o = allOrders.find(x=>x.id===orderId);
+    if(o) o.data_creare = new Date(newDate).toISOString();
+    // No toast — silent update
+  } catch(e) { toast('Eroare dată: '+e.message, 'error'); }
 }
 
 function closeDetail() {
@@ -1353,6 +1372,45 @@ function addStocProductToOrder(p) {
   renderNewOrderProducts();
   updateNewOrderTotal();
   toast(`✅ ${p.cod_aftermarket} adăugat la comandă!`, 'success');
+}
+
+function searchClientsInModal(q) {
+  const dropdown = document.getElementById('no-client-dropdown');
+  const hiddenInput = document.getElementById('no-client');
+  if(!dropdown) return;
+
+  const filtered = (allClients||[]).filter(c =>
+    !q || c.nume?.toLowerCase().includes(q.toLowerCase()) ||
+          c.telefon?.includes(q)
+  ).slice(0, 15);
+
+  if(!filtered.length) { dropdown.style.display = 'none'; return; }
+
+  dropdown.style.display = 'block';
+  dropdown.innerHTML = filtered.map(c => `
+    <div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+      onmouseenter="this.style.background='var(--s2)'" onmouseleave="this.style.background=''"
+      onclick="selectClientInModal('${c.id}','${escHtml(c.nume)}','${escHtml(c.telefon||'')}')">
+      <span style="font-weight:600">${escHtml(c.nume)}</span>
+      ${c.telefon ? '<span style="color:var(--muted);margin-left:8px;font-size:12px">'+escHtml(c.telefon)+'</span>' : ''}
+    </div>
+  `).join('');
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function closeDD(e) {
+      if(!e.target.closest('#no-client-dropdown') && !e.target.closest('#no-client-search')) {
+        dropdown.style.display = 'none';
+        document.removeEventListener('click', closeDD);
+      }
+    });
+  }, 100);
+}
+
+function selectClientInModal(id, nume, telefon) {
+  document.getElementById('no-client').value = id;
+  document.getElementById('no-client-search').value = nume + (telefon ? ' ('+telefon+')' : '');
+  document.getElementById('no-client-dropdown').style.display = 'none';
 }
 
 function addNewOrderProduct() {
@@ -4356,7 +4414,21 @@ async function confirmAllocate() {
     } catch(e) { toast('Eroare creare comandă: ' + e.message, 'error'); return; }
   }
 
-  // Alocă produsele
+  // 1. PATCH produsele nealocate din Supabase (comanda_id=null)
+  try {
+    const patchRes = await fetch(
+      `${SB}/rest/v1/produse_comandate?cod_factura_furnizor=eq.${encodeURIComponent(nrFactura)}&comanda_id=is.null`,
+      {
+        method: 'PATCH',
+        headers: getHeaders({ 'Prefer': 'return=representation' }),
+        body: JSON.stringify({ comanda_id: comandaId, status_produs: 'ajuns' })
+      }
+    );
+    const patched = patchRes.ok ? await patchRes.json() : [];
+    saved += patched.length || 0;
+  } catch(e) { console.warn('PATCH nealocate:', e.message); }
+
+  // 2. INSERT produse din localStorage (fallback)
   let saved = 0;
   for(const p of prods) {
     try {
